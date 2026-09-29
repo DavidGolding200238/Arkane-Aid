@@ -19,8 +19,6 @@ const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
 const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 
-const RED = "#C43A3A";
-
 export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
@@ -64,9 +62,9 @@ export default function SplashScreen() {
 
   const skullW = width * 0.94;
   const skullH = skullW * 0.95;
-  const loaderSize = Math.min(width * 0.64, 250);
-  const dieW = skullW * 0.22;
-  const dieH = dieW * 0.8;
+  const loaderSize = Math.min(width * 0.62, 240);
+  const dieW = skullW * 0.3;
+  const dieH = dieW * 0.82;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -78,7 +76,7 @@ export default function SplashScreen() {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, 44) }]}>
-        <View style={{ width: skullW, height: skullH, marginTop: 28 }}>
+        <View style={{ width: skullW, height: skullH, marginTop: 56 }}>
           <Image
             source={skull}
             style={{ width: skullW, height: skullH }}
@@ -91,7 +89,7 @@ export default function SplashScreen() {
               width: dieW,
               height: dieH,
               left: (skullW - dieW) / 2,
-              top: skullH * 0.555,
+              top: skullH * 0.548,
             }}
             resizeMode="contain"
           />
@@ -139,16 +137,18 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: RED,
-    fontSize: 44,
+    color: "#A33A3A",
+    fontSize: 42,
     textAlign: "center",
-    marginTop: -10,
+    marginTop: -8,
+    opacity: 0.82,
   },
   rule: {
     width: 240,
     height: 8,
     marginTop: 2,
-    marginBottom: 10,
+    marginBottom: 8,
+    opacity: 0.7,
   },
   loaderWrap: {
     alignItems: "center",
@@ -161,18 +161,20 @@ const styles = StyleSheet.create({
   },
   percent: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#1A1816",
-    fontSize: 42,
-    letterSpacing: 2,
+    color: "#2A2218",
+    fontSize: 30,
+    letterSpacing: 1.5,
     textAlign: "center",
+    opacity: 0.72,
   },
   caption: {
-    marginTop: 16,
+    marginTop: 14,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: "#4D4D4D",
-    fontSize: 16,
+    color: "#5A5348",
+    fontSize: 15,
     letterSpacing: 1.4,
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 22,
+    opacity: 0.78,
   },
 });
