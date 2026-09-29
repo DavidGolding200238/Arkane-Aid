@@ -12,18 +12,43 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
+import Svg, { Path } from "react-native-svg";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
+
+function QuillRule({ width }: { width: number }) {
+  const h = 16;
+  const d = [
+    `M 1 ${h * 0.62}`,
+    `C ${width * 0.08} ${h * 0.18}, ${width * 0.16} ${h * 0.92}, ${width * 0.26} ${h * 0.48}`,
+    `S ${width * 0.4} ${h * 0.12}, ${width * 0.5} ${h * 0.58}`,
+    `S ${width * 0.66} ${h * 0.95}, ${width * 0.78} ${h * 0.42}`,
+    `S ${width * 0.9} ${h * 0.22}, ${width - 1} ${h * 0.7}`,
+  ].join(" ");
+
+  return (
+    <Svg width={width} height={h} style={styles.rule}>
+      <Path
+        d={d}
+        stroke="#2A2218"
+        strokeWidth={1.35}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.72}
+      />
+    </Svg>
+  );
+}
 
 export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
   const [percent, setPercent] = useState(0);
-  const [titleW, setTitleW] = useState(0);
+  const [titleW, setTitleW] = useState(220);
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
@@ -102,11 +127,7 @@ export default function SplashScreen() {
         >
           Arkane Aid
         </Text>
-        <Image
-          source={underline}
-          style={[styles.rule, titleW > 0 ? { width: titleW } : null]}
-          resizeMode="stretch"
-        />
+        <QuillRule width={Math.max(titleW, 180)} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -150,15 +171,12 @@ const styles = StyleSheet.create({
     color: "#A33A3A",
     fontSize: 42,
     textAlign: "center",
-    marginTop: -8,
+    marginTop: -40,
     opacity: 0.82,
   },
   rule: {
-    width: 240,
-    height: 6,
-    marginTop: 4,
+    marginTop: 2,
     marginBottom: 8,
-    opacity: 0.85,
   },
   loaderWrap: {
     alignItems: "center",
