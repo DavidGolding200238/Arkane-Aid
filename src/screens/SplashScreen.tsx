@@ -12,37 +12,12 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
-import Svg, { Path } from "react-native-svg";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
-
-function QuillRule({ width }: { width: number }) {
-  const h = 16;
-  const d = [
-    `M 1 ${h * 0.62}`,
-    `C ${width * 0.08} ${h * 0.18}, ${width * 0.16} ${h * 0.92}, ${width * 0.26} ${h * 0.48}`,
-    `S ${width * 0.4} ${h * 0.12}, ${width * 0.5} ${h * 0.58}`,
-    `S ${width * 0.66} ${h * 0.95}, ${width * 0.78} ${h * 0.42}`,
-    `S ${width * 0.9} ${h * 0.22}, ${width - 1} ${h * 0.7}`,
-  ].join(" ");
-
-  return (
-    <Svg width={width} height={h} style={styles.rule}>
-      <Path
-        d={d}
-        stroke="#2A2218"
-        strokeWidth={1.35}
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={0.72}
-      />
-    </Svg>
-  );
-}
+const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 
 export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
@@ -127,7 +102,11 @@ export default function SplashScreen() {
         >
           Arkane Aid
         </Text>
-        <QuillRule width={Math.max(titleW, 180)} />
+        <Image
+          source={underline}
+          style={[styles.rule, { width: titleW }]}
+          resizeMode="contain"
+        />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -175,7 +154,8 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   rule: {
-    marginTop: 2,
+    height: 10,
+    marginTop: 4,
     marginBottom: 8,
   },
   loaderWrap: {
