@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Arkane Aid",
+    "slug": "arkane-aid",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "za.co.openwindow.arkaneaid"
+    }
+  }
+}
