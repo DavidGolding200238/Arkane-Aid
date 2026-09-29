@@ -8,7 +8,10 @@
     "android": "expo start --android"
   },
   "dependencies": {
+    "@expo-google-fonts/atkinson-hyperlegible": "^0.4.1",
+    "@expo-google-fonts/cinzel-decorative": "^0.4.1",
     "expo": "~57.0.22",
+    "expo-font": "~14.0.9",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3"
