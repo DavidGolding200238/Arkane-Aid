@@ -3,7 +3,6 @@ import {
   Animated,
   Easing,
   Image,
-  ImageBackground,
   StyleSheet,
   Text,
   View,
@@ -20,7 +19,7 @@ const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
 
 export default function SplashScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
   const [percent, setPercent] = useState(0);
 
@@ -60,9 +59,9 @@ export default function SplashScreen() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const skullW = width * 0.82;
-  const skullH = skullW * (360 / 332);
-  const loaderSize = Math.min(width * 0.58, 220);
+  const skullW = width * 0.78;
+  const skullH = skullW * 0.78;
+  const loaderSize = Math.min(width * 0.52, 200);
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -71,36 +70,24 @@ export default function SplashScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <Image
-        source={parchment}
-        style={styles.parchment}
-        resizeMode="cover"
-      />
-      <View style={styles.parchmentWash} pointerEvents="none" />
+      <Image source={parchment} style={styles.parchment} resizeMode="cover" />
+      <View style={styles.wash} pointerEvents="none" />
 
-      <View style={styles.column}>
-        <View style={[styles.logoWrap, { width: skullW, height: skullH * 0.72 }]}>
-          <Image
-            source={skull}
-            style={[styles.skull, { width: skullW, height: skullH }]}
-            resizeMode="contain"
-          />
-          <Image
-            source={d20}
-            style={styles.d20}
-            resizeMode="contain"
-          />
-        </View>
+      <View style={[styles.column, { paddingBottom: Math.max(height * 0.08, 56) }]}>
+        <Image
+          source={skull}
+          style={{ width: skullW, height: skullH, marginTop: 8 }}
+          resizeMode="contain"
+        />
+        <Image source={d20} style={styles.d20} resizeMode="contain" />
 
-        <View style={styles.titleBlock}>
-          <Text style={styles.wordmark}>
-            <Text style={styles.drop}>A</Text>
-            <Text style={styles.rest}>rkane </Text>
-            <Text style={styles.drop}>A</Text>
-            <Text style={styles.rest}>id</Text>
-          </Text>
-          <View style={styles.rule} />
-        </View>
+        <Text style={styles.wordmark}>
+          <Text style={styles.drop}>A</Text>
+          <Text style={styles.rest}>rkane </Text>
+          <Text style={styles.drop}>A</Text>
+          <Text style={styles.rest}>id</Text>
+        </Text>
+        <View style={styles.rule} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -112,7 +99,9 @@ export default function SplashScreen() {
         </View>
 
         <Text style={styles.caption}>
-          {"Just a moment\u2026\nthe barbarian is stuck in a doorway."}
+          Just a moment{"\u2026"}
+          {"\n"}
+          the barbarian is stuck in a doorway.
         </Text>
       </View>
     </View>
@@ -120,14 +109,8 @@ export default function SplashScreen() {
 }
 
 const styles = StyleSheet.create({
-  fallback: {
-    flex: 1,
-    backgroundColor: "#F3E6D0",
-  },
-  root: {
-    flex: 1,
-    backgroundColor: "#E8D7B8",
-  },
+  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: "#E8D7B8" },
   parchment: {
     position: "absolute",
     top: 0,
@@ -138,60 +121,46 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  parchmentWash: {
+  wash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(243, 230, 208, 0.35)",
+    backgroundColor: "rgba(232, 215, 184, 0.25)",
   },
   column: {
     flex: 1,
     alignItems: "center",
-    paddingTop: 36,
-    paddingBottom: 28,
+    paddingTop: 28,
     paddingHorizontal: 16,
   },
-  logoWrap: {
-    alignItems: "center",
-    justifyContent: "flex-start",
-    overflow: "hidden",
-  },
-  skull: {
-    position: "absolute",
-    top: -8,
-  },
   d20: {
-    position: "absolute",
-    width: 56,
-    height: 46,
-    top: "52%",
-  },
-  titleBlock: {
-    alignItems: "center",
-    marginTop: 4,
-    marginBottom: 8,
+    width: 52,
+    height: 42,
+    marginTop: -92,
+    marginBottom: 48,
   },
   wordmark: {
     textAlign: "center",
+    marginTop: 4,
   },
   drop: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#CF0000",
-    fontSize: 40,
+    fontSize: 38,
   },
   rest: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#960000",
-    fontSize: 32,
+    fontSize: 30,
   },
   rule: {
-    width: 220,
-    height: 1,
-    backgroundColor: "#2E2E2E",
-    marginTop: 4,
+    width: 168,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#3A2A1A",
+    marginTop: 2,
+    marginBottom: 18,
   },
   loaderWrap: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
   },
   loader: {
     position: "absolute",
@@ -200,20 +169,18 @@ const styles = StyleSheet.create({
   },
   percent: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#141414",
-    fontSize: 36,
-    letterSpacing: 3.6,
+    color: "#1A1816",
+    fontSize: 34,
+    letterSpacing: 2,
     textAlign: "center",
   },
   caption: {
-    marginTop: "auto",
+    marginTop: 28,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#4D4D4D",
-    fontSize: 14,
-    letterSpacing: 2.1,
+    fontSize: 13,
+    letterSpacing: 1.6,
     textAlign: "center",
     lineHeight: 20,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
   },
 });
