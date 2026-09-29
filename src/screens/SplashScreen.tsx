@@ -18,6 +18,8 @@ const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
 
+const RED = "#C43A3A";
+
 export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
@@ -59,9 +61,10 @@ export default function SplashScreen() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const skullW = width * 0.78;
-  const skullH = skullW * 0.78;
-  const loaderSize = Math.min(width * 0.52, 200);
+  const skullW = width * 0.84;
+  const skullH = skullW * 0.92;
+  const loaderSize = Math.min(width * 0.55, 210);
+  const dieW = skullW * 0.16;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -71,22 +74,28 @@ export default function SplashScreen() {
     <View style={styles.root}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
-      <View style={styles.wash} pointerEvents="none" />
 
-      <View style={[styles.column, { paddingBottom: Math.max(height * 0.08, 56) }]}>
-        <Image
-          source={skull}
-          style={{ width: skullW, height: skullH, marginTop: 8 }}
-          resizeMode="contain"
-        />
-        <Image source={d20} style={styles.d20} resizeMode="contain" />
+      <View style={[styles.column, { paddingBottom: Math.max(height * 0.07, 48) }]}>
+        <View style={{ width: skullW, height: skullH }}>
+          <Image
+            source={skull}
+            style={{ width: skullW, height: skullH }}
+            resizeMode="contain"
+          />
+          <Image
+            source={d20}
+            style={{
+              position: "absolute",
+              width: dieW,
+              height: dieW * 0.8,
+              left: (skullW - dieW) / 2,
+              top: skullH * 0.52,
+            }}
+            resizeMode="contain"
+          />
+        </View>
 
-        <Text style={styles.wordmark}>
-          <Text style={styles.drop}>A</Text>
-          <Text style={styles.rest}>rkane </Text>
-          <Text style={styles.drop}>A</Text>
-          <Text style={styles.rest}>id</Text>
-        </Text>
+        <Text style={styles.wordmark}>Arkane Aid</Text>
         <View style={styles.rule} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
@@ -121,42 +130,26 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  wash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(232, 215, 184, 0.25)",
-  },
   column: {
     flex: 1,
     alignItems: "center",
-    paddingTop: 28,
+    paddingTop: 20,
     paddingHorizontal: 16,
   },
-  d20: {
-    width: 52,
-    height: 42,
-    marginTop: -92,
-    marginBottom: 48,
-  },
   wordmark: {
+    fontFamily: "CinzelDecorative_400Regular",
+    color: RED,
+    fontSize: 34,
     textAlign: "center",
-    marginTop: 4,
-  },
-  drop: {
-    fontFamily: "CinzelDecorative_400Regular",
-    color: "#CF0000",
-    fontSize: 38,
-  },
-  rest: {
-    fontFamily: "CinzelDecorative_400Regular",
-    color: "#960000",
-    fontSize: 30,
+    marginTop: -6,
   },
   rule: {
-    width: 168,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#3A2A1A",
-    marginTop: 2,
-    marginBottom: 18,
+    width: 200,
+    height: 1,
+    backgroundColor: RED,
+    opacity: 0.55,
+    marginTop: 4,
+    marginBottom: 16,
   },
   loaderWrap: {
     alignItems: "center",
@@ -175,7 +168,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   caption: {
-    marginTop: 28,
+    marginTop: 24,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#4D4D4D",
     fontSize: 13,
