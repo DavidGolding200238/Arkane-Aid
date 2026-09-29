@@ -62,10 +62,10 @@ export default function SplashScreen() {
   });
 
   const skullW = width * 0.94;
-  const skullH = skullW * 0.95;
+  const skullH = skullW * 1;
   const loaderSize = Math.min(width * 0.62, 240);
-  const dieW = skullW * 0.42;
-  const dieH = dieW * 0.82;
+  const dieW = skullW * 0.4;
+  const dieH = dieW * 0.9;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -77,7 +77,7 @@ export default function SplashScreen() {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, 44) }]}>
-        <View style={{ width: skullW, height: skullH, marginTop: 56 }}>
+        <View style={{ width: skullW, height: skullH, marginTop: 60 }}>
           <Image
             source={skull}
             style={{ width: skullW, height: skullH }}
@@ -90,7 +90,7 @@ export default function SplashScreen() {
               width: dieW,
               height: dieH,
               left: (skullW - dieW) / 2,
-              top: skullH * 0.528,
+              top: skullH * 0.35,
             }}
             resizeMode="contain"
           />
