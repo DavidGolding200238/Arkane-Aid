@@ -5,8 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "androidNavigationBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content"
+    },
     "android": {
-      "package": "za.co.openwindow.arkaneaid"
+      "package": "za.co.openwindow.arkaneaid",
+      "navigationBarColor": "#000000"
     }
   }
 }

@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
+import * as NavigationBar from "expo-navigation-bar";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
@@ -23,11 +24,17 @@ export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
   const [percent, setPercent] = useState(0);
+  const [titleW, setTitleW] = useState(0);
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
     AtkinsonHyperlegible_400Regular_Italic,
   });
+
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync("#000000").catch(() => {});
+    NavigationBar.setButtonStyleAsync("light").catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -63,7 +70,7 @@ export default function SplashScreen() {
   const skullW = width * 0.94;
   const skullH = skullW * 0.95;
   const loaderSize = Math.min(width * 0.62, 240);
-  const dieW = skullW * 0.3;
+  const dieW = skullW * 0.42;
   const dieH = dieW * 0.82;
 
   if (!fontsLoaded) {
@@ -89,14 +96,23 @@ export default function SplashScreen() {
               width: dieW,
               height: dieH,
               left: (skullW - dieW) / 2,
-              top: skullH * 0.548,
+              top: skullH * 0.528,
             }}
             resizeMode="contain"
           />
         </View>
 
-        <Text style={styles.wordmark}>Arkane Aid</Text>
-        <Image source={underline} style={styles.rule} resizeMode="contain" />
+        <Text
+          style={styles.wordmark}
+          onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
+        >
+          Arkane Aid
+        </Text>
+        <Image
+          source={underline}
+          style={[styles.rule, titleW > 0 ? { width: titleW } : null]}
+          resizeMode="stretch"
+        />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -145,10 +161,10 @@ const styles = StyleSheet.create({
   },
   rule: {
     width: 240,
-    height: 8,
-    marginTop: 2,
+    height: 6,
+    marginTop: 4,
     marginBottom: 8,
-    opacity: 0.7,
+    opacity: 0.85,
   },
   loaderWrap: {
     alignItems: "center",
