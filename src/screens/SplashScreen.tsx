@@ -12,7 +12,6 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
-import * as NavigationBar from "expo-navigation-bar";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
@@ -30,11 +29,6 @@ export default function SplashScreen() {
     CinzelDecorative_400Regular,
     AtkinsonHyperlegible_400Regular_Italic,
   });
-
-  useEffect(() => {
-    NavigationBar.setBackgroundColorAsync("#000000").catch(() => {});
-    NavigationBar.setButtonStyleAsync("light").catch(() => {});
-  }, []);
 
   useEffect(() => {
     const loop = Animated.loop(
