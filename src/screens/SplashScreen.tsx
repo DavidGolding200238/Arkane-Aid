@@ -17,6 +17,7 @@ const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
+const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 
 export default function SplashScreen() {
   const { width, height } = useWindowDimensions();
@@ -60,11 +61,11 @@ export default function SplashScreen() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const skullW = width * 0.88;
-  const skullH = skullW * 0.86;
-  const loaderSize = Math.min(width * 0.46, 176);
-  const dieW = skullW * 0.175;
-  const dieH = dieW * 0.8;
+  const skullW = width * 0.94;
+  const skullH = skullW * 0.95;
+  const loaderSize = Math.min(width * 0.62, 240);
+  const dieW = skullW * 0.42;
+  const dieH = dieW * 0.82;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -76,7 +77,7 @@ export default function SplashScreen() {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, 44) }]}>
-        <View style={{ width: skullW, height: skullH, marginTop: 36 }}>
+        <View style={{ width: skullW, height: skullH, marginTop: 56 }}>
           <Image
             source={skull}
             style={{ width: skullW, height: skullH }}
@@ -88,8 +89,8 @@ export default function SplashScreen() {
               position: "absolute",
               width: dieW,
               height: dieH,
-              left: (skullW - dieW) / 2 + 1,
-              top: skullH * 0.575,
+              left: (skullW - dieW) / 2,
+              top: skullH * 0.528,
             }}
             resizeMode="contain"
           />
@@ -101,7 +102,11 @@ export default function SplashScreen() {
         >
           Arkane Aid
         </Text>
-        <View style={[styles.rule, titleW > 0 ? { width: titleW } : null]} />
+        <Image
+          source={underline}
+          style={[styles.rule, titleW > 0 ? { width: titleW } : null]}
+          resizeMode="stretch"
+        />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -143,18 +148,17 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#A33A3A",
-    fontSize: 40,
+    fontSize: 42,
     textAlign: "center",
-    marginTop: -36,
+    marginTop: -8,
     opacity: 0.82,
   },
   rule: {
-    width: 220,
-    height: 1,
-    backgroundColor: "#2A2218",
-    opacity: 0.55,
-    marginTop: 6,
-    marginBottom: 10,
+    width: 240,
+    height: 6,
+    marginTop: 4,
+    marginBottom: 8,
+    opacity: 0.85,
   },
   loaderWrap: {
     alignItems: "center",
@@ -168,13 +172,13 @@ const styles = StyleSheet.create({
   percent: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#2A2218",
-    fontSize: 28,
+    fontSize: 30,
     letterSpacing: 1.5,
     textAlign: "center",
     opacity: 0.72,
   },
   caption: {
-    marginTop: 12,
+    marginTop: 14,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
     fontSize: 15,
