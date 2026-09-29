@@ -17,6 +17,7 @@ const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const d20 = require("../../assets/Splash Screen/Group 5947.png");
 const loaderArt = require("../../assets/Splash Screen/Loader.png");
+const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 
 const RED = "#C43A3A";
 
@@ -61,10 +62,11 @@ export default function SplashScreen() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const skullW = width * 0.84;
-  const skullH = skullW * 0.92;
-  const loaderSize = Math.min(width * 0.55, 210);
-  const dieW = skullW * 0.16;
+  const skullW = width * 0.94;
+  const skullH = skullW * 0.95;
+  const loaderSize = Math.min(width * 0.64, 250);
+  const dieW = skullW * 0.22;
+  const dieH = dieW * 0.8;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -75,8 +77,8 @@ export default function SplashScreen() {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.column, { paddingBottom: Math.max(height * 0.07, 48) }]}>
-        <View style={{ width: skullW, height: skullH }}>
+      <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, 44) }]}>
+        <View style={{ width: skullW, height: skullH, marginTop: 28 }}>
           <Image
             source={skull}
             style={{ width: skullW, height: skullH }}
@@ -87,16 +89,16 @@ export default function SplashScreen() {
             style={{
               position: "absolute",
               width: dieW,
-              height: dieW * 0.8,
+              height: dieH,
               left: (skullW - dieW) / 2,
-              top: skullH * 0.52,
+              top: skullH * 0.555,
             }}
             resizeMode="contain"
           />
         </View>
 
         <Text style={styles.wordmark}>Arkane Aid</Text>
-        <View style={styles.rule} />
+        <Image source={underline} style={styles.rule} resizeMode="contain" />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -133,23 +135,20 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     alignItems: "center",
-    paddingTop: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: RED,
-    fontSize: 34,
+    fontSize: 44,
     textAlign: "center",
-    marginTop: -6,
+    marginTop: -10,
   },
   rule: {
-    width: 200,
-    height: 1,
-    backgroundColor: RED,
-    opacity: 0.55,
-    marginTop: 4,
-    marginBottom: 16,
+    width: 240,
+    height: 8,
+    marginTop: 2,
+    marginBottom: 10,
   },
   loaderWrap: {
     alignItems: "center",
@@ -163,17 +162,17 @@ const styles = StyleSheet.create({
   percent: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#1A1816",
-    fontSize: 34,
+    fontSize: 42,
     letterSpacing: 2,
     textAlign: "center",
   },
   caption: {
-    marginTop: 24,
+    marginTop: 16,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#4D4D4D",
-    fontSize: 13,
-    letterSpacing: 1.6,
+    fontSize: 16,
+    letterSpacing: 1.4,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 24,
   },
 });
