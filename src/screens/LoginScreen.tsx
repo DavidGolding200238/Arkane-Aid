@@ -31,7 +31,7 @@ const field = require("../../assets/Login Screen/Rectangle 30.png");
 type Mode = "in" | "up";
 
 export default function LoginScreen() {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -80,12 +80,9 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <StatusBar style="dark" />
-      <Image
-        source={parchment}
-        style={{ position: "absolute", width, height, opacity: 0.28 }}
-        resizeMode="cover"
-      />
+      <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.page}
         keyboardShouldPersistTaps="handled"
         bounces={false}
@@ -205,6 +202,17 @@ function GoogleMark() {
 const styles = StyleSheet.create({
   fallback: { flex: 1, backgroundColor: "#E8D7B8" },
   root: { flex: 1, backgroundColor: "#E8D7B8" },
+  parchment: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.28,
+  },
+  scroll: { flex: 1, backgroundColor: "transparent" },
   page: {
     alignItems: "center",
     paddingTop: 56,
