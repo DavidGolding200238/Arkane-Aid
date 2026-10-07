@@ -4,10 +4,12 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import SplashScreen from "./src/screens/SplashScreen";
 import LoginScreen from "./src/screens/LoginScreen";
+import HomeScreen from "./src/screens/HomeScreen";
 
 function Gate() {
   const { user, loading, signOut } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
+  const [dash, setDash] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setSplashDone(true), 4200);
@@ -15,13 +17,17 @@ function Gate() {
   }, []);
 
   if (!splashDone || loading) return <SplashScreen />;
-  if (!user) return <LoginScreen />;
+  if (dash) return <HomeScreen onBack={() => setDash(false)} />;
+  if (!user) return <LoginScreen onOpenDash={() => setDash(true)} />;
 
   return (
     <View style={styles.signedIn}>
       <StatusBar style="dark" />
       <Text style={styles.title}>Signed in</Text>
       <Text style={styles.email}>{user.email}</Text>
+      <Text style={styles.out} onPress={() => setDash(true)}>
+        Dashboard
+      </Text>
       <Text style={styles.out} onPress={() => signOut()}>
         Sign out
       </Text>
