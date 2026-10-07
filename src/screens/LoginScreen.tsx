@@ -39,7 +39,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [titleW, setTitleW] = useState(220);
+  const [titleW, setTitleW] = useState(180);
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
@@ -47,8 +47,9 @@ export default function LoginScreen() {
     AtkinsonHyperlegible_400Regular_Italic,
   });
 
-  const formW = width - 40;
-  const skullW = width * 0.86;
+  const side = 40;
+  const formW = width - side * 2;
+  const skullW = Math.min(width * 0.48, height * 0.2);
   const skullH = skullW * (361 / 333);
 
   const submit = async (next: Mode) => {
@@ -82,16 +83,17 @@ export default function LoginScreen() {
       <StatusBar style="dark" />
       <Image
         source={parchment}
-        style={{ position: "absolute", width, height, opacity: 0.55 }}
+        style={{ position: "absolute", width, height, opacity: 0.28 }}
         resizeMode="cover"
       />
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
       >
         <Image
           source={skull}
-          style={{ width: skullW, height: skullH, marginTop: 8 }}
+          style={{ width: skullW, height: skullH, marginTop: 4 }}
           resizeMode="contain"
         />
 
@@ -103,7 +105,7 @@ export default function LoginScreen() {
         </Text>
         <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
 
-        <View style={{ width: formW, marginTop: 18 }}>
+        <View style={{ width: formW, marginTop: 8 }}>
           <Text style={styles.label}>Email or mobile</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
@@ -116,7 +118,7 @@ export default function LoginScreen() {
             />
           </ImageBackground>
 
-          <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
+          <Text style={[styles.label, { marginTop: 8 }]}>Password</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
@@ -195,7 +197,7 @@ export default function LoginScreen() {
 
 function GoogleMark() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 48 48">
+    <Svg width={18} height={18} viewBox="0 0 48 48">
       <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
       <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
       <Path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8.1l-6.5 5C9.5 39.6 16.2 44 24 44z" />
@@ -209,49 +211,50 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#E8D7B8" },
   scroll: {
     alignItems: "center",
-    paddingBottom: 40,
+    paddingBottom: 16,
   },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#A33A3A",
-    fontSize: 40,
+    fontSize: 32,
     textAlign: "center",
-    marginTop: -18,
+    marginTop: -6,
     opacity: 0.82,
   },
   rule: {
-    height: 10,
-    marginTop: 2,
-    marginBottom: 4,
+    height: 8,
+    marginTop: 0,
+    marginBottom: 2,
   },
   label: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
-    fontSize: 16,
-    marginBottom: 6,
+    fontSize: 15,
+    marginBottom: 4,
   },
   field: {
     width: "100%",
-    height: 48,
+    height: 36,
     justifyContent: "center",
   },
   input: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     color: "#1A1816",
     fontSize: 16,
     paddingVertical: 0,
+    height: 36,
   },
   forgot: {
     alignSelf: "flex-end",
-    marginTop: 8,
+    marginTop: 4,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
-    fontSize: 14,
+    fontSize: 13,
   },
   loginBtn: {
-    marginTop: 18,
-    height: 48,
+    marginTop: 10,
+    height: 40,
     borderRadius: 10,
     backgroundColor: "#A33A3A",
     alignItems: "center",
@@ -260,11 +263,11 @@ const styles = StyleSheet.create({
   loginText: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#FEFCEB",
-    fontSize: 17,
+    fontSize: 16,
   },
   signUpBtn: {
-    marginTop: 10,
-    height: 48,
+    marginTop: 8,
+    height: 40,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: "#A33A3A",
@@ -275,23 +278,23 @@ const styles = StyleSheet.create({
   signUpText: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
-    fontSize: 17,
+    fontSize: 16,
   },
   orRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 18,
-    marginBottom: 12,
+    marginTop: 10,
+    marginBottom: 8,
     gap: 10,
   },
   orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.35 },
   or: {
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
-    fontSize: 14,
+    fontSize: 13,
   },
   social: {
-    height: 48,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "#FFFcf6",
     borderWidth: 1,
@@ -300,33 +303,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 8,
     elevation: 1,
   },
   socialText: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#1A1816",
-    fontSize: 16,
+    fontSize: 15,
   },
   fb: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     backgroundColor: "#1877F2",
     alignItems: "center",
     justifyContent: "center",
   },
-  fbText: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: -1 },
+  fbText: { color: "#fff", fontSize: 13, fontWeight: "700", marginTop: -1 },
   error: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 6,
+    fontSize: 13,
   },
   notice: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#5A5348",
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 6,
+    fontSize: 13,
   },
 });
