@@ -29,8 +29,9 @@ const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const field = require("../../assets/Login Screen/Rectangle 30.png");
 
 type Mode = "in" | "up";
+type Props = { onOpenDash?: () => void };
 
-export default function LoginScreen() {
+export default function LoginScreen({ onOpenDash }: Props) {
   const { width } = useWindowDimensions();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
@@ -174,7 +175,7 @@ export default function LoginScreen() {
             <Text style={styles.socialText}>Continue with Google</Text>
           </Pressable>
           <Pressable
-            style={[styles.social, { marginBottom: 0 }]}
+            style={styles.social}
             onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
           >
             <View style={styles.fb}>
@@ -182,6 +183,12 @@ export default function LoginScreen() {
             </View>
             <Text style={styles.socialText}>Continue with Facebook</Text>
           </Pressable>
+
+          {onOpenDash ? (
+            <Pressable style={styles.dashBtn} onPress={onOpenDash}>
+              <Text style={styles.dashText}>Dashboard</Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -320,6 +327,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   fbText: { color: "#fff", fontSize: 13, fontWeight: "700", marginTop: -1 },
+  dashBtn: {
+    marginTop: 6,
+    height: 42,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#1A1816",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dashText: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#1A1816",
+    fontSize: 16,
+  },
   error: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
