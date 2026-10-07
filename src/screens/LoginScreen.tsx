@@ -47,8 +47,8 @@ export default function LoginScreen() {
     AtkinsonHyperlegible_400Regular_Italic,
   });
 
-  const formW = width - 64;
-  const skullW = Math.min(width * 0.58, height * 0.28);
+  const formW = width - 56;
+  const skullW = Math.min(width * 0.62, 280);
   const skullH = skullW * (361 / 333);
 
   const submit = async (next: Mode) => {
@@ -93,7 +93,7 @@ export default function LoginScreen() {
         <View style={styles.hero}>
           <Image
             source={skull}
-            style={{ width: skullW, height: skullH, marginBottom: -skullH * 0.2 }}
+            style={{ width: skullW, height: skullH, marginBottom: -skullH * 0.18 }}
             resizeMode="contain"
           />
           <Text
@@ -105,7 +105,7 @@ export default function LoginScreen() {
           <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
         </View>
 
-        <View style={{ width: formW }}>
+        <View style={{ width: formW, marginTop: 22 }}>
           <Text style={styles.label}>Email or mobile</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
@@ -118,7 +118,7 @@ export default function LoginScreen() {
             />
           </ImageBackground>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
+          <Text style={[styles.label, { marginTop: 10 }]}>Password</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
@@ -136,9 +136,7 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgot}>Forgot password?</Text>
           </Pressable>
-        </View>
 
-        <View style={{ width: formW }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
@@ -208,11 +206,9 @@ const styles = StyleSheet.create({
   fallback: { flex: 1, backgroundColor: "#E8D7B8" },
   root: { flex: 1, backgroundColor: "#E8D7B8" },
   page: {
-    flexGrow: 1,
     alignItems: "center",
-    justifyContent: "space-between",
     paddingTop: 8,
-    paddingBottom: 28,
+    paddingBottom: 36,
   },
   hero: { alignItems: "center" },
   wordmark: {
@@ -245,14 +241,15 @@ const styles = StyleSheet.create({
   forgot: {
     alignSelf: "flex-end",
     marginTop: 6,
+    marginBottom: 14,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
     fontSize: 13,
   },
   loginBtn: {
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#A33A3A",
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: "#C44536",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -263,8 +260,8 @@ const styles = StyleSheet.create({
   },
   signUpBtn: {
     marginTop: 8,
-    height: 44,
-    borderRadius: 10,
+    height: 42,
+    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: "#A33A3A",
     backgroundColor: "rgba(254,252,235,0.55)",
@@ -279,18 +276,18 @@ const styles = StyleSheet.create({
   orRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    marginBottom: 10,
+    marginTop: 14,
+    marginBottom: 12,
     gap: 10,
   },
-  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.35 },
+  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.45 },
   or: {
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
     fontSize: 13,
   },
   social: {
-    height: 44,
+    height: 42,
     borderRadius: 12,
     backgroundColor: "#FFFcf6",
     borderWidth: 1,
