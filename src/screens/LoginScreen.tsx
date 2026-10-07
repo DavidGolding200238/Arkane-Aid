@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#E8D7B8" },
   page: {
     alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 36,
+    paddingTop: 56,
+    paddingBottom: 28,
   },
   hero: { alignItems: "center" },
   wordmark: {
