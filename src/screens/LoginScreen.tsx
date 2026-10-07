@@ -39,7 +39,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [titleW, setTitleW] = useState(180);
+  const [titleW, setTitleW] = useState(200);
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
@@ -47,9 +47,8 @@ export default function LoginScreen() {
     AtkinsonHyperlegible_400Regular_Italic,
   });
 
-  const side = 40;
-  const formW = width - side * 2;
-  const skullW = Math.min(width * 0.48, height * 0.2);
+  const formW = width - 64;
+  const skullW = Math.min(width * 0.58, height * 0.28);
   const skullH = skullW * (361 / 333);
 
   const submit = async (next: Mode) => {
@@ -87,25 +86,26 @@ export default function LoginScreen() {
         resizeMode="cover"
       />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={styles.page}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
-        <Image
-          source={skull}
-          style={{ width: skullW, height: skullH, marginTop: 4 }}
-          resizeMode="contain"
-        />
+        <View style={styles.hero}>
+          <Image
+            source={skull}
+            style={{ width: skullW, height: skullH, marginBottom: -skullH * 0.2 }}
+            resizeMode="contain"
+          />
+          <Text
+            style={styles.wordmark}
+            onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
+          >
+            Arkane Aid
+          </Text>
+          <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
+        </View>
 
-        <Text
-          style={styles.wordmark}
-          onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
-        >
-          Arkane Aid
-        </Text>
-        <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
-
-        <View style={{ width: formW, marginTop: 8 }}>
+        <View style={{ width: formW }}>
           <Text style={styles.label}>Email or mobile</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
@@ -118,7 +118,7 @@ export default function LoginScreen() {
             />
           </ImageBackground>
 
-          <Text style={[styles.label, { marginTop: 8 }]}>Password</Text>
+          <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
@@ -136,15 +136,13 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgot}>Forgot password?</Text>
           </Pressable>
+        </View>
 
+        <View style={{ width: formW }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
-          <Pressable
-            style={styles.loginBtn}
-            onPress={() => submit("in")}
-            disabled={busy}
-          >
+          <Pressable style={styles.loginBtn} onPress={() => submit("in")} disabled={busy}>
             {busy && mode === "in" ? (
               <ActivityIndicator color="#FEFCEB" />
             ) : (
@@ -181,7 +179,7 @@ export default function LoginScreen() {
             <Text style={styles.socialText}>Continue with Google</Text>
           </Pressable>
           <Pressable
-            style={styles.social}
+            style={[styles.social, { marginBottom: 0 }]}
             onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
           >
             <View style={styles.fb}>
@@ -209,23 +207,22 @@ function GoogleMark() {
 const styles = StyleSheet.create({
   fallback: { flex: 1, backgroundColor: "#E8D7B8" },
   root: { flex: 1, backgroundColor: "#E8D7B8" },
-  scroll: {
+  page: {
+    flexGrow: 1,
     alignItems: "center",
-    paddingBottom: 16,
+    justifyContent: "space-between",
+    paddingTop: 8,
+    paddingBottom: 28,
   },
+  hero: { alignItems: "center" },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#A33A3A",
-    fontSize: 32,
+    fontSize: 34,
     textAlign: "center",
-    marginTop: -6,
     opacity: 0.82,
   },
-  rule: {
-    height: 8,
-    marginTop: 0,
-    marginBottom: 2,
-  },
+  rule: { height: 8, marginTop: 2 },
   label: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
@@ -234,7 +231,7 @@ const styles = StyleSheet.create({
   },
   field: {
     width: "100%",
-    height: 36,
+    height: 40,
     justifyContent: "center",
   },
   input: {
@@ -242,19 +239,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     color: "#1A1816",
     fontSize: 16,
+    height: 40,
     paddingVertical: 0,
-    height: 36,
   },
   forgot: {
     alignSelf: "flex-end",
-    marginTop: 4,
+    marginTop: 6,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
     fontSize: 13,
   },
   loginBtn: {
-    marginTop: 10,
-    height: 40,
+    height: 44,
     borderRadius: 10,
     backgroundColor: "#A33A3A",
     alignItems: "center",
@@ -267,7 +263,7 @@ const styles = StyleSheet.create({
   },
   signUpBtn: {
     marginTop: 8,
-    height: 40,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: "#A33A3A",
@@ -283,8 +279,8 @@ const styles = StyleSheet.create({
   orRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 10,
     gap: 10,
   },
   orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.35 },
@@ -294,7 +290,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   social: {
-    height: 40,
+    height: 44,
     borderRadius: 12,
     backgroundColor: "#FFFcf6",
     borderWidth: 1,
@@ -304,7 +300,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     marginBottom: 8,
-    elevation: 1,
   },
   socialText: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
@@ -324,14 +319,14 @@ const styles = StyleSheet.create({
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
     textAlign: "center",
-    marginTop: 6,
+    marginBottom: 6,
     fontSize: 13,
   },
   notice: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#5A5348",
     textAlign: "center",
-    marginTop: 6,
+    marginBottom: 6,
     fontSize: 13,
   },
 });
