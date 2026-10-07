@@ -16,18 +16,22 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
+import {
+  AtkinsonHyperlegible_400Regular,
+  AtkinsonHyperlegible_400Regular_Italic,
+} from "@expo-google-fonts/atkinson-hyperlegible";
 import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../context/AuthContext";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Dragon Logo.png");
+const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const field = require("../../assets/Login Screen/Rectangle 30.png");
-const line = require("../../assets/Login Screen/Line 28.png");
 
 type Mode = "in" | "up";
 
 export default function LoginScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -35,15 +39,19 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [titleW, setTitleW] = useState(220);
 
-  const [fontsLoaded] = useFonts({ CinzelDecorative_400Regular });
+  const [fontsLoaded] = useFonts({
+    CinzelDecorative_400Regular,
+    AtkinsonHyperlegible_400Regular,
+    AtkinsonHyperlegible_400Regular_Italic,
+  });
 
-  const formW = Math.min(width - 56, 320);
-  const fieldH = formW * (36 / 293);
-  const skullW = Math.min(width * 0.62, 250);
+  const formW = width - 40;
+  const skullW = width * 0.86;
   const skullH = skullW * (361 / 333);
 
-  const submit = async () => {
+  const submit = async (next: Mode) => {
     setError("");
     setNotice("");
     if (!email.includes("@") || password.length < 6) {
@@ -52,7 +60,7 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      if (mode === "in") await signIn(email.trim(), password);
+      if (next === "in") await signIn(email.trim(), password);
       else {
         await signUp(email.trim(), password);
         setNotice("Account created. Confirm the email if Supabase still asks for it.");
@@ -72,27 +80,32 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <StatusBar style="dark" />
-      <Image source={parchment} style={styles.parchment} resizeMode="cover" />
+      <Image
+        source={parchment}
+        style={{ position: "absolute", width, height, opacity: 0.55 }}
+        resizeMode="cover"
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
         <Image
           source={skull}
-          style={{ width: skullW, height: skullH, marginTop: 12 }}
+          style={{ width: skullW, height: skullH, marginTop: 8 }}
           resizeMode="contain"
         />
 
-        <Text style={styles.wordmark}>ARKANE AID</Text>
-        <View style={styles.titleRule} />
+        <Text
+          style={styles.wordmark}
+          onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
+        >
+          Arkane Aid
+        </Text>
+        <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
 
-        <View style={{ width: formW, marginTop: 28 }}>
-          <Text style={styles.label}>Email or Mobile</Text>
-          <ImageBackground
-            source={field}
-            resizeMode="stretch"
-            style={[styles.field, { height: fieldH }]}
-          >
+        <View style={{ width: formW, marginTop: 18 }}>
+          <Text style={styles.label}>Email or mobile</Text>
+          <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
               autoCapitalize="none"
@@ -104,11 +117,7 @@ export default function LoginScreen() {
           </ImageBackground>
 
           <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
-          <ImageBackground
-            source={field}
-            resizeMode="stretch"
-            style={[styles.field, { height: fieldH }]}
-          >
+          <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
               secureTextEntry
@@ -123,33 +132,51 @@ export default function LoginScreen() {
               setNotice("Password reset is not wired yet.");
             }}
           >
-            <Text style={styles.forgot}>Forgot Password ?</Text>
+            <Text style={styles.forgot}>Forgot password?</Text>
           </Pressable>
-        </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
-        <Pressable style={styles.loginBtn} onPress={submit} disabled={busy}>
-          {busy ? (
-            <ActivityIndicator color="#FEFCEB" />
-          ) : (
-            <Text style={styles.loginText}>{mode === "in" ? "LOGIN" : "SIGN UP"}</Text>
-          )}
-        </Pressable>
+          <Pressable
+            style={styles.loginBtn}
+            onPress={() => submit("in")}
+            disabled={busy}
+          >
+            {busy && mode === "in" ? (
+              <ActivityIndicator color="#FEFCEB" />
+            ) : (
+              <Text style={styles.loginText}>Login</Text>
+            )}
+          </Pressable>
 
-        <View style={[styles.orRow, { width: formW }]}>
-          <Image source={line} style={styles.orLine} resizeMode="stretch" />
-          <Text style={styles.or}>OR</Text>
-          <Image source={line} style={styles.orLine} resizeMode="stretch" />
-        </View>
+          <Pressable
+            style={styles.signUpBtn}
+            onPress={() => {
+              setMode("up");
+              submit("up");
+            }}
+            disabled={busy}
+          >
+            {busy && mode === "up" ? (
+              <ActivityIndicator color="#A33A3A" />
+            ) : (
+              <Text style={styles.signUpText}>Sign up</Text>
+            )}
+          </Pressable>
 
-        <View style={styles.socialRow}>
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.or}>or</Text>
+            <View style={styles.orLine} />
+          </View>
+
           <Pressable
             style={styles.social}
             onPress={() => setNotice("Google is not switched on in Supabase yet.")}
           >
             <GoogleMark />
+            <Text style={styles.socialText}>Continue with Google</Text>
           </Pressable>
           <Pressable
             style={styles.social}
@@ -158,14 +185,9 @@ export default function LoginScreen() {
             <View style={styles.fb}>
               <Text style={styles.fbText}>f</Text>
             </View>
+            <Text style={styles.socialText}>Continue with Facebook</Text>
           </Pressable>
         </View>
-
-        <Pressable onPress={() => setMode(mode === "in" ? "up" : "in")}>
-          <Text style={styles.switch}>
-            {mode === "in" ? "Sign up" : "Back to login"}
-          </Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -173,7 +195,7 @@ export default function LoginScreen() {
 
 function GoogleMark() {
   return (
-    <Svg width={28} height={28} viewBox="0 0 48 48">
+    <Svg width={20} height={20} viewBox="0 0 48 48">
       <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
       <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
       <Path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8.1l-6.5 5C9.5 39.6 16.2 44 24 44z" />
@@ -183,45 +205,39 @@ function GoogleMark() {
 }
 
 const styles = StyleSheet.create({
-  fallback: { flex: 1, backgroundColor: "#F3E6D0" },
-  root: { flex: 1, backgroundColor: "#F3E6D0" },
-  parchment: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    opacity: 0.45,
-  },
+  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: "#E8D7B8" },
   scroll: {
     alignItems: "center",
-    paddingBottom: 36,
+    paddingBottom: 40,
   },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#A4161A",
-    fontSize: 28,
-    letterSpacing: 1,
-    marginTop: 4,
+    color: "#A33A3A",
+    fontSize: 40,
+    textAlign: "center",
+    marginTop: -18,
+    opacity: 0.82,
   },
-  titleRule: {
-    width: 168,
-    height: 1.5,
-    backgroundColor: "#A4161A",
+  rule: {
+    height: 10,
     marginTop: 2,
+    marginBottom: 4,
   },
   label: {
-    fontFamily: "CinzelDecorative_400Regular",
-    color: "#A4161A",
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#A33A3A",
     fontSize: 16,
     marginBottom: 6,
   },
   field: {
     width: "100%",
+    height: 48,
     justifyContent: "center",
   },
   input: {
-    paddingHorizontal: 12,
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    paddingHorizontal: 14,
     color: "#1A1816",
     fontSize: 16,
     paddingVertical: 0,
@@ -229,66 +245,88 @@ const styles = StyleSheet.create({
   forgot: {
     alignSelf: "flex-end",
     marginTop: 8,
-    color: "#1A1816",
-    fontSize: 12,
-    textDecorationLine: "underline",
+    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
+    color: "#5A5348",
+    fontSize: 14,
   },
   loginBtn: {
-    marginTop: 22,
-    width: 156,
-    height: 42,
-    borderRadius: 6,
-    backgroundColor: "#C44536",
+    marginTop: 18,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: "#A33A3A",
     alignItems: "center",
     justifyContent: "center",
   },
   loginText: {
-    fontFamily: "CinzelDecorative_400Regular",
+    fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#FEFCEB",
-    fontSize: 16,
-    letterSpacing: 1,
+    fontSize: 17,
+  },
+  signUpBtn: {
+    marginTop: 10,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#A33A3A",
+    backgroundColor: "rgba(254,252,235,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  signUpText: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#A33A3A",
+    fontSize: 17,
   },
   orRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 26,
+    marginTop: 18,
+    marginBottom: 12,
     gap: 10,
   },
-  orLine: { flex: 1, height: 3 },
+  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.35 },
   or: {
-    color: "#1A1816",
-    fontSize: 12,
-    letterSpacing: 1,
-  },
-  socialRow: {
-    flexDirection: "row",
-    gap: 28,
-    marginTop: 18,
+    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
+    color: "#5A5348",
+    fontSize: 14,
   },
   social: {
-    width: 58,
-    height: 58,
-    borderRadius: 8,
+    height: 48,
+    borderRadius: 12,
     backgroundColor: "#FFFcf6",
+    borderWidth: 1,
+    borderColor: "rgba(26,24,22,0.12)",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    elevation: 2,
+    gap: 10,
+    marginBottom: 10,
+    elevation: 1,
+  },
+  socialText: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#1A1816",
+    fontSize: 16,
   },
   fb: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 4,
     backgroundColor: "#1877F2",
     alignItems: "center",
     justifyContent: "center",
   },
-  fbText: { color: "#fff", fontSize: 24, fontWeight: "700", marginTop: -2 },
-  switch: {
-    marginTop: 16,
-    color: "#A4161A",
-    fontSize: 13,
-    textDecorationLine: "underline",
+  fbText: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: -1 },
+  error: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#A33A3A",
+    textAlign: "center",
+    marginTop: 10,
   },
-  error: { color: "#A4161A", textAlign: "center", marginTop: 10, paddingHorizontal: 24 },
-  notice: { color: "#5A5348", textAlign: "center", marginTop: 8, paddingHorizontal: 24 },
+  notice: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#5A5348",
+    textAlign: "center",
+    marginTop: 8,
+  },
 });
