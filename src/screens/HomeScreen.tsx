@@ -19,6 +19,8 @@ import {
 import Svg, { Circle, Line, Path, Polygon } from "react-native-svg";
 import type { ReactNode } from "react";
 
+import type { AppScreen } from "../navigation/screens";
+
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Dragon Logo.png");
 const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
@@ -28,9 +30,9 @@ const CREAM = "#F4E6C8";
 const GOLD = "#BD7F02";
 const BLOOD = "#8E2E2A";
 
-type Props = { onBack: () => void };
+type Props = { onOpen: (screen: AppScreen) => void };
 
-export default function HomeScreen({ onBack }: Props) {
+export default function HomeScreen({ onOpen }: Props) {
   const { width, height } = useWindowDimensions();
   const [titleW, setTitleW] = useState(180);
   const spin = useRef(new Animated.Value(0)).current;
@@ -93,8 +95,8 @@ export default function HomeScreen({ onBack }: Props) {
       <Corner style={{ bottom: 76, left: 14, transform: [{ scaleY: -1 }] }} />
       <Corner style={{ bottom: 76, right: 14, transform: [{ scaleX: -1 }, { scaleY: -1 }] }} />
 
-      <Pressable onPress={onBack} style={styles.back} hitSlop={12}>
-        <Text style={styles.backText}>Back</Text>
+      <Pressable onPress={() => onOpen("settings")} style={styles.back} hitSlop={12}>
+        <Text style={styles.backText}>Account</Text>
       </Pressable>
 
       <View style={styles.hero}>
@@ -120,18 +122,18 @@ export default function HomeScreen({ onBack }: Props) {
           <Die />
         </Animated.View>
 
-        <Seal label="Sage" style={seat(206)} size={seal} icon={<Hat />} />
-        <Seal label="Tome" style={seat(334)} size={seal} icon={<Gear />} />
-        <Seal label="Codex" style={seat(90)} size={seal} icon={<Book />} />
+        <Seal label="Sage" style={seat(206)} size={seal} icon={<Hat />} onPress={() => onOpen("sage")} />
+        <Seal label="Tome" style={seat(334)} size={seal} icon={<Gear />} onPress={() => onOpen("ledger")} />
+        <Seal label="Codex" style={seat(90)} size={seal} icon={<Book />} onPress={() => onOpen("codex")} />
       </View>
 
       <View style={styles.tabs}>
         <View style={styles.tabRule} />
         <View style={styles.tabRow}>
-          <Tab icon={<House on />} active />
-          <Tab icon={<Book light />} />
-          <Tab icon={<Hat light />} />
-          <Tab icon={<Gear light />} />
+          <Tab icon={<House on />} active onPress={() => onOpen("home")} />
+          <Tab icon={<Book light />} onPress={() => onOpen("codex")} />
+          <Tab icon={<Hat light />} onPress={() => onOpen("sage")} />
+          <Tab icon={<Gear light />} onPress={() => onOpen("settings")} />
         </View>
       </View>
     </View>
@@ -193,26 +195,31 @@ function Seal({
   icon,
   size,
   style,
+  onPress,
 }: {
   label: string;
   icon: ReactNode;
   size: number;
   style: { left: number; top: number };
+  onPress: () => void;
 }) {
   return (
-    <Pressable style={[styles.seal, { width: size, height: size, borderRadius: size / 2 }, style]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.seal, { width: size, height: size, borderRadius: size / 2 }, style]}
+    >
       <View style={[styles.sealInner, { borderRadius: size / 2 }]}>{icon}</View>
       <Text style={styles.sealLabel}>{label}</Text>
     </Pressable>
   );
 }
 
-function Tab({ icon, active }: { icon: ReactNode; active?: boolean }) {
+function Tab({ icon, active, onPress }: { icon: ReactNode; active?: boolean; onPress: () => void }) {
   return (
-    <View style={styles.tab}>
+    <Pressable style={styles.tab} onPress={onPress}>
       {icon}
       {active ? <View style={styles.tabMark} /> : <View style={styles.tabGap} />}
-    </View>
+    </Pressable>
   );
 }
 

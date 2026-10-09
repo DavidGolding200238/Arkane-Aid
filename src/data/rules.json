@@ -1,0 +1,27 @@
+[
+  {
+    "id": "crit",
+    "title": "Critical hit",
+    "body": "A natural 20 on an attack roll hits, and it is a critical hit. Roll the attack damage dice twice. Add modifiers once."
+  },
+  {
+    "id": "adv",
+    "title": "Advantage",
+    "body": "Roll the d20 twice and use the higher result. Disadvantage uses the lower. They cancel if you have both."
+  },
+  {
+    "id": "death",
+    "title": "Death saving throw",
+    "body": "At 0 hit points, roll a d20 on your turn. 10 or higher is a success. Under 10 is a failure. Three successes stabilise you. Three failures mean death. A 1 counts as two failures. A 20 restores 1 hit point."
+  },
+  {
+    "id": "help",
+    "title": "Help action",
+    "body": "You can use your action to aid an ally. They gain advantage on the next ability check for that task, if it happens before your next turn."
+  },
+  {
+    "id": "cover",
+    "title": "Cover",
+    "body": "Half cover gives +2 AC and Dexterity saves. Three-quarters cover gives +5. Total cover cannot be targeted directly."
+  }
+]
