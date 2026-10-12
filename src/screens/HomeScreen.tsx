@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { Cinzel_400Regular, Cinzel_600SemiBold } from "@expo-google-fonts/cinzel";
+import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import * as NavigationBar from "expo-navigation-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import type { ReactNode } from "react";
@@ -23,8 +23,10 @@ import type { AppScreen } from "../navigation/screens";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
+const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const sealArt = require("../../assets/DasbBoard/OIP 2.png");
-const ringArt = require("../../assets/DasbBoard/Ellipse 21.png");
+const ring1 = require("../../assets/DasbBoard/ring1.png");
+const ring2 = require("../../assets/DasbBoard/ring2.png");
 const dieArt = require("../../assets/DasbBoard/Group 5964.png");
 const gemRed = require("../../assets/DasbBoard/Group 5931.png");
 const gemGreen = require("../../assets/DasbBoard/Group 5929.png");
@@ -67,8 +69,7 @@ export default function HomeScreen({ onOpen }: Props) {
   openRef.current = onOpen;
 
   const [fontsLoaded] = useFonts({
-    Cinzel_400Regular,
-    Cinzel_600SemiBold,
+    CinzelDecorative_400Regular,
   });
 
   useEffect(() => {
@@ -78,28 +79,29 @@ export default function HomeScreen({ onOpen }: Props) {
     NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
   }, []);
 
-  const top = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 6 : 52;
+  const top = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 4 : 48;
   const tabH = 62;
-  const skullW = width * 0.86;
-  const skullH = skullW * (361 / 333);
-  const titleSize = Math.min(32, Math.max(26, width * 0.078));
+  const skullW = width * 0.94;
+  const skullH = skullW;
+  const titleSize = 42;
 
-  let seal = Math.min(width * 0.3, 136);
-  let orbit = seal * 0.78;
-  let reach = orbit + seal / 2 + 8;
+  let seal = Math.min(width * 0.38, 168);
+  let orbit = seal * 0.92;
+  let reach = orbit + seal / 2 + 10;
   let wheel = reach * 2;
-  const room = height - top - skullH * 0.8 - (titleSize + 22) - tabH - 8;
-  if (room > 180 && wheel > room) {
+  const room = height - top - 44 - skullH * 0.72 - (titleSize + 16) - tabH - 6;
+  if (room > 200 && wheel > room) {
     const k = room / wheel;
     seal *= k;
     orbit *= k;
-    reach = orbit + seal / 2 + 8;
+    reach = orbit + seal / 2 + 10;
     wheel = reach * 2;
   }
   const cx = wheel / 2;
   const cy = wheel / 2;
-  const die = seal * 0.7;
-  const gem = Math.max(16, seal * 0.15);
+  const die = seal * 0.62;
+  const gem = Math.max(18, seal * 0.16);
+  const inner = orbit * 0.62;
 
   const metrics = useRef({ cx, cy, orbit, seal });
   metrics.current = { cx, cy, orbit, seal };
@@ -194,29 +196,43 @@ export default function HomeScreen({ onOpen }: Props) {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <View style={[styles.column, { paddingTop: top }]}>
-        <Image source={skull} style={{ width: skullW, height: skullH }} resizeMode="contain" />
+        <Image
+          source={skull}
+          style={{ width: skullW, height: skullH, marginTop: 44 }}
+          resizeMode="contain"
+        />
         <Text
           onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
-          style={[
-            styles.wordmark,
-            { fontSize: titleSize, lineHeight: titleSize + 4, marginTop: -skullH * 0.17 },
-          ]}
+          style={[styles.wordmark, { fontSize: titleSize, lineHeight: titleSize + 8, marginTop: -36 }]}
         >
           ARKANE AID
         </Text>
-        <View style={[styles.rule, { width: Math.max(titleW * 0.72, 120) }]} />
+        <Image source={underline} style={{ width: titleW, height: 8, marginTop: 2 }} resizeMode="contain" />
 
         <View style={styles.wheelSlot}>
           <View pointerEvents="box-only" style={{ width: wheel, height: wheel }} {...pan.panHandlers}>
             <Image
-              source={ringArt}
+              source={ring1}
               resizeMode="contain"
               style={{
                 position: "absolute",
-                width: orbit * 2.06,
-                height: orbit * 2.06,
-                left: cx - orbit * 1.03,
-                top: cy - orbit * 1.03,
+                width: orbit * 2.08,
+                height: orbit * 2.08,
+                left: cx - orbit * 1.04,
+                top: cy - orbit * 1.04,
+              }}
+            />
+            <Image
+              source={ring2}
+              resizeMode="contain"
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                width: inner * 2,
+                height: inner * 2,
+                left: cx - inner,
+                top: cy - inner,
+                zIndex: 1,
               }}
             />
 
@@ -387,10 +403,10 @@ const styles = StyleSheet.create({
   },
   column: { flex: 1, alignItems: "center" },
   wordmark: {
-    fontFamily: "Cinzel_600SemiBold",
-    color: BLOOD,
+    fontFamily: "CinzelDecorative_400Regular",
+    color: "#A33A3A",
     textAlign: "center",
-    letterSpacing: 1.6,
+    opacity: 0.82,
   },
   rule: {
     height: 1.5,
@@ -409,9 +425,8 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   sealLabel: {
-    fontFamily: "Cinzel_400Regular",
+    fontFamily: "CinzelDecorative_400Regular",
     color: INK,
-    letterSpacing: 0.4,
     textAlign: "center",
     width: "94%",
   },
