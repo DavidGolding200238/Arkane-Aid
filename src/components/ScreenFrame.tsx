@@ -40,7 +40,11 @@ export default function ScreenFrame({ title, onBack, children, footer }: Props) 
         <Text style={styles.title}>{title}</Text>
         <View style={styles.spacer} />
       </View>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+      >
         {children}
       </ScrollView>
       {footer}
