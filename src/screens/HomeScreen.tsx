@@ -5,7 +5,6 @@ import {
   Image,
   PanResponder,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -17,7 +16,6 @@ import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorativ
 import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
-import type { ReactNode } from "react";
 
 import type { AppScreen } from "../navigation/screens";
 
@@ -34,8 +32,7 @@ const gemBlue = require("../../assets/DasbBoard/Group 5930.png");
 
 const INK = "#1A1816";
 const CREAM = "#FEFCEB";
-const CAP = "#CF0000";
-const REST = "#960000";
+const SPLASH = "#A33A3A";
 const STEP = 120;
 
 const DW = 360;
@@ -49,15 +46,15 @@ const GEM = 23;
 type SealId = "sage" | "tome" | "codex";
 
 const SEALS: { id: SealId; label: string; deg: number; screen: AppScreen }[] = [
-  { id: "sage", label: "Sage Scribe", deg: -157.66, screen: "sage" },
-  { id: "tome", label: "Tome", deg: -22.52, screen: "ledger" },
-  { id: "codex", label: "CODEX", deg: 89.75, screen: "codex" },
+  { id: "sage", label: "Sage Scribe", deg: 210, screen: "sage" },
+  { id: "tome", label: "Tome", deg: 330, screen: "ledger" },
+  { id: "codex", label: "CODEX", deg: 90, screen: "codex" },
 ];
 
 const GEMS: { source: number; deg: number; r: number }[] = [
-  { source: gemRed, deg: -87.85, r: 66.55 },
-  { source: gemGreen, deg: 145.77, r: 71.97 },
-  { source: gemBlue, deg: 33.36, r: 73.63 },
+  { source: gemRed, deg: 270, r: 72 },
+  { source: gemGreen, deg: 150, r: 72 },
+  { source: gemBlue, deg: 30, r: 72 },
 ];
 
 type Props = { onOpen: (screen: AppScreen) => void };
@@ -84,8 +81,6 @@ export default function HomeScreen({ onOpen }: Props) {
   useEffect(() => {
     if (Platform.OS !== "android") return;
     NavigationBar.setPositionAsync("relative").catch(() => undefined);
-    NavigationBar.setBackgroundColorAsync("#111111").catch(() => undefined);
-    NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
   }, []);
 
   const s = Math.min(width / DW, height / DH);
@@ -96,7 +91,7 @@ export default function HomeScreen({ onOpen }: Props) {
   const gem = GEM * s;
   const wheel = 340 * s;
   const wx = (CX - 170) * s;
-  const wy = (CY - 170) * s;
+  const wy = (CY - 170 + 32) * s;
   const lx = wheel / 2;
   const ly = wheel / 2;
 
@@ -199,11 +194,8 @@ export default function HomeScreen({ onOpen }: Props) {
           style={{ position: "absolute", left: 14.3 * s, top: 50 * s, width: 331.4 * s, height: 360 * s }}
         />
 
-        <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s }]}>
-          <Text style={{ fontSize: 40 * s, color: CAP }}>A</Text>
-          <Text style={{ fontSize: 32 * s, color: REST }}>rkane </Text>
-          <Text style={{ fontSize: 40 * s, color: CAP }}>A</Text>
-          <Text style={{ fontSize: 32 * s, color: REST }}>id</Text>
+        <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s, fontSize: 36 * s, color: SPLASH, opacity: 0.82 }]}>
+          Arkane Aid
         </Text>
         <Image
           source={underline}
@@ -214,17 +206,17 @@ export default function HomeScreen({ onOpen }: Props) {
         <Image
           source={ring1}
           resizeMode="contain"
-          style={{ position: "absolute", left: 72 * s, top: 430 * s, width: 216 * s, height: 216 * s }}
+          style={{ position: "absolute", left: 72 * s, top: 462 * s, width: 216 * s, height: 216 * s }}
         />
         <Image
           source={ring2}
           resizeMode="contain"
-          style={{ position: "absolute", left: 138 * s, top: 495 * s, width: 86 * s, height: 86 * s }}
+          style={{ position: "absolute", left: 80 * s, top: 470 * s, width: 200 * s, height: 200 * s }}
         />
         <Image
           source={dieArt}
           resizeMode="contain"
-          style={{ position: "absolute", left: 134 * s, top: 500 * s, width: 94.5 * s, height: 75.5 * s, zIndex: 2 }}
+          style={{ position: "absolute", left: 116 * s, top: 519 * s, width: 128 * s, height: 102 * s, zIndex: 2 }}
         />
 
         <View
@@ -285,31 +277,8 @@ export default function HomeScreen({ onOpen }: Props) {
             })}
           </Animated.View>
         </View>
-
-        <View style={[styles.tabs, { top: 728 * s, height: 52 * s }]}>
-          <Tab onPress={() => onOpen("home")}>
-            <House />
-          </Tab>
-          <Tab onPress={() => onOpen("codex")}>
-            <BookIcon size={22 * s} light />
-          </Tab>
-          <Tab onPress={() => onOpen("sage")}>
-            <HatIcon size={26 * s} light />
-          </Tab>
-          <Tab onPress={() => onOpen("settings")}>
-            <GearIcon size={20 * s} light />
-          </Tab>
-        </View>
       </View>
     </View>
-  );
-}
-
-function Tab({ children, onPress }: { children: ReactNode; onPress: () => void }) {
-  return (
-    <Pressable style={styles.tab} onPress={onPress} hitSlop={8}>
-      {children}
-    </Pressable>
   );
 }
 
@@ -362,14 +331,6 @@ function GearIcon({ size, light }: { size: number; light?: boolean }) {
   );
 }
 
-function House() {
-  return (
-    <Svg width={22} height={20} viewBox="0 0 22 20">
-      <Path d="M1 9.2 L11 1.4 L21 9.2 V19 H14 V12.2 H8 V19 H1 Z" fill={CREAM} />
-    </Svg>
-  );
-}
-
 const styles = StyleSheet.create({
   fallback: { flex: 1, backgroundColor: "#E8D7B8" },
   root: { flex: 1, backgroundColor: "#E8D7B8", alignItems: "center" },
@@ -404,14 +365,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "94%",
   },
-  tabs: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    backgroundColor: "#111111",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", height: "100%" },
 });
