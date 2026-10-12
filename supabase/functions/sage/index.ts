@@ -44,6 +44,8 @@ Deno.serve(async (request) => {
     body: JSON.stringify({
       model: persona.model,
       temperature: persona.temperature,
+      max_tokens: 512,
+      reasoning_effort: "low",
       messages: [
         { role: "system", content: persona.system },
         { role: "user", content: question },
@@ -53,13 +55,17 @@ Deno.serve(async (request) => {
 
   const data = await groq.json();
   if (!groq.ok) {
-    return Response.json({ error: data }, { status: groq.status, headers: cors });
+    const detail = data?.error?.message ?? "Groq rejected the request.";
+    return Response.json({ error: detail }, { status: 502, headers: cors });
   }
+
+  const message = data.choices?.[0]?.message ?? {};
+  const reply = String(message.content || message.reasoning || "").trim();
 
   return Response.json(
     {
       persona: persona.name,
-      reply: data.choices?.[0]?.message?.content ?? "",
+      reply,
     },
     { headers: cors }
   );
