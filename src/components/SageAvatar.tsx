@@ -39,7 +39,7 @@ export default function SageAvatar() {
     let live = true;
     Asset.fromModule(model)
       .downloadAsync()
-      .then((asset) => {
+      .then((asset: { localUri?: string | null; uri: string }) => {
         const next = asset.localUri || asset.uri;
         if (live && next) setUri(next);
       })
