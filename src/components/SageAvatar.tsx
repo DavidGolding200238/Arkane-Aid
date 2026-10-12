@@ -7,7 +7,8 @@ import * as THREE from "three";
 const model = require("../../assets/Sage/ux_ai_avatar.glb");
 
 function Avatar() {
-  const gltf = useGLTF(model);
+  const loaded = useGLTF(model);
+  const gltf = Array.isArray(loaded) ? loaded[0] : loaded;
   const spin = useRef<THREE.Group>(null);
 
   useLayoutEffect(() => {
@@ -19,7 +20,7 @@ function Avatar() {
     gltf.scene.scale.setScalar(1.7 / max);
   }, [gltf]);
 
-  useFrame((_, delta) => {
+  useFrame((_state: unknown, delta: number) => {
     if (spin.current) spin.current.rotation.y += delta * 0.35;
   });
 

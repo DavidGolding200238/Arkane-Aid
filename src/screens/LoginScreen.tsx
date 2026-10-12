@@ -37,6 +37,9 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,17 +54,31 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const formW = width - 56;
   const skullW = Math.min(width * 0.62, 280);
   const skullH = skullW * (361 / 333);
+  const signingUp = mode === "up";
 
-  const submit = async (next: Mode) => {
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError("");
+    setNotice("");
+    setConfirm("");
+    setShowPassword(false);
+    setShowConfirm(false);
+  };
+
+  const submit = async () => {
     setError("");
     setNotice("");
     if (!email.includes("@") || password.length < 6) {
       setError("Use a real email and a password of at least 6 characters.");
       return;
     }
+    if (signingUp && password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
     setBusy(true);
     try {
-      if (next === "in") await signIn(email.trim(), password);
+      if (!signingUp) await signIn(email.trim(), password);
       else {
         await signUp(email.trim(), password);
         setNotice("Account created. Confirm the email if Supabase still asks for it.");
@@ -104,7 +121,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
         </View>
 
         <View style={{ width: formW, marginTop: 22 }}>
-          <Text style={styles.label}>Email or mobile</Text>
+          <Text style={styles.label}>{signingUp ? "Email" : "Email or mobile"}</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
               style={styles.input}
@@ -119,70 +136,89 @@ export default function LoginScreen({ onOpenDash }: Props) {
           <Text style={[styles.label, { marginTop: 10 }]}>Password</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
-              style={styles.input}
-              secureTextEntry
+              style={[styles.input, styles.inputPad]}
+              secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
+            <Pressable style={styles.eye} onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+              <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
+            </Pressable>
           </ImageBackground>
 
-          <Pressable
-            onPress={() => {
-              setError("");
-              setNotice("Password reset is not wired yet.");
-            }}
-          >
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </Pressable>
+          {signingUp ? (
+            <>
+              <Text style={[styles.label, { marginTop: 10 }]}>Re-enter password</Text>
+              <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
+                <TextInput
+                  style={[styles.input, styles.inputPad]}
+                  secureTextEntry={!showConfirm}
+                  value={confirm}
+                  onChangeText={setConfirm}
+                />
+                <Pressable style={styles.eye} onPress={() => setShowConfirm((v) => !v)} hitSlop={8}>
+                  <Text style={styles.eyeText}>{showConfirm ? "Hide" : "Show"}</Text>
+                </Pressable>
+              </ImageBackground>
+            </>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setError("");
+                setNotice("Password reset is not wired yet.");
+              }}
+            >
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </Pressable>
+          )}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          {error ? <Text style={[styles.error, signingUp && styles.gap]}>{error}</Text> : null}
+          {notice ? <Text style={[styles.notice, signingUp && styles.gap]}>{notice}</Text> : null}
 
-          <Pressable style={styles.loginBtn} onPress={() => submit("in")} disabled={busy}>
-            {busy && mode === "in" ? (
+          <Pressable style={[styles.loginBtn, signingUp && styles.gap]} onPress={submit} disabled={busy}>
+            {busy ? (
               <ActivityIndicator color="#FEFCEB" />
             ) : (
-              <Text style={styles.loginText}>Login</Text>
+              <Text style={styles.loginText}>{signingUp ? "Create account" : "Login"}</Text>
             )}
           </Pressable>
 
-          <Pressable
-            style={styles.signUpBtn}
-            onPress={() => {
-              setMode("up");
-              submit("up");
-            }}
-            disabled={busy}
-          >
-            {busy && mode === "up" ? (
-              <ActivityIndicator color="#A33A3A" />
-            ) : (
+          {signingUp ? (
+            <Pressable style={styles.signUpBtn} onPress={() => switchMode("in")} disabled={busy}>
+              <Text style={styles.signUpText}>Back to login</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={styles.signUpBtn} onPress={() => switchMode("up")} disabled={busy}>
               <Text style={styles.signUpText}>Sign up</Text>
-            )}
-          </Pressable>
+            </Pressable>
+          )}
 
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.or}>or</Text>
-            <View style={styles.orLine} />
-          </View>
+          {!signingUp ? (
+            <>
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.or}>or</Text>
+                <View style={styles.orLine} />
+              </View>
 
-          <Pressable
-            style={styles.social}
-            onPress={() => setNotice("Google is not switched on in Supabase yet.")}
-          >
-            <GoogleMark />
-            <Text style={styles.socialText}>Continue with Google</Text>
-          </Pressable>
-          <Pressable
-            style={styles.social}
-            onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
-          >
-            <View style={styles.fb}>
-              <Text style={styles.fbText}>f</Text>
-            </View>
-            <Text style={styles.socialText}>Continue with Facebook</Text>
-          </Pressable>
+              <Pressable
+                style={styles.social}
+                onPress={() => setNotice("Google is not switched on in Supabase yet.")}
+              >
+                <GoogleMark />
+                <Text style={styles.socialText}>Continue with Google</Text>
+              </Pressable>
+              <Pressable
+                style={styles.social}
+                onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
+              >
+                <View style={styles.fb}>
+                  <Text style={styles.fbText}>f</Text>
+                </View>
+                <Text style={styles.socialText}>Continue with Facebook</Text>
+              </Pressable>
+            </>
+          ) : null}
 
           {onOpenDash ? (
             <Pressable style={styles.dashBtn} onPress={onOpenDash}>
@@ -253,6 +289,13 @@ const styles = StyleSheet.create({
     height: 40,
     paddingVertical: 0,
   },
+  inputPad: { paddingRight: 58 },
+  eye: { position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center" },
+  eyeText: {
+    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
+    color: "#5A5348",
+    fontSize: 13,
+  },
   forgot: {
     alignSelf: "flex-end",
     marginTop: 6,
@@ -261,6 +304,7 @@ const styles = StyleSheet.create({
     color: "#5A5348",
     fontSize: 13,
   },
+  gap: { marginTop: 14 },
   loginBtn: {
     height: 42,
     borderRadius: 8,
