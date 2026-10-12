@@ -1,11 +1,10 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { Canvas, useFrame } from "@react-three/fiber/native";
 import { useGLTF } from "@react-three/drei/native";
-import { Asset } from "expo-asset";
 import * as THREE from "three";
 
-const model = require("../../assets/Sage/ux_ai_avatar.glb");
+const model = require("../../assets/Sage/ux_ai_avatar.glb") as number;
 
 function Avatar({ uri }: { uri: string }) {
   const loaded = useGLTF(uri);
@@ -36,19 +35,8 @@ export default function SageAvatar() {
   const [uri, setUri] = useState<string | null>(null);
 
   useEffect(() => {
-    let live = true;
-    Asset.fromModule(model)
-      .downloadAsync()
-      .then((asset: { localUri?: string | null; uri: string }) => {
-        const next = asset.localUri || asset.uri;
-        if (live && next) setUri(next);
-      })
-      .catch(() => {
-        if (live) setUri(null);
-      });
-    return () => {
-      live = false;
-    };
+    const resolved = Image.resolveAssetSource(model);
+    if (resolved?.uri) setUri(resolved.uri);
   }, []);
 
   return (
