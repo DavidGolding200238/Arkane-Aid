@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar as NativeStatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -51,10 +52,11 @@ export default function LoginScreen({ onOpenDash }: Props) {
     AtkinsonHyperlegible_400Regular_Italic,
   });
 
-  const formW = width - 56;
-  const skullW = Math.min(width * 0.62, 280);
+  const formW = Math.min(width - 56, 360);
+  const skullW = Math.min(width * 0.58, 248);
   const skullH = skullW * (361 / 333);
   const signingUp = mode === "up";
+  const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 8 : 52;
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -95,20 +97,20 @@ export default function LoginScreen({ onOpenDash }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.page}
+        contentContainerStyle={[styles.page, { paddingTop: topInset }]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
         <View style={styles.hero}>
           <Image
             source={skull}
-            style={{ width: skullW, height: skullH, marginBottom: -skullH * 0.18 }}
+            style={{ width: skullW, height: skullH, marginBottom: 2 }}
             resizeMode="contain"
           />
           <Text
@@ -117,10 +119,11 @@ export default function LoginScreen({ onOpenDash }: Props) {
           >
             Arkane Aid
           </Text>
-          <Image source={underline} style={[styles.rule, { width: titleW }]} resizeMode="contain" />
+          <Image source={underline} style={[styles.rule, { width: Math.max(titleW, 120) }]} resizeMode="contain" />
+          <Text style={styles.step}>{signingUp ? "Create an account" : "Welcome back"}</Text>
         </View>
 
-        <View style={{ width: formW, marginTop: 22 }}>
+        <View style={{ width: formW, marginTop: 8 }}>
           <Text style={styles.label}>{signingUp ? "Email" : "Email or mobile"}</Text>
           <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
             <TextInput
@@ -172,14 +175,14 @@ export default function LoginScreen({ onOpenDash }: Props) {
             </Pressable>
           )}
 
-          {error ? <Text style={[styles.error, signingUp && styles.gap]}>{error}</Text> : null}
-          {notice ? <Text style={[styles.notice, signingUp && styles.gap]}>{notice}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
-          <Pressable style={[styles.loginBtn, signingUp && styles.gap]} onPress={submit} disabled={busy}>
+          <Pressable style={styles.loginBtn} onPress={submit} disabled={busy}>
             {busy ? (
               <ActivityIndicator color="#FEFCEB" />
             ) : (
-              <Text style={styles.loginText}>{signingUp ? "Create account" : "Login"}</Text>
+              <Text style={styles.loginText}>{signingUp ? "CREATE ACCOUNT" : "LOGIN"}</Text>
             )}
           </Pressable>
 
@@ -197,26 +200,28 @@ export default function LoginScreen({ onOpenDash }: Props) {
             <>
               <View style={styles.orRow}>
                 <View style={styles.orLine} />
-                <Text style={styles.or}>or</Text>
+                <Text style={styles.or}>OR</Text>
                 <View style={styles.orLine} />
               </View>
 
-              <Pressable
-                style={styles.social}
-                onPress={() => setNotice("Google is not switched on in Supabase yet.")}
-              >
-                <GoogleMark />
-                <Text style={styles.socialText}>Continue with Google</Text>
-              </Pressable>
-              <Pressable
-                style={styles.social}
-                onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
-              >
-                <View style={styles.fb}>
-                  <Text style={styles.fbText}>f</Text>
-                </View>
-                <Text style={styles.socialText}>Continue with Facebook</Text>
-              </Pressable>
+              <View style={styles.socialRow}>
+                <Pressable
+                  style={styles.social}
+                  accessibilityLabel="Continue with Google"
+                  onPress={() => setNotice("Google is not switched on in Supabase yet.")}
+                >
+                  <GoogleMark />
+                </Pressable>
+                <Pressable
+                  style={styles.social}
+                  accessibilityLabel="Continue with Facebook"
+                  onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
+                >
+                  <View style={styles.fb}>
+                    <Text style={styles.fbText}>f</Text>
+                  </View>
+                </Pressable>
+              </View>
             </>
           ) : null}
 
@@ -233,7 +238,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
 
 function GoogleMark() {
   return (
-    <Svg width={18} height={18} viewBox="0 0 48 48">
+    <Svg width={28} height={28} viewBox="0 0 48 48">
       <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
       <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
       <Path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8.1l-6.5 5C9.5 39.6 16.2 44 24 44z" />
@@ -258,18 +263,23 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: "transparent" },
   page: {
     alignItems: "center",
-    paddingTop: 56,
-    paddingBottom: 28,
+    paddingBottom: 36,
   },
   hero: { alignItems: "center" },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#A33A3A",
-    fontSize: 34,
+    fontSize: 36,
+    lineHeight: 44,
     textAlign: "center",
-    opacity: 0.82,
   },
-  rule: { height: 8, marginTop: 2 },
+  rule: { height: 10, marginTop: 0 },
+  step: {
+    marginTop: 10,
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: "#5A5348",
+    fontSize: 15,
+  },
   label: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
@@ -278,18 +288,18 @@ const styles = StyleSheet.create({
   },
   field: {
     width: "100%",
-    height: 40,
+    height: 48,
     justifyContent: "center",
   },
   input: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     color: "#1A1816",
     fontSize: 16,
-    height: 40,
+    height: 48,
     paddingVertical: 0,
   },
-  inputPad: { paddingRight: 58 },
+  inputPad: { paddingRight: 64 },
   eye: { position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center" },
   eyeText: {
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
@@ -298,15 +308,15 @@ const styles = StyleSheet.create({
   },
   forgot: {
     alignSelf: "flex-end",
-    marginTop: 6,
-    marginBottom: 14,
+    marginTop: 8,
+    marginBottom: 4,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
     fontSize: 13,
   },
-  gap: { marginTop: 14 },
   loginBtn: {
-    height: 42,
+    marginTop: 16,
+    height: 48,
     borderRadius: 8,
     backgroundColor: "#C44536",
     alignItems: "center",
@@ -316,10 +326,11 @@ const styles = StyleSheet.create({
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#FEFCEB",
     fontSize: 16,
+    letterSpacing: 1.2,
   },
   signUpBtn: {
-    marginTop: 8,
-    height: 42,
+    marginTop: 10,
+    height: 48,
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: "#A33A3A",
@@ -335,42 +346,47 @@ const styles = StyleSheet.create({
   orRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 14,
-    marginBottom: 12,
-    gap: 10,
+    marginTop: 18,
+    marginBottom: 14,
+    gap: 12,
   },
-  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.45 },
+  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.35 },
   or: {
-    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
+    fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#5A5348",
     fontSize: 13,
+    letterSpacing: 1.4,
+  },
+  socialRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 28,
+    marginBottom: 4,
   },
   social: {
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#FFFcf6",
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: "#FFFCF6",
     borderWidth: 1,
-    borderColor: "rgba(26,24,22,0.12)",
-    flexDirection: "row",
+    borderColor: "rgba(26,24,22,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  socialText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#1A1816",
-    fontSize: 15,
+    elevation: 2,
+    shadowColor: "#1A1816",
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   fb: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#1877F2",
     alignItems: "center",
     justifyContent: "center",
   },
-  fbText: { color: "#fff", fontSize: 13, fontWeight: "700", marginTop: -1 },
+  fbText: { color: "#fff", fontSize: 18, fontWeight: "700", marginTop: -2 },
   dashBtn: {
     marginTop: 6,
     height: 42,
@@ -389,14 +405,14 @@ const styles = StyleSheet.create({
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#A33A3A",
     textAlign: "center",
-    marginBottom: 6,
+    marginTop: 12,
     fontSize: 13,
   },
   notice: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: "#5A5348",
     textAlign: "center",
-    marginBottom: 6,
+    marginTop: 12,
     fontSize: 13,
   },
 });

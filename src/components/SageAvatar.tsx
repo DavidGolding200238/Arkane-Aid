@@ -1,13 +1,14 @@
-import { Suspense, useLayoutEffect, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Canvas, useFrame } from "@react-three/fiber/native";
 import { useGLTF } from "@react-three/drei/native";
+import { Asset } from "expo-asset";
 import * as THREE from "three";
 
 const model = require("../../assets/Sage/ux_ai_avatar.glb");
 
-function Avatar() {
-  const loaded = useGLTF(model);
+function Avatar({ uri }: { uri: string }) {
+  const loaded = useGLTF(uri);
   const gltf = Array.isArray(loaded) ? loaded[0] : loaded;
   const spin = useRef<THREE.Group>(null);
 
@@ -32,21 +33,39 @@ function Avatar() {
 }
 
 export default function SageAvatar() {
+  const [uri, setUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    Asset.fromModule(model)
+      .downloadAsync()
+      .then((asset) => {
+        const next = asset.localUri || asset.uri;
+        if (live && next) setUri(next);
+      })
+      .catch(() => {
+        if (live) setUri(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   return (
     <View style={styles.slot}>
       <Canvas camera={{ position: [0, 0.2, 3.2], fov: 38 }}>
         <color attach="background" args={["#F4E6C8"]} />
         <ambientLight intensity={0.9} />
         <directionalLight position={[2, 3, 2]} intensity={1.4} />
-        <Suspense fallback={null}>
-          <Avatar />
-        </Suspense>
+        {uri ? (
+          <Suspense fallback={null}>
+            <Avatar uri={uri} />
+          </Suspense>
+        ) : null}
       </Canvas>
     </View>
   );
 }
-
-useGLTF.preload(model);
 
 const styles = StyleSheet.create({
   slot: {

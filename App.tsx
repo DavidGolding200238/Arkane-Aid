@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
-import SageScreen from "./src/screens/SageScreen";
 import CodexScreen from "./src/screens/CodexScreen";
 import LedgerScreen from "./src/screens/LedgerScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
@@ -13,6 +12,29 @@ import CreatePartyScreen from "./src/screens/CreatePartyScreen";
 import JoinPartyScreen from "./src/screens/JoinPartyScreen";
 import TabBar from "./src/components/TabBar";
 import type { AppScreen } from "./src/navigation/screens";
+
+const SageScreen = lazy(() => import("./src/screens/SageScreen"));
+
+class ScreenError extends Component<{ children: ReactNode; onBack: () => void }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <View style={styles.error}>
+        <Text style={styles.errorTitle}>The Sage could not open.</Text>
+        <Text style={styles.errorBody}>The rest of the table is still here.</Text>
+        <Text style={styles.errorBack} onPress={this.props.onBack}>
+          Back to the dashboard
+        </Text>
+      </View>
+    );
+  }
+}
 
 function Gate() {
   const { user, loading } = useAuth();
@@ -33,7 +55,13 @@ function Gate() {
     <PartyProvider>
       <View style={styles.root}>
         {screen === "home" ? <HomeScreen onOpen={setScreen} /> : null}
-        {screen === "sage" ? <SageScreen onBack={() => setScreen("home")} /> : null}
+        {screen === "sage" ? (
+          <ScreenError onBack={() => setScreen("home")}>
+            <Suspense fallback={<View style={styles.root} />}>
+              <SageScreen onBack={() => setScreen("home")} />
+            </Suspense>
+          </ScreenError>
+        ) : null}
         {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} /> : null}
         {screen === "ledger" ? <LedgerScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "settings" ? <SettingsScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
@@ -59,4 +87,15 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#E8D7B8" },
+  error: {
+    flex: 1,
+    backgroundColor: "#E8D7B8",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 28,
+    gap: 8,
+  },
+  errorTitle: { color: "#1A1816", fontSize: 18 },
+  errorBody: { color: "#5A5348", fontSize: 15, textAlign: "center" },
+  errorBack: { color: "#A33A3A", fontSize: 16, marginTop: 12 },
 });
