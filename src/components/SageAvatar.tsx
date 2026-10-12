@@ -4,7 +4,7 @@ import { Canvas, useFrame } from "@react-three/fiber/native";
 import { useGLTF } from "@react-three/drei/native";
 import * as THREE from "three";
 
-const model = require("../../assets/Sage/sage.glb");
+const model = require("../../assets/Sage/ux_ai_avatar.glb");
 
 function Avatar() {
   const gltf = useGLTF(model);
