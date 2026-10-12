@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import ScreenFrame from "../components/ScreenFrame";
+import SageAvatar from "../components/SageAvatar";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
 
@@ -39,10 +40,7 @@ export default function SageScreen({ onBack }: Props) {
 
   return (
     <ScreenFrame title="Sage" onBack={onBack}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarMark}>Spline</Text>
-        <Text style={styles.avatarText}>Avatar lands here. Authored in Spline, not drawn in the app.</Text>
-      </View>
+      <SageAvatar />
 
       <View style={styles.row}>
         <Pressable
@@ -84,18 +82,6 @@ export default function SageScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    height: 160,
-    borderWidth: 1,
-    borderColor: "#1A1816",
-    borderRadius: 12,
-    backgroundColor: "rgba(254,252,235,0.72)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
-  avatarMark: { color: "#BD7F02", fontSize: 13, letterSpacing: 1.4 },
-  avatarText: { marginTop: 8, color: "#1A1816", fontSize: 15, textAlign: "center" },
   row: { flexDirection: "row", gap: 8 },
   chip: {
     paddingHorizontal: 14,
