@@ -8,6 +8,7 @@
     "android": "expo start --android"
   },
   "dependencies": {
+    "@expo-google-fonts/asul": "^0.4.1",
     "@expo-google-fonts/atkinson-hyperlegible": "^0.4.1",
     "@expo-google-fonts/cinzel": "^0.4.2",
     "@expo-google-fonts/cinzel-decorative": "^0.4.1",

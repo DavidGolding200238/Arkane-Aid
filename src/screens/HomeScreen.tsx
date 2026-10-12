@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
@@ -6,7 +6,6 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  StatusBar as NativeStatusBar,
   StyleSheet,
   Text,
   View,
@@ -15,6 +14,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
+import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import type { ReactNode } from "react";
@@ -33,22 +33,31 @@ const gemGreen = require("../../assets/DasbBoard/Group 5929.png");
 const gemBlue = require("../../assets/DasbBoard/Group 5930.png");
 
 const INK = "#1A1816";
-const BLOOD = "#A33A3A";
 const CREAM = "#FEFCEB";
+const CAP = "#CF0000";
+const REST = "#960000";
 const STEP = 120;
+
+const DW = 360;
+const DH = 780;
+const CX = 180;
+const CY = 538;
+const SEAL = 115;
+const SEAL_R = 111.9;
+const GEM = 23;
 
 type SealId = "sage" | "tome" | "codex";
 
 const SEALS: { id: SealId; label: string; deg: number; screen: AppScreen }[] = [
-  { id: "sage", label: "SAGE SCRIBE", deg: 210, screen: "sage" },
-  { id: "tome", label: "TOME", deg: 330, screen: "ledger" },
-  { id: "codex", label: "CODEX", deg: 90, screen: "codex" },
+  { id: "sage", label: "Sage Scribe", deg: -157.66, screen: "sage" },
+  { id: "tome", label: "Tome", deg: -22.52, screen: "ledger" },
+  { id: "codex", label: "CODEX", deg: 89.75, screen: "codex" },
 ];
 
-const GEMS: { source: number; deg: number }[] = [
-  { source: gemRed, deg: 270 },
-  { source: gemGreen, deg: 150 },
-  { source: gemBlue, deg: 30 },
+const GEMS: { source: number; deg: number; r: number }[] = [
+  { source: gemRed, deg: -87.85, r: 66.55 },
+  { source: gemGreen, deg: 145.77, r: 71.97 },
+  { source: gemBlue, deg: 33.36, r: 73.63 },
 ];
 
 type Props = { onOpen: (screen: AppScreen) => void };
@@ -65,11 +74,11 @@ export default function HomeScreen({ onOpen }: Props) {
   const rot = useRef(new Animated.Value(0)).current;
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
-  const [titleW, setTitleW] = useState(220);
   openRef.current = onOpen;
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
+    Asul_400Regular,
   });
 
   useEffect(() => {
@@ -79,32 +88,20 @@ export default function HomeScreen({ onOpen }: Props) {
     NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
   }, []);
 
-  const top = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 4 : 48;
-  const tabH = 62;
-  const skullW = width * 0.94;
-  const skullH = skullW;
-  const titleSize = 42;
+  const s = Math.min(width / DW, height / DH);
+  const stageW = DW * s;
+  const stageH = DH * s;
+  const seal = SEAL * s;
+  const orbit = SEAL_R * s;
+  const gem = GEM * s;
+  const wheel = 340 * s;
+  const wx = (CX - 170) * s;
+  const wy = (CY - 170) * s;
+  const lx = wheel / 2;
+  const ly = wheel / 2;
 
-  let seal = Math.min(width * 0.38, 168);
-  let orbit = seal * 0.92;
-  let reach = orbit + seal / 2 + 10;
-  let wheel = reach * 2;
-  const room = height - top - 44 - skullH * 0.72 - (titleSize + 16) - tabH - 6;
-  if (room > 200 && wheel > room) {
-    const k = room / wheel;
-    seal *= k;
-    orbit *= k;
-    reach = orbit + seal / 2 + 10;
-    wheel = reach * 2;
-  }
-  const cx = wheel / 2;
-  const cy = wheel / 2;
-  const die = seal * 0.62;
-  const gem = Math.max(18, seal * 0.16);
-  const inner = orbit * 0.62;
-
-  const metrics = useRef({ cx, cy, orbit, seal });
-  metrics.current = { cx, cy, orbit, seal };
+  const metrics = useRef({ lx, ly, orbit, seal });
+  metrics.current = { lx, ly, orbit, seal };
 
   const rotate = rot.interpolate({
     inputRange: [-1, 1],
@@ -126,7 +123,7 @@ export default function HomeScreen({ onOpen }: Props) {
           baseRef.current = snapped;
           rot.setValue(snapped);
         });
-        const { cx: x0, cy: y0 } = metrics.current;
+        const { lx: x0, ly: y0 } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
         drag.current = {
           x: locationX,
@@ -136,19 +133,19 @@ export default function HomeScreen({ onOpen }: Props) {
         };
       },
       onPanResponderMove: (e) => {
-        const { cx: x0, cy: y0 } = metrics.current;
+        const { lx: x0, ly: y0 } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
         drag.current.moved = Math.hypot(locationX - drag.current.x, locationY - drag.current.y);
-        if (Math.hypot(locationX - x0, locationY - y0) < 36) return;
+        if (Math.hypot(locationX - x0, locationY - y0) < 28) return;
         const a = Math.atan2(locationY - y0, locationX - x0);
         const delta = wrapDelta(((a - drag.current.a0) * 180) / Math.PI);
         rot.setValue(baseRef.current + Math.max(-18, Math.min(18, delta)));
       },
       onPanResponderRelease: (e) => {
-        const { cx: x0, cy: y0, orbit: r, seal: s } = metrics.current;
+        const { lx: x0, ly: y0, orbit: r, seal: sz } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
         let delta = 0;
-        if (Math.hypot(locationX - x0, locationY - y0) >= 36) {
+        if (Math.hypot(locationX - x0, locationY - y0) >= 28) {
           const a = Math.atan2(locationY - y0, locationX - x0);
           delta = wrapDelta(((a - drag.current.a0) * 180) / Math.PI);
         }
@@ -161,7 +158,7 @@ export default function HomeScreen({ onOpen }: Props) {
               const sy = y0 + Math.sin(a) * r;
               const dx = locationX - sx;
               const dy = locationY - sy;
-              if (dx * dx + dy * dy <= (s / 2) * (s / 2)) {
+              if (dx * dx + dy * dy <= (sz / 2) * (sz / 2)) {
                 openRef.current(item.screen);
                 rot.setValue(baseRef.current);
                 return;
@@ -195,127 +192,112 @@ export default function HomeScreen({ onOpen }: Props) {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.column, { paddingTop: top }]}>
+      <View style={[styles.stage, { width: stageW, height: stageH }]}>
         <Image
           source={skull}
-          style={{ width: skullW, height: skullH, marginTop: 44 }}
           resizeMode="contain"
+          style={{ position: "absolute", left: 14.3 * s, top: 50 * s, width: 331.4 * s, height: 360 * s }}
         />
-        <Text
-          onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
-          style={[styles.wordmark, { fontSize: titleSize, lineHeight: titleSize + 8, marginTop: -36 }]}
-        >
-          ARKANE AID
+
+        <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s }]}>
+          <Text style={{ fontSize: 40 * s, color: CAP }}>A</Text>
+          <Text style={{ fontSize: 32 * s, color: REST }}>rkane </Text>
+          <Text style={{ fontSize: 40 * s, color: CAP }}>A</Text>
+          <Text style={{ fontSize: 32 * s, color: REST }}>id</Text>
         </Text>
-        <Image source={underline} style={{ width: titleW, height: 8, marginTop: 2 }} resizeMode="contain" />
+        <Image
+          source={underline}
+          resizeMode="contain"
+          style={{ position: "absolute", left: 71 * s, top: 385 * s, width: 219 * s, height: 8 * s }}
+        />
 
-        <View style={styles.wheelSlot}>
-          <View pointerEvents="box-only" style={{ width: wheel, height: wheel }} {...pan.panHandlers}>
-            <Image
-              source={ring1}
-              resizeMode="contain"
-              style={{
-                position: "absolute",
-                width: orbit * 2.08,
-                height: orbit * 2.08,
-                left: cx - orbit * 1.04,
-                top: cy - orbit * 1.04,
-              }}
-            />
-            <Image
-              source={ring2}
-              resizeMode="contain"
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                width: inner * 2,
-                height: inner * 2,
-                left: cx - inner,
-                top: cy - inner,
-                zIndex: 1,
-              }}
-            />
+        <Image
+          source={ring1}
+          resizeMode="contain"
+          style={{ position: "absolute", left: 72 * s, top: 430 * s, width: 216 * s, height: 216 * s }}
+        />
+        <Image
+          source={ring2}
+          resizeMode="contain"
+          style={{ position: "absolute", left: 138 * s, top: 495 * s, width: 86 * s, height: 86 * s }}
+        />
+        <Image
+          source={dieArt}
+          resizeMode="contain"
+          style={{ position: "absolute", left: 134 * s, top: 500 * s, width: 94.5 * s, height: 75.5 * s, zIndex: 2 }}
+        />
 
-            <Animated.View pointerEvents="none" style={[styles.layer, { transform: [{ rotate }] }]}>
-              {GEMS.map((item) => {
-                const a = (item.deg * Math.PI) / 180;
-                return (
-                  <Image
-                    key={item.deg}
-                    source={item.source}
-                    resizeMode="contain"
-                    style={{
-                      position: "absolute",
-                      width: gem,
-                      height: gem,
-                      left: cx + Math.cos(a) * orbit - gem / 2,
-                      top: cy + Math.sin(a) * orbit - gem / 2,
-                    }}
-                  />
-                );
-              })}
-            </Animated.View>
+        <View
+          pointerEvents="box-only"
+          style={{ position: "absolute", left: wx, top: wy, width: wheel, height: wheel }}
+          {...pan.panHandlers}
+        >
+          <Animated.View pointerEvents="none" style={[styles.layer, { transform: [{ rotate }] }]}>
+            {GEMS.map((item) => {
+              const a = (item.deg * Math.PI) / 180;
+              const gr = item.r * s;
+              return (
+                <Image
+                  key={item.deg}
+                  source={item.source}
+                  resizeMode="contain"
+                  style={{
+                    position: "absolute",
+                    width: gem,
+                    height: gem,
+                    left: lx + Math.cos(a) * gr - gem / 2,
+                    top: ly + Math.sin(a) * gr - gem / 2,
+                  }}
+                />
+              );
+            })}
+          </Animated.View>
 
-            <Image
-              source={dieArt}
-              pointerEvents="none"
-              resizeMode="contain"
-              style={{
-                position: "absolute",
-                width: die,
-                height: die * (134 / 127),
-                left: cx - die / 2,
-                top: cy - (die * (134 / 127)) / 2,
-                zIndex: 2,
-              }}
-            />
-
-            <Animated.View pointerEvents="none" style={[styles.layer, { zIndex: 3, transform: [{ rotate }] }]}>
-              {SEALS.map((item) => {
-                const a = (item.deg * Math.PI) / 180;
-                return (
-                  <Animated.View
-                    key={item.id}
-                    style={{
-                      position: "absolute",
-                      width: seal,
-                      height: seal,
-                      left: cx + Math.cos(a) * orbit - seal / 2,
-                      top: cy + Math.sin(a) * orbit - seal / 2,
-                      transform: [{ rotate: unrotate }],
-                    }}
-                  >
-                    <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
-                    <View style={styles.sealBody}>
-                      <SealIcon id={item.id} size={seal * 0.34} />
-                      <Text
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.65}
-                        style={[styles.sealLabel, { fontSize: Math.max(9, seal * 0.095), marginTop: seal * 0.04 }]}
-                      >
-                        {item.label}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                );
-              })}
-            </Animated.View>
-          </View>
+          <Animated.View pointerEvents="none" style={[styles.layer, { zIndex: 3, transform: [{ rotate }] }]}>
+            {SEALS.map((item) => {
+              const a = (item.deg * Math.PI) / 180;
+              return (
+                <Animated.View
+                  key={item.id}
+                  style={{
+                    position: "absolute",
+                    width: seal,
+                    height: seal,
+                    left: lx + Math.cos(a) * orbit - seal / 2,
+                    top: ly + Math.sin(a) * orbit - seal / 2,
+                    transform: [{ rotate: unrotate }],
+                  }}
+                >
+                  <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
+                  <View style={styles.sealBody}>
+                    <SealIcon id={item.id} size={seal * 0.42} />
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      style={[styles.sealLabel, { fontSize: 14 * s, marginTop: 2 * s }]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            })}
+          </Animated.View>
         </View>
 
-        <View style={[styles.tabs, { height: tabH }]}>
+        <View style={[styles.tabs, { top: 728 * s, height: 52 * s }]}>
           <Tab onPress={() => onOpen("home")}>
             <House />
           </Tab>
           <Tab onPress={() => onOpen("codex")}>
-            <BookIcon size={24} light />
+            <BookIcon size={22 * s} light />
           </Tab>
           <Tab onPress={() => onOpen("sage")}>
-            <HatIcon size={28} light />
+            <HatIcon size={26 * s} light />
           </Tab>
           <Tab onPress={() => onOpen("settings")}>
-            <GearIcon size={22} light />
+            <GearIcon size={20 * s} light />
           </Tab>
         </View>
       </View>
@@ -332,9 +314,9 @@ function Tab({ children, onPress }: { children: ReactNode; onPress: () => void }
 }
 
 function SealIcon({ id, size }: { id: SealId; size: number }) {
-  if (id === "sage") return <HatIcon size={size * 1.45} />;
-  if (id === "tome") return <GearIcon size={size * 1.15} />;
-  return <BookIcon size={size * 1.25} />;
+  if (id === "sage") return <HatIcon size={size * 1.35} />;
+  if (id === "tome") return <GearIcon size={size * 1.1} />;
+  return <BookIcon size={size * 1.2} />;
 }
 
 function HatIcon({ size, light }: { size: number; light?: boolean }) {
@@ -390,7 +372,7 @@ function House() {
 
 const styles = StyleSheet.create({
   fallback: { flex: 1, backgroundColor: "#E8D7B8" },
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: "#E8D7B8", alignItems: "center" },
   parchment: {
     position: "absolute",
     top: 0,
@@ -401,37 +383,31 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  column: { flex: 1, alignItems: "center" },
+  stage: { position: "relative" },
   wordmark: {
+    position: "absolute",
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#A33A3A",
     textAlign: "center",
-    opacity: 0.82,
   },
-  rule: {
-    height: 1.5,
-    backgroundColor: BLOOD,
-    marginTop: 4,
-    opacity: 0.9,
-  },
-  wheelSlot: { flex: 1, alignItems: "center", justifyContent: "center" },
   layer: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   sealFill: { position: "absolute", width: "100%", height: "100%" },
   sealBody: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 6,
+    paddingBottom: 6,
   },
   sealLabel: {
-    fontFamily: "CinzelDecorative_400Regular",
+    fontFamily: "Asul_400Regular",
     color: INK,
     textAlign: "center",
     width: "94%",
   },
   tabs: {
-    alignSelf: "stretch",
+    position: "absolute",
+    left: 0,
+    right: 0,
     backgroundColor: "#111111",
     flexDirection: "row",
     alignItems: "center",
