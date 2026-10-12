@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@expo-google-fonts/atkinson-hyperlegible": "^0.4.1",
+    "@expo-google-fonts/cinzel": "^0.4.2",
     "@expo-google-fonts/cinzel-decorative": "^0.4.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",

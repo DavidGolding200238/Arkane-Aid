@@ -14,7 +14,8 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
+import { Cinzel_400Regular, Cinzel_600SemiBold } from "@expo-google-fonts/cinzel";
+import * as NavigationBar from "expo-navigation-bar";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import type { ReactNode } from "react";
 
@@ -22,7 +23,6 @@ import type { AppScreen } from "../navigation/screens";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const sealArt = require("../../assets/DasbBoard/OIP 2.png");
 const ringArt = require("../../assets/DasbBoard/Ellipse 21.png");
 const dieArt = require("../../assets/DasbBoard/Group 5964.png");
@@ -61,44 +61,48 @@ function wrapDelta(delta: number) {
 export default function HomeScreen({ onOpen }: Props) {
   const { width, height } = useWindowDimensions();
   const rot = useRef(new Animated.Value(0)).current;
-  const angleRef = useRef(0);
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
-  const [titleW, setTitleW] = useState(240);
+  const [titleW, setTitleW] = useState(220);
   openRef.current = onOpen;
 
   const [fontsLoaded] = useFonts({
-    CinzelDecorative_400Regular,
+    Cinzel_400Regular,
+    Cinzel_600SemiBold,
   });
 
-  const top = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 2 : 48;
-  const tabH = 58 + (Platform.OS === "ios" ? 16 : 8);
-  const skullW = width * 1.02;
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    NavigationBar.setPositionAsync("relative").catch(() => undefined);
+    NavigationBar.setBackgroundColorAsync("#111111").catch(() => undefined);
+    NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
+  }, []);
+
+  const top = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 6 : 52;
+  const tabH = 62;
+  const skullW = width * 0.86;
   const skullH = skullW * (361 / 333);
-  const titleSize = Math.min(42, Math.max(34, width * 0.108));
-  const titleBlock = titleSize + 18;
-  const avail = height - top - skullH * 0.8 - titleBlock - tabH;
-  let seal = Math.min(width * 0.325, 150);
-  let orbit = seal * 0.8;
-  let wheel = (orbit + seal / 2) * 2 + 16;
-  if (avail > 180 && wheel > avail) {
-    const k = avail / wheel;
+  const titleSize = Math.min(32, Math.max(26, width * 0.078));
+
+  let seal = Math.min(width * 0.3, 136);
+  let orbit = seal * 0.78;
+  let reach = orbit + seal / 2 + 8;
+  let wheel = reach * 2;
+  const room = height - top - skullH * 0.8 - (titleSize + 22) - tabH - 8;
+  if (room > 180 && wheel > room) {
+    const k = room / wheel;
     seal *= k;
     orbit *= k;
-    wheel = avail;
+    reach = orbit + seal / 2 + 8;
+    wheel = reach * 2;
   }
-  const die = seal * 0.78;
-  const gem = Math.max(18, seal * 0.16);
+  const cx = wheel / 2;
+  const cy = wheel / 2;
+  const die = seal * 0.7;
+  const gem = Math.max(16, seal * 0.15);
 
-  const metrics = useRef({ wheel, orbit, seal });
-  metrics.current = { wheel, orbit, seal };
-
-  useEffect(() => {
-    const id = rot.addListener(({ value }) => {
-      angleRef.current = value;
-    });
-    return () => rot.removeListener(id);
-  }, [rot]);
+  const metrics = useRef({ cx, cy, orbit, seal });
+  metrics.current = { cx, cy, orbit, seal };
 
   const rotate = rot.interpolate({
     inputRange: [-1, 1],
@@ -118,49 +122,43 @@ export default function HomeScreen({ onOpen }: Props) {
         rot.stopAnimation((value) => {
           const snapped = Math.round(value / STEP) * STEP;
           baseRef.current = snapped;
-          angleRef.current = snapped;
           rot.setValue(snapped);
         });
-        const { wheel: w } = metrics.current;
+        const { cx: x0, cy: y0 } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
         drag.current = {
           x: locationX,
           y: locationY,
-          a0: Math.atan2(locationY - w / 2, locationX - w / 2),
+          a0: Math.atan2(locationY - y0, locationX - x0),
           moved: 0,
         };
       },
       onPanResponderMove: (e) => {
-        const { wheel: w } = metrics.current;
+        const { cx: x0, cy: y0 } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
-        const dx = locationX - drag.current.x;
-        const dy = locationY - drag.current.y;
-        drag.current.moved = Math.hypot(dx, dy);
-        const dist = Math.hypot(locationX - w / 2, locationY - w / 2);
-        if (dist < w * 0.12) return;
-        const a = Math.atan2(locationY - w / 2, locationX - w / 2);
+        drag.current.moved = Math.hypot(locationX - drag.current.x, locationY - drag.current.y);
+        if (Math.hypot(locationX - x0, locationY - y0) < 36) return;
+        const a = Math.atan2(locationY - y0, locationX - x0);
         const delta = wrapDelta(((a - drag.current.a0) * 180) / Math.PI);
-        const preview = Math.max(-22, Math.min(22, delta));
-        rot.setValue(baseRef.current + preview);
+        rot.setValue(baseRef.current + Math.max(-18, Math.min(18, delta)));
       },
       onPanResponderRelease: (e) => {
-        const { wheel: w, orbit: r, seal: s } = metrics.current;
+        const { cx: x0, cy: y0, orbit: r, seal: s } = metrics.current;
         const { locationX, locationY } = e.nativeEvent;
-        const dist = Math.hypot(locationX - w / 2, locationY - w / 2);
         let delta = 0;
-        if (dist >= w * 0.12) {
-          const a = Math.atan2(locationY - w / 2, locationX - w / 2);
+        if (Math.hypot(locationX - x0, locationY - y0) >= 36) {
+          const a = Math.atan2(locationY - y0, locationX - x0);
           delta = wrapDelta(((a - drag.current.a0) * 180) / Math.PI);
         }
-        const nudged = drag.current.moved >= 28 && Math.abs(delta) >= 8;
+        const nudged = drag.current.moved >= 36 && Math.abs(delta) >= 8;
         if (!nudged) {
-          if (drag.current.moved < 14) {
+          if (drag.current.moved < 16) {
             for (const item of SEALS) {
               const a = ((item.deg + baseRef.current) * Math.PI) / 180;
-              const cx = w / 2 + Math.cos(a) * r;
-              const cy = w / 2 + Math.sin(a) * r;
-              const dx = locationX - cx;
-              const dy = locationY - cy;
+              const sx = x0 + Math.cos(a) * r;
+              const sy = y0 + Math.sin(a) * r;
+              const dx = locationX - sx;
+              const dy = locationY - sy;
               if (dx * dx + dy * dy <= (s / 2) * (s / 2)) {
                 openRef.current(item.screen);
                 rot.setValue(baseRef.current);
@@ -170,18 +168,17 @@ export default function HomeScreen({ onOpen }: Props) {
           }
           Animated.timing(rot, {
             toValue: baseRef.current,
-            duration: 180,
+            duration: 160,
             easing: Easing.out(Easing.cubic),
             useNativeDriver: false,
           }).start();
           return;
         }
-        const dir = delta >= 0 ? 1 : -1;
-        const next = baseRef.current + dir * STEP;
+        const next = baseRef.current + (delta >= 0 ? STEP : -STEP);
         baseRef.current = next;
         Animated.timing(rot, {
           toValue: next,
-          duration: 340,
+          duration: 320,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: false,
         }).start();
@@ -196,15 +193,18 @@ export default function HomeScreen({ onOpen }: Props) {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.column, { paddingTop: top, paddingBottom: tabH }]}>
+      <View style={[styles.column, { paddingTop: top }]}>
         <Image source={skull} style={{ width: skullW, height: skullH }} resizeMode="contain" />
         <Text
-          style={[styles.wordmark, { fontSize: titleSize, lineHeight: titleSize * 1.25, marginTop: -skullH * 0.2 }]}
           onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
+          style={[
+            styles.wordmark,
+            { fontSize: titleSize, lineHeight: titleSize + 4, marginTop: -skullH * 0.17 },
+          ]}
         >
           ARKANE AID
         </Text>
-        <Image source={underline} style={{ width: titleW, height: 8, marginTop: 1 }} resizeMode="contain" />
+        <View style={[styles.rule, { width: Math.max(titleW * 0.72, 120) }]} />
 
         <View style={styles.wheelSlot}>
           <View pointerEvents="box-only" style={{ width: wheel, height: wheel }} {...pan.panHandlers}>
@@ -213,10 +213,10 @@ export default function HomeScreen({ onOpen }: Props) {
               resizeMode="contain"
               style={{
                 position: "absolute",
-                width: orbit * 2.08,
-                height: orbit * 2.08,
-                left: (wheel - orbit * 2.08) / 2,
-                top: (wheel - orbit * 2.08) / 2,
+                width: orbit * 2.06,
+                height: orbit * 2.06,
+                left: cx - orbit * 1.03,
+                top: cy - orbit * 1.03,
               }}
             />
 
@@ -232,8 +232,8 @@ export default function HomeScreen({ onOpen }: Props) {
                       position: "absolute",
                       width: gem,
                       height: gem,
-                      left: wheel / 2 + Math.cos(a) * orbit - gem / 2,
-                      top: wheel / 2 + Math.sin(a) * orbit - gem / 2,
+                      left: cx + Math.cos(a) * orbit - gem / 2,
+                      top: cy + Math.sin(a) * orbit - gem / 2,
                     }}
                   />
                 );
@@ -242,14 +242,14 @@ export default function HomeScreen({ onOpen }: Props) {
 
             <Image
               source={dieArt}
-              resizeMode="contain"
               pointerEvents="none"
+              resizeMode="contain"
               style={{
                 position: "absolute",
                 width: die,
                 height: die * (134 / 127),
-                left: (wheel - die) / 2,
-                top: (wheel - die * (134 / 127)) / 2,
+                left: cx - die / 2,
+                top: cy - (die * (134 / 127)) / 2,
                 zIndex: 2,
               }}
             />
@@ -264,19 +264,19 @@ export default function HomeScreen({ onOpen }: Props) {
                       position: "absolute",
                       width: seal,
                       height: seal,
-                      left: wheel / 2 + Math.cos(a) * orbit - seal / 2,
-                      top: wheel / 2 + Math.sin(a) * orbit - seal / 2,
+                      left: cx + Math.cos(a) * orbit - seal / 2,
+                      top: cy + Math.sin(a) * orbit - seal / 2,
                       transform: [{ rotate: unrotate }],
                     }}
                   >
                     <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
                     <View style={styles.sealBody}>
-                      <SealIcon id={item.id} size={seal * 0.32} />
+                      <SealIcon id={item.id} size={seal * 0.34} />
                       <Text
                         numberOfLines={1}
                         adjustsFontSizeToFit
-                        minimumFontScale={0.7}
-                        style={[styles.sealLabel, { fontSize: Math.max(10, seal * 0.1), marginTop: seal * 0.02 }]}
+                        minimumFontScale={0.65}
+                        style={[styles.sealLabel, { fontSize: Math.max(9, seal * 0.095), marginTop: seal * 0.04 }]}
                       >
                         {item.label}
                       </Text>
@@ -287,21 +287,21 @@ export default function HomeScreen({ onOpen }: Props) {
             </Animated.View>
           </View>
         </View>
-      </View>
 
-      <View style={[styles.tabs, { height: tabH, paddingBottom: Platform.OS === "ios" ? 12 : 4 }]}>
-        <Tab onPress={() => onOpen("home")}>
-          <House />
-        </Tab>
-        <Tab onPress={() => onOpen("codex")}>
-          <BookIcon size={22} light />
-        </Tab>
-        <Tab onPress={() => onOpen("sage")}>
-          <HatIcon size={26} light />
-        </Tab>
-        <Tab onPress={() => onOpen("settings")}>
-          <GearMark size={22} light />
-        </Tab>
+        <View style={[styles.tabs, { height: tabH }]}>
+          <Tab onPress={() => onOpen("home")}>
+            <House />
+          </Tab>
+          <Tab onPress={() => onOpen("codex")}>
+            <BookIcon size={24} light />
+          </Tab>
+          <Tab onPress={() => onOpen("sage")}>
+            <HatIcon size={28} light />
+          </Tab>
+          <Tab onPress={() => onOpen("settings")}>
+            <GearIcon size={22} light />
+          </Tab>
+        </View>
       </View>
     </View>
   );
@@ -316,56 +316,50 @@ function Tab({ children, onPress }: { children: ReactNode; onPress: () => void }
 }
 
 function SealIcon({ id, size }: { id: SealId; size: number }) {
-  if (id === "sage") return <HatIcon size={size * 1.4} />;
-  if (id === "tome") return <GearIcon size={size * 1.2} />;
+  if (id === "sage") return <HatIcon size={size * 1.45} />;
+  if (id === "tome") return <GearIcon size={size * 1.15} />;
   return <BookIcon size={size * 1.25} />;
 }
 
 function HatIcon({ size, light }: { size: number; light?: boolean }) {
   const c = light ? CREAM : INK;
+  const band = light ? INK : "#F3E6C4";
   return (
-    <Svg width={size} height={size * 0.72} viewBox="0 0 64 46">
-      <Path d="M32 1.5 L48 28 H16 Z" fill={c} />
-      <Path d="M20 24.5 H44" stroke={light ? INK : "#F3E6C4"} strokeWidth={2.4} />
-      <Path d="M2 33 Q32 48 62 33" stroke={c} strokeWidth={5} fill="none" strokeLinecap="round" />
+    <Svg width={size} height={size * 0.7} viewBox="0 0 70 48">
+      <Path d="M36 2 C30 12 26 20 20 30 H48 C44 20 42 10 36 2 Z" fill={c} />
+      <Path d="M24 26.5 H46" stroke={band} strokeWidth={2.4} />
+      <Path d="M4 34 Q35 50 66 33" stroke={c} strokeWidth={5.2} fill="none" strokeLinecap="round" />
     </Svg>
   );
 }
 
 function BookIcon({ size, light }: { size: number; light?: boolean }) {
   const c = light ? CREAM : INK;
+  const page = light ? INK : "#F3E6C4";
   return (
-    <Svg width={size} height={size * 0.78} viewBox="0 0 64 50">
-      <Path d="M32 10 C22 6 8 8 4 12 V42 C14 36 24 36 32 44 Z" fill={c} />
-      <Path d="M32 10 C42 6 56 8 60 12 V42 C50 36 40 36 32 44 Z" fill={c} />
-      <Path d="M32 12 V42" stroke={light ? INK : "#F3E6C4"} strokeWidth={1.6} />
-      <Path d="M14 18 H26 M14 24 H26 M38 18 H50 M38 24 H50" stroke={light ? INK : "#F3E6C4"} strokeWidth={1.3} />
+    <Svg width={size} height={size * 0.72} viewBox="0 0 68 48">
+      <Path d="M34 12 C26 8 12 9 6 14 V40 C16 35 26 35 34 42 Z" fill={c} />
+      <Path d="M34 12 C42 8 56 9 62 14 V40 C52 35 42 35 34 42 Z" fill={c} />
+      <Path d="M34 13.5 V40" stroke={page} strokeWidth={1.6} />
+      <Path d="M14 20 H26 M14 25 H26 M42 20 H54 M42 25 H54" stroke={page} strokeWidth={1.4} />
     </Svg>
   );
 }
 
-function GearIcon({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Rect x={5} y={5} width={54} height={54} rx={12} fill="none" stroke={INK} strokeWidth={3.4} />
-      <Circle cx={32} cy={32} r={6.2} fill="none" stroke={INK} strokeWidth={2.8} />
-      <Path
-        d="M32 14.5 L34.2 19.2 L32 21.2 L29.8 19.2 Z M32 49.5 L29.8 44.8 L32 42.8 L34.2 44.8 Z M14.5 32 L19.2 29.8 L21.2 32 L19.2 34.2 Z M49.5 32 L44.8 34.2 L42.8 32 L44.8 29.8 Z M19.2 19.2 L23.2 21.4 L22.2 24 L18.8 22.2 Z M44.8 44.8 L40.8 42.6 L41.8 40 L45.2 41.8 Z M44.8 19.2 L40.8 21.4 L41.8 24 L45.2 22.2 Z M19.2 44.8 L23.2 42.6 L22.2 40 L18.8 41.8 Z"
-        fill={INK}
-      />
-    </Svg>
-  );
-}
-
-function GearMark({ size, light }: { size: number; light?: boolean }) {
+function GearIcon({ size, light }: { size: number; light?: boolean }) {
   const c = light ? CREAM : INK;
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Circle cx={12} cy={12} r={3} fill="none" stroke={c} strokeWidth={1.7} />
-      <Path
-        d="M12 2.4 L13.1 5.2 L12 6.2 L10.9 5.2 Z M12 21.6 L10.9 18.8 L12 17.8 L13.1 18.8 Z M2.4 12 L5.2 10.9 L6.2 12 L5.2 13.1 Z M21.6 12 L18.8 13.1 L17.8 12 L18.8 10.9 Z M5.1 5.1 L7.4 6.6 L6.8 7.8 L4.8 6.6 Z M18.9 18.9 L16.6 17.4 L17.2 16.2 L19.2 17.4 Z M18.9 5.1 L16.6 6.6 L17.2 7.8 L19.2 6.6 Z M5.1 18.9 L7.4 17.4 L6.8 16.2 L4.8 17.4 Z"
-        fill={c}
-      />
+    <Svg width={size} height={size} viewBox="0 0 64 64">
+      <Rect x={7} y={7} width={50} height={50} rx={11} fill="none" stroke={c} strokeWidth={3.2} />
+      <Circle cx={32} cy={32} r={6} fill="none" stroke={c} strokeWidth={2.8} />
+      <Rect x={29.2} y={15} width={5.6} height={7} rx={1} fill={c} />
+      <Rect x={29.2} y={42} width={5.6} height={7} rx={1} fill={c} />
+      <Rect x={15} y={29.2} width={7} height={5.6} rx={1} fill={c} />
+      <Rect x={42} y={29.2} width={7} height={5.6} rx={1} fill={c} />
+      <Rect x={18.2} y={18.2} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(-45 20.8 21.3)" />
+      <Rect x={40.6} y={18.2} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(45 43.2 21.3)" />
+      <Rect x={18.2} y={39.6} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(45 20.8 42.7)" />
+      <Rect x={40.6} y={39.6} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(-45 43.2 42.7)" />
     </Svg>
   );
 }
@@ -393,9 +387,16 @@ const styles = StyleSheet.create({
   },
   column: { flex: 1, alignItems: "center" },
   wordmark: {
-    fontFamily: "CinzelDecorative_400Regular",
+    fontFamily: "Cinzel_600SemiBold",
     color: BLOOD,
     textAlign: "center",
+    letterSpacing: 1.6,
+  },
+  rule: {
+    height: 1.5,
+    backgroundColor: BLOOD,
+    marginTop: 4,
+    opacity: 0.9,
   },
   wheelSlot: { flex: 1, alignItems: "center", justifyContent: "center" },
   layer: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
@@ -404,20 +405,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
   },
   sealLabel: {
-    fontFamily: "CinzelDecorative_400Regular",
+    fontFamily: "Cinzel_400Regular",
     color: INK,
+    letterSpacing: 0.4,
     textAlign: "center",
-    width: "96%",
+    width: "94%",
   },
   tabs: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    alignSelf: "stretch",
     backgroundColor: "#111111",
     flexDirection: "row",
     alignItems: "center",
