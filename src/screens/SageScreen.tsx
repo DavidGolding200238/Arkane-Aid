@@ -10,16 +10,17 @@ import {
 } from "react-native";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
+import SageAvatar from "../components/SageAvatar";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
-// Drop the Figma exports here:
-// assets/Sage/orb.png, mic.png, pen.png, chevron.png
-let orbAsset: any = null;
+// Optional flame / ring assets around the GLB orb:
+// assets/Sage/flame.png or orb.png
+let flameAsset: any = null;
 let micAsset: any = null;
 let penAsset: any = null;
-try { orbAsset = require("../../assets/Sage/orb.png"); } catch {}
+try { flameAsset = require("../../assets/Sage/orb.png"); } catch {}
 try { micAsset = require("../../assets/Sage/mic.png"); } catch {}
 try { penAsset = require("../../assets/Sage/pen.png"); } catch {}
 
@@ -94,7 +95,6 @@ export default function SageScreen({ onBack }: Props) {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      {/* Header — red back + title + underline */}
       <View style={styles.header}>
         <Pressable style={styles.backCircle} onPress={onBack} hitSlop={10}>
           <Text style={styles.backChevron}>‹</Text>
@@ -106,29 +106,25 @@ export default function SageScreen({ onBack }: Props) {
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Orb */}
+      {/* Orb area: flame/ring asset behind, GLB SageAvatar in the center */}
       <View style={styles.orbWrap}>
-        {orbAsset ? (
-          <Image source={orbAsset} style={styles.orb} resizeMode="contain" />
-        ) : (
-          <View style={styles.orbFallback}>
-            <View style={styles.orbCore} />
-          </View>
-        )}
+        {flameAsset ? (
+          <Image source={flameAsset} style={styles.flame} resizeMode="contain" />
+        ) : null}
+        <View style={styles.glbSlot}>
+          <SageAvatar />
+        </View>
       </View>
 
-      {/* Status */}
       <Text style={styles.status}>
         {speaking ? "Listening..." : busy ? "Thinking..." : reply ? "Reply" : "Ready"}
       </Text>
 
-      {/* Pause */}
       <Pressable style={styles.pause} onPress={toggleSpeech}>
         <View style={styles.pauseBar} />
         <View style={styles.pauseBar} />
       </Pressable>
 
-      {/* Persona */}
       <View style={styles.chips}>
         <Pressable style={[styles.chip, persona === "sage" && styles.chipOn]} onPress={() => setPersona("sage")}>
           <Text style={styles.chipText}>Sage</Text>
@@ -138,7 +134,6 @@ export default function SageScreen({ onBack }: Props) {
         </Pressable>
       </View>
 
-      {/* Input (quill toggles) */}
       {showInput ? (
         <View style={styles.inputArea}>
           <TextInput
@@ -163,7 +158,6 @@ export default function SageScreen({ onBack }: Props) {
         </View>
       ) : null}
 
-      {/* Bottom controls */}
       <View style={styles.controls}>
         <Pressable style={styles.ctrlBtn} onPress={() => setShowInput(false)}>
           {micAsset ? <Image source={micAsset} style={styles.ctrlIcon} /> : <Text style={styles.ctrlEmoji}>🎙️</Text>}
@@ -213,23 +207,19 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     marginTop: 12,
-  },
-  orb: { width: 280, height: 280 },
-  orbFallback: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "#1A0A0A",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 8,
-    borderColor: "rgba(255,80,0,0.4)",
   },
-  orbCore: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FF2200",
+  flame: {
+    position: "absolute",
+    width: 280,
+    height: 280,
+  },
+  glbSlot: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    overflow: "hidden",
   },
   status: {
     textAlign: "center",
