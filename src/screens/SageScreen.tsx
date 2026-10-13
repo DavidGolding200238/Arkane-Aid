@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import * as Speech from "expo-speech";
-import ScreenFrame from "../components/ScreenFrame";
+import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
+import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import SageAvatar from "../components/SageAvatar";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
+
+const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 
 type Props = { onBack: () => void };
 
@@ -26,6 +40,13 @@ export default function SageScreen({ onBack }: Props) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [fontsLoaded] = useFonts({
+    CinzelDecorative_400Regular,
+    AtkinsonHyperlegible_400Regular,
+  });
+
+  const titleFont = fontsLoaded ? "CinzelDecorative_400Regular" : undefined;
+  const bodyFont = fontsLoaded ? "AtkinsonHyperlegible_400Regular" : undefined;
 
   useEffect(() => {
     return () => {
@@ -72,77 +93,229 @@ export default function SageScreen({ onBack }: Props) {
     speakReply(reply, () => setSpeaking(false));
   };
 
-  return (
-    <ScreenFrame title="Sage" onBack={onBack}>
-      <SageAvatar />
+  const status = speaking ? "Speaking..." : busy ? "Thinking..." : reply ? "Reply ready" : "Ready";
 
-      <View style={styles.row}>
-        <Pressable
-          style={[styles.chip, persona === "sage" && styles.chipOn]}
-          onPress={() => setPersona("sage")}
-        >
-          <Text style={styles.chipText}>Sage</Text>
+  return (
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+      <Image source={parchment} style={styles.parchment} resizeMode="cover" />
+
+      <View style={styles.header}>
+        <Pressable style={styles.backCircle} onPress={onBack} hitSlop={10}>
+          <Text style={styles.backChevron}>‹</Text>
         </Pressable>
-        <Pressable
-          style={[styles.chip, persona === "scribe" && styles.chipOn]}
-          onPress={() => setPersona("scribe")}
-        >
-          <Text style={styles.chipText}>Scribe</Text>
-        </Pressable>
+        <View style={styles.titleBox}>
+          <Text style={[styles.title, titleFont ? { fontFamily: titleFont } : null]}>SAGE SCRIBE</Text>
+          <View style={styles.underline} />
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <TextInput
-        style={styles.input}
-        multiline
-        placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
-        placeholderTextColor="#8A8175"
-        value={question}
-        onChangeText={setQuestion}
-      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+      >
+        <View style={styles.orbRing}>
+          <SageAvatar />
+        </View>
 
-      <Pressable style={styles.button} onPress={ask} disabled={busy}>
-        {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={styles.buttonText}>Ask</Text>}
-      </Pressable>
+        <Text style={[styles.status, bodyFont ? { fontFamily: bodyFont } : null]}>{status}</Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {reply ? (
-        <View style={styles.reply}>
-          <Text style={styles.replyLabel}>{persona === "sage" ? "Sage" : "Scribe"}</Text>
-          <Text style={styles.replyBody}>{reply}</Text>
-          <Pressable style={styles.hear} onPress={toggleSpeech}>
-            <Text style={styles.hearText}>{speaking ? "Stop" : "Hear it again"}</Text>
+        <Pressable
+          style={[styles.pause, !reply && !speaking && styles.pauseOff]}
+          onPress={toggleSpeech}
+          disabled={!reply && !speaking}
+        >
+          <View style={styles.pauseBar} />
+          <View style={styles.pauseBar} />
+        </Pressable>
+        <Text style={[styles.pauseHint, bodyFont ? { fontFamily: bodyFont } : null]}>
+          {speaking ? "Tap to stop the reply" : reply ? "Tap to hear the reply" : "The reply plays here"}
+        </Text>
+
+        <View style={styles.modes}>
+          <Pressable
+            style={[styles.mode, persona === "sage" && styles.modeOn]}
+            onPress={() => setPersona("sage")}
+          >
+            <Text style={[styles.modeTitle, bodyFont ? { fontFamily: bodyFont } : null]}>Sage</Text>
+            <Text style={[styles.modeBody, bodyFont ? { fontFamily: bodyFont } : null]}>Ask a ruling</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.mode, persona === "scribe" && styles.modeOn]}
+            onPress={() => setPersona("scribe")}
+          >
+            <Text style={[styles.modeTitle, bodyFont ? { fontFamily: bodyFont } : null]}>Scribe</Text>
+            <Text style={[styles.modeBody, bodyFont ? { fontFamily: bodyFont } : null]}>Note the table</Text>
           </Pressable>
         </View>
-      ) : null}
-    </ScreenFrame>
+
+        <View style={styles.work}>
+          <Text style={[styles.workLabel, bodyFont ? { fontFamily: bodyFont } : null]}>
+            {persona === "sage" ? "Question" : "What just happened"}
+          </Text>
+          <TextInput
+            style={[styles.input, bodyFont ? { fontFamily: bodyFont } : null]}
+            multiline
+            placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
+            placeholderTextColor="#8A8175"
+            value={question}
+            onChangeText={setQuestion}
+          />
+          <Pressable style={styles.button} onPress={ask} disabled={busy}>
+            {busy ? (
+              <ActivityIndicator color="#FEFCEB" />
+            ) : (
+              <Text style={[styles.buttonText, bodyFont ? { fontFamily: bodyFont } : null]}>
+                {persona === "sage" ? "Ask" : "Note"}
+              </Text>
+            )}
+          </Pressable>
+          {error ? (
+            <Text style={[styles.error, bodyFont ? { fontFamily: bodyFont } : null]}>{error}</Text>
+          ) : null}
+        </View>
+
+        {reply ? (
+          <View style={styles.reply}>
+            <Text style={[styles.replyLabel, bodyFont ? { fontFamily: bodyFont } : null]}>
+              {persona === "sage" ? "Sage" : "Scribe"}
+            </Text>
+            <Text style={[styles.replyBody, bodyFont ? { fontFamily: bodyFont } : null]}>{reply}</Text>
+          </View>
+        ) : null}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#1A1816",
+  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  parchment: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: 0.28,
   },
-  chipOn: { backgroundColor: "#1A1816" },
-  chipText: { color: "#BD7F02", fontSize: 15 },
-  input: {
-    minHeight: 96,
+  header: {
+    paddingTop: 48,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FF0000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backChevron: {
+    color: "#FEFCEB",
+    fontSize: 30,
+    lineHeight: 32,
+    marginTop: -2,
+  },
+  titleBox: { flex: 1, alignItems: "center" },
+  title: {
+    color: "#1A1816",
+    fontSize: 22,
+    letterSpacing: 0.6,
+  },
+  underline: {
+    marginTop: 4,
+    height: 1,
+    width: 168,
+    backgroundColor: "#2E2E2E",
+  },
+  headerSpacer: { width: 44 },
+  scroll: { flex: 1 },
+  body: {
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingBottom: 88,
+    gap: 10,
+  },
+  orbRing: {
+    marginTop: 4,
+    padding: 6,
+    borderRadius: 140,
+    borderWidth: 1,
+    borderColor: "#BD7F02",
+  },
+  status: {
+    fontSize: 18,
+    fontStyle: "italic",
+    letterSpacing: 1,
+    color: "#4D4D4D",
+  },
+  pause: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FF0000",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  pauseOff: { opacity: 0.35 },
+  pauseBar: {
+    width: 4,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: "#FFFFFF",
+  },
+  pauseHint: { color: "#6B645C", fontSize: 13 },
+  modes: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  mode: {
+    flex: 1,
     borderWidth: 1,
     borderColor: "#1A1816",
-    borderRadius: 8,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(254,252,235,0.55)",
+  },
+  modeOn: {
+    backgroundColor: "#1A1816",
+  },
+  modeTitle: { color: "#BD7F02", fontSize: 16 },
+  modeBody: { color: "#5A5348", fontSize: 13, marginTop: 2 },
+  work: {
+    width: "100%",
+    gap: 8,
+    marginTop: 4,
+  },
+  workLabel: { color: "#1A1816", fontSize: 14 },
+  input: {
+    width: "100%",
+    minHeight: 88,
+    borderWidth: 1,
+    borderColor: "#1A1816",
+    borderRadius: 10,
     padding: 12,
     color: "#1A1816",
     fontSize: 16,
-    backgroundColor: "rgba(254,252,235,0.7)",
+    backgroundColor: "rgba(254,252,235,0.8)",
     textAlignVertical: "top",
   },
   button: {
     height: 44,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: "#C44536",
     alignItems: "center",
     justifyContent: "center",
@@ -150,22 +323,14 @@ const styles = StyleSheet.create({
   buttonText: { color: "#FEFCEB", fontSize: 16 },
   error: { color: "#A33A3A", fontSize: 15 },
   reply: {
+    width: "100%",
     borderWidth: 1,
     borderColor: "#BD7F02",
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
-    backgroundColor: "rgba(254,252,235,0.8)",
-    gap: 10,
+    backgroundColor: "rgba(254,252,235,0.88)",
+    gap: 6,
   },
   replyLabel: { color: "#BD7F02", fontSize: 13 },
   replyBody: { color: "#1A1816", fontSize: 17, lineHeight: 24 },
-  hear: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#BD7F02",
-  },
-  hearText: { color: "#1A1816", fontSize: 15 },
 });
