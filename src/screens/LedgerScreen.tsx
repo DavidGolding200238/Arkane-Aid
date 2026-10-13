@@ -52,6 +52,33 @@ const STATS = [
 
 type StatKey = (typeof STATS)[number][0];
 
+const RACES = [
+  "Dragonborn",
+  "Dwarf",
+  "Elf",
+  "Gnome",
+  "Goliath",
+  "Halfling",
+  "Human",
+  "Orc",
+  "Tiefling",
+];
+
+const CLASSES = [
+  "Barbarian",
+  "Bard",
+  "Cleric",
+  "Druid",
+  "Fighter",
+  "Monk",
+  "Paladin",
+  "Ranger",
+  "Rogue",
+  "Sorcerer",
+  "Warlock",
+  "Wizard",
+];
+
 const EMPTY: CharacterDraft = {
   name: "",
   class: "",
@@ -67,6 +94,7 @@ const EMPTY: CharacterDraft = {
 };
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
+type Picker = "race" | "class" | null;
 
 function clampStat(value: string) {
   const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
@@ -105,6 +133,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const [gear, setGear] = useState<Equipment[]>([]);
   const [gearName, setGearName] = useState("");
   const [editing, setEditing] = useState(false);
+  const [picker, setPicker] = useState<Picker>(null);
+  const [customRace, setCustomRace] = useState(false);
+  const [customClass, setCustomClass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -117,8 +148,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       const next = await loadCharacter(partyId);
       setRow(next);
       setDraft(draftFrom(next));
-      setGear(next ? await loadEquipment(next.id) : []);
       setError("");
+      setGear(next ? await loadEquipment(next.id) : []);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -141,6 +172,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       setRow(saved);
       setDraft(draftFrom(saved));
       setEditing(false);
+      setPicker(null);
       setError("");
     } catch (err) {
       const message = errorText(err);
@@ -216,10 +248,46 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     }
   };
 
+  const choose = (field: "race" | "class", value: string) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    if (field === "race") setCustomRace(false);
+    if (field === "class") setCustomClass(false);
+    setPicker(null);
+  };
+
   const boxW = Math.floor((width - 36 * s - 16 * s) / 3);
   const boxH = boxW * (90 / 91);
   const headH = boxH * (28 / 90);
   const traitLines = draft.traits.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  const renderPicker = (field: "race" | "class", options: string[]) => {
+    if (picker !== field) return null;
+    const custom = field === "race" ? customRace : customClass;
+    return (
+      <View style={styles.picker}>
+        {options.map((option) => (
+          <Pressable key={option} onPress={() => choose(field, option)} style={styles.option}>
+            <Text style={[styles.optionText, bodyFont ? { fontFamily: bodyFont } : null]}>{option}</Text>
+          </Pressable>
+        ))}
+        <Pressable
+          onPress={() => (field === "race" ? setCustomRace(true) : setCustomClass(true))}
+          style={styles.option}
+        >
+          <Text style={[styles.optionText, bodyFont ? { fontFamily: bodyFont } : null]}>Custom</Text>
+        </Pressable>
+        {custom ? (
+          <TextInput
+            style={[styles.metaInput, bodyFont ? { fontFamily: bodyFont } : null]}
+            value={draft[field]}
+            onChangeText={(value) => setDraft((current) => ({ ...current, [field]: value }))}
+            placeholder={field === "race" ? "Custom race" : "Custom class"}
+            placeholderTextColor="#8A8175"
+          />
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.root}>
@@ -262,7 +330,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                   {draft.name || "Unnamed"}
                 </Text>
               )}
-              <Pressable onPress={() => setEditing((on) => !on)} style={{ width: 44 * s, height: 43 * s }}>
+              <Pressable
+                onPress={() => {
+                  setEditing((on) => !on);
+                  setPicker(null);
+                }}
+                style={{ width: 44 * s, height: 43 * s }}
+              >
                 <Image source={editCircle} style={styles.fill} resizeMode="stretch" />
               </Pressable>
             </View>
@@ -277,30 +351,31 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
             <View style={styles.metaRow}>
               {editing ? (
-                <TextInput
-                  style={[styles.metaInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                  value={draft.race}
-                  onChangeText={(race) => setDraft((current) => ({ ...current, race }))}
-                  placeholder="Race"
-                  placeholderTextColor="#8A8175"
-                />
+                <Pressable style={styles.metaInput} onPress={() => setPicker(picker === "race" ? null : "race")}>
+                  <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>
+                    {draft.race || "Choose race"}
+                  </Text>
+                </Pressable>
               ) : (
-                <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>Race: {draft.race || "—"}</Text>
+                <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>Race: {draft.race || "\u2014"}</Text>
               )}
               {editing ? (
-                <TextInput
-                  style={[styles.metaInput, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}
-                  value={draft.class}
-                  onChangeText={(klass) => setDraft((current) => ({ ...current, class: klass }))}
-                  placeholder="Class"
-                  placeholderTextColor="#8A8175"
-                />
+                <Pressable
+                  style={[styles.metaInput, styles.metaRight]}
+                  onPress={() => setPicker(picker === "class" ? null : "class")}
+                >
+                  <Text style={[styles.meta, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}>
+                    {draft.class || "Choose class"}
+                  </Text>
+                </Pressable>
               ) : (
                 <Text style={[styles.meta, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  Class: {draft.class || "—"}
+                  Class: {draft.class || "\u2014"}
                 </Text>
               )}
             </View>
+            {renderPicker("race", RACES)}
+            {renderPicker("class", CLASSES)}
             <View style={styles.rule} />
 
             <View style={styles.stats}>
@@ -319,7 +394,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                       onChangeText={(value) => setStat(key, value)}
                     />
                   ) : (
-                    <Text style={[styles.statValue, { top: headH, fontSize: 28 * s }, titleFont ? { fontFamily: titleFont } : null]}>
+                    <Text style={[styles.statValue, { top: headH, fontSize: 28 * s }, bodyFont ? { fontFamily: bodyFont } : null]}>
                       {draft[key]}
                     </Text>
                   )}
@@ -329,7 +404,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           </View>
         </View>
 
-        <View style={[styles.panel, { minHeight: 160 * s, marginTop: 10 * s }]}>
+        <View style={[styles.panel, { marginTop: 10 * s }]}>
           <Image source={storyPanel} style={styles.fill} resizeMode="stretch" />
           <View style={{ padding: 16 * s }}>
             <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Background</Text>
@@ -338,6 +413,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               <TextInput
                 style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
                 multiline
+                scrollEnabled={false}
                 value={draft.background}
                 onChangeText={(background) => setDraft((current) => ({ ...current, background }))}
                 placeholder="Background story"
@@ -359,7 +435,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             <Pressable key={item.id} onPress={() => (editing ? dropGear(item.id) : undefined)}>
               <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
                 {item.name}
-                {editing ? "  ×" : ""}
+                {editing ? "  \u00d7" : ""}
               </Text>
             </Pressable>
           ))}
@@ -386,6 +462,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             <TextInput
               style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
               multiline
+              scrollEnabled={false}
               value={draft.traits}
               onChangeText={(traits) => setDraft((current) => ({ ...current, traits }))}
               placeholder="One trait per line"
@@ -408,7 +485,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             <Text style={styles.link} onPress={() => onOpen("create")}>
               Create
             </Text>
-            {" · "}
+            {" \u00b7 "}
             <Text style={styles.link} onPress={() => onOpen("join")}>
               Join
             </Text>
@@ -437,7 +514,6 @@ const styles = StyleSheet.create({
     left: 0,
     width: "100%",
     height: "100%",
-    opacity: 0.28,
   },
   header: {
     paddingHorizontal: 16,
@@ -475,6 +551,14 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1A1816",
     paddingVertical: 2,
   },
+  picker: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#1A1816",
+    backgroundColor: "rgba(254,252,235,0.92)",
+  },
+  option: { paddingVertical: 8, paddingHorizontal: 10 },
+  optionText: { color: "#1A1816", fontSize: 14 },
   rule: { height: 1, backgroundColor: "#1A1816", marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   statHead: { position: "absolute", top: 0, left: 0, width: "100%" },
@@ -506,7 +590,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     padding: 0,
   },
-  panel: { overflow: "hidden", borderRadius: 4 },
+  panel: { overflow: "hidden", borderRadius: 4, minHeight: 120 },
   section: { color: "#1A1816", fontSize: 18, textAlign: "center" },
   sectionRule: { alignSelf: "center", width: 126, height: 1, backgroundColor: "#1A1816", marginTop: 4, marginBottom: 8 },
   story: { color: "#1A1816", fontSize: 15, lineHeight: 22 },
