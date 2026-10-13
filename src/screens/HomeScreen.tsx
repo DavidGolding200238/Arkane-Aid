@@ -15,10 +15,11 @@ import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
-import { SvgXml } from "react-native-svg";
 
 import type { AppScreen } from "../navigation/screens";
-import { bookXml, houseXml, settingsXml } from "../icons/dashboardIcons";
+import House from "../../assets/Icons/icons8-house.svg";
+import Book from "../../assets/Icons/icons8-book.svg";
+import Settings from "../../assets/Icons/icons8-settings.svg";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
@@ -282,15 +283,15 @@ export default function HomeScreen({ onOpen }: Props) {
   );
 }
 
-const SEAL_ICONS: Record<SealId, string> = {
-  sage: houseXml,
-  tome: settingsXml,
-  codex: bookXml,
-};
+const SEAL_ICONS = {
+  sage: House,
+  tome: Settings,
+  codex: Book,
+} as const;
 
 function SealIcon({ id, size }: { id: SealId; size: number }) {
-  const xml = SEAL_ICONS[id].replace(/currentColor/g, INK);
-  return <SvgXml xml={xml} width={size} height={size} />;
+  const Icon = SEAL_ICONS[id];
+  return <Icon width={size} height={size} color={INK} />;
 }
 
 const styles = StyleSheet.create({
