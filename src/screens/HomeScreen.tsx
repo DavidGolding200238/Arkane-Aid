@@ -48,7 +48,7 @@ type SealId = "sage" | "tome" | "codex";
 
 const SEALS: { id: SealId; label: string; deg: number; screen: AppScreen }[] = [
   { id: "sage", label: "Sage Scribe", deg: 210, screen: "sage" },
-  { id: "tome", label: "Tome", deg: 330, screen: "ledger" },
+  { id: "tome", label: "Tome", deg: 330, screen: "settings" },
   { id: "codex", label: "CODEX", deg: 90, screen: "codex" },
 ];
 
