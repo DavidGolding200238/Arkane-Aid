@@ -263,24 +263,39 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const renderPicker = (field: "race" | "class", options: string[]) => {
     if (picker !== field) return null;
     const custom = field === "race" ? customRace : customClass;
+    const current = draft[field];
     return (
       <View style={styles.picker}>
-        {options.map((option) => (
-          <Pressable key={option} onPress={() => choose(field, option)} style={styles.option}>
-            <Text style={[styles.optionText, bodyFont ? { fontFamily: bodyFont } : null]}>{option}</Text>
-          </Pressable>
-        ))}
+        <Text style={[styles.pickerLabel, titleFont ? { fontFamily: titleFont } : null]}>
+          {field === "race" ? "Race" : "Class"}
+        </Text>
+        {options.map((option) => {
+          const on = current === option;
+          return (
+            <Pressable
+              key={option}
+              onPress={() => choose(field, option)}
+              style={[styles.option, on && styles.optionOn]}
+            >
+              <Text style={[styles.optionText, on && styles.optionTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
         <Pressable
           onPress={() => (field === "race" ? setCustomRace(true) : setCustomClass(true))}
-          style={styles.option}
+          style={[styles.option, custom && styles.optionOn]}
         >
-          <Text style={[styles.optionText, bodyFont ? { fontFamily: bodyFont } : null]}>Custom</Text>
+          <Text style={[styles.optionText, custom && styles.optionTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
+            Custom
+          </Text>
         </Pressable>
         {custom ? (
           <TextInput
-            style={[styles.metaInput, bodyFont ? { fontFamily: bodyFont } : null]}
-            value={draft[field]}
-            onChangeText={(value) => setDraft((current) => ({ ...current, [field]: value }))}
+            style={[styles.customInput, bodyFont ? { fontFamily: bodyFont } : null]}
+            value={current}
+            onChangeText={(value) => setDraft((next) => ({ ...next, [field]: value }))}
             placeholder={field === "race" ? "Custom race" : "Custom class"}
             placeholderTextColor="#8A8175"
           />
@@ -406,7 +421,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
         <View style={[styles.panel, { marginTop: 10 * s }]}>
           <Image source={storyPanel} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
+          <View style={[styles.panelInner, { padding: 18 * s }]}>
             <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Background</Text>
             <View style={styles.sectionRule} />
             {editing ? (
@@ -514,6 +529,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: "100%",
     height: "100%",
+    opacity: 0.28,
   },
   header: {
     paddingHorizontal: 16,
@@ -526,8 +542,8 @@ const styles = StyleSheet.create({
   titleBox: { flex: 1, alignItems: "center" },
   title: { color: "#1A1816", letterSpacing: 0.6 },
   scroll: { flex: 1 },
-  body: { gap: 4 },
-  card: { overflow: "hidden", borderRadius: 4 },
+  body: { gap: 4, alignItems: "stretch" },
+  card: { overflow: "hidden", borderRadius: 4, alignSelf: "stretch" },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { flex: 1, color: "#1A1816", textAlign: "center", letterSpacing: 0.4 },
   nameInput: {
@@ -552,13 +568,34 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   picker: {
-    marginTop: 8,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: "#1A1816",
-    backgroundColor: "rgba(254,252,235,0.92)",
+    borderRadius: 6,
+    backgroundColor: "rgba(254,252,235,0.96)",
+    overflow: "hidden",
   },
-  option: { paddingVertical: 8, paddingHorizontal: 10 },
-  optionText: { color: "#1A1816", fontSize: 14 },
+  pickerLabel: {
+    color: "#1A1816",
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1A1816",
+    backgroundColor: "rgba(189,127,2,0.12)",
+  },
+  option: { paddingVertical: 9, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "rgba(26,24,22,0.12)" },
+  optionOn: { backgroundColor: "rgba(196,69,54,0.12)" },
+  optionText: { color: "#1A1816", fontSize: 15 },
+  optionTextOn: { color: "#C44536" },
+  customInput: {
+    margin: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1A1816",
+    color: "#1A1816",
+    fontSize: 15,
+    paddingVertical: 6,
+  },
   rule: { height: 1, backgroundColor: "#1A1816", marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   statHead: { position: "absolute", top: 0, left: 0, width: "100%" },
@@ -590,17 +627,19 @@ const styles = StyleSheet.create({
     fontSize: 22,
     padding: 0,
   },
-  panel: { overflow: "hidden", borderRadius: 4, minHeight: 120 },
-  section: { color: "#1A1816", fontSize: 18, textAlign: "center" },
+  panel: { alignSelf: "stretch", overflow: "hidden", borderRadius: 4, minHeight: 120 },
+  panelInner: { alignItems: "stretch" },
+  section: { color: "#1A1816", fontSize: 18, textAlign: "center", alignSelf: "center" },
   sectionRule: { alignSelf: "center", width: 126, height: 1, backgroundColor: "#1A1816", marginTop: 4, marginBottom: 8 },
-  story: { color: "#1A1816", fontSize: 15, lineHeight: 22 },
+  story: { color: "#1A1816", fontSize: 15, lineHeight: 22, textAlign: "left" },
   storyInput: {
     minHeight: 88,
     color: "#1A1816",
     fontSize: 15,
+    lineHeight: 22,
     textAlignVertical: "top",
   },
-  block: { paddingHorizontal: 16, paddingTop: 16 },
+  block: { alignSelf: "stretch", paddingHorizontal: 16, paddingTop: 16 },
   line: { color: "#1A1816", fontSize: 16, lineHeight: 26 },
   addRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   addInput: {
