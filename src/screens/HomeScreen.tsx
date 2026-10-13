@@ -17,7 +17,7 @@ import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
 
 import type { AppScreen } from "../navigation/screens";
-import House from "../../assets/Icons/icons8-house.svg";
+import Witch from "../../assets/Icons/icons8-witch-hat.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Settings from "../../assets/Icons/icons8-settings.svg";
 
@@ -284,7 +284,7 @@ export default function HomeScreen({ onOpen }: Props) {
 }
 
 const SEAL_ICONS = {
-  sage: House,
+  sage: Witch,
   tome: Settings,
   codex: Book,
 } as const;
