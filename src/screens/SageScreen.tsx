@@ -7,7 +7,6 @@ import {
   Text,
   TextInput,
   View,
-  ScrollView,
 } from "react-native";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
@@ -90,18 +89,20 @@ export default function SageScreen({ onBack }: Props) {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
+      {/* Fixed header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={onBack} hitSlop={12}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <View style={styles.titleWrap}>
-          <Text style={styles.title}>Sage Scribe</Text>
+          <Text style={styles.title}>SAGE SCRIBE</Text>
           <View style={styles.underline} />
         </View>
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      {/* Main visual block — always visible */}
+      <View style={styles.main}>
         <View style={styles.orbSlot}>
           <SageAvatar />
         </View>
@@ -110,7 +111,7 @@ export default function SageScreen({ onBack }: Props) {
           {speaking ? "Listening..." : busy ? "Thinking..." : reply ? "Reply" : "Ready"}
         </Text>
 
-        <Pressable style={styles.pauseBtn} onPress={toggleSpeech} disabled={!reply && !speaking}>
+        <Pressable style={styles.pauseBtn} onPress={toggleSpeech}>
           <View style={styles.pauseBar} />
           <View style={styles.pauseBar} />
         </Pressable>
@@ -129,33 +130,37 @@ export default function SageScreen({ onBack }: Props) {
             <Text style={styles.chipText}>Scribe</Text>
           </Pressable>
         </View>
+      </View>
 
-        {showInput ? (
-          <>
-            <TextInput
-              style={styles.input}
-              multiline
-              placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
-              placeholderTextColor="#8A8175"
-              value={question}
-              onChangeText={setQuestion}
-            />
-            <Pressable style={styles.askBtn} onPress={ask} disabled={busy}>
-              {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={styles.askBtnText}>Ask</Text>}
-            </Pressable>
-          </>
-        ) : null}
+      {/* Optional input / reply area */}
+      {showInput || reply || error ? (
+        <View style={styles.extra}>
+          {showInput ? (
+            <>
+              <TextInput
+                style={styles.input}
+                multiline
+                placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
+                placeholderTextColor="#8A8175"
+                value={question}
+                onChangeText={setQuestion}
+              />
+              <Pressable style={styles.askBtn} onPress={ask} disabled={busy}>
+                {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={styles.askBtnText}>Ask</Text>}
+              </Pressable>
+            </>
+          ) : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {reply ? (
+            <View style={styles.reply}>
+              <Text style={styles.replyLabel}>{persona === "sage" ? "Sage" : "Scribe"}</Text>
+              <Text style={styles.replyBody}>{reply}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {reply ? (
-          <View style={styles.reply}>
-            <Text style={styles.replyLabel}>{persona === "sage" ? "Sage" : "Scribe"}</Text>
-            <Text style={styles.replyBody}>{reply}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
-
+      {/* Bottom controls */}
       <View style={styles.controlBar}>
         <Pressable style={styles.controlBtn} onPress={() => setShowInput(false)}>
           <Text style={styles.controlIcon}>🎙️</Text>
@@ -177,9 +182,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 52,
+    paddingTop: 48,
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 6,
+    backgroundColor: "transparent",
   },
   backBtn: {
     width: 44,
@@ -191,123 +197,129 @@ const styles = StyleSheet.create({
   },
   backChevron: {
     color: "#FEFCEB",
-    fontSize: 32,
-    lineHeight: 34,
-    marginTop: -4,
+    fontSize: 30,
+    lineHeight: 32,
+    marginTop: -2,
   },
   titleWrap: {
     flex: 1,
     alignItems: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     color: "#1A1816",
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   underline: {
-    marginTop: 4,
+    marginTop: 3,
     height: 1,
-    width: 180,
+    width: 160,
     backgroundColor: "#2E2E2E",
   },
-  body: {
+  main: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 8,
     paddingHorizontal: 16,
-    paddingBottom: 120,
-    gap: 10,
   },
   orbSlot: {
-    width: 280,
-    height: 280,
-    marginTop: 8,
-    borderRadius: 140,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     overflow: "hidden",
+    backgroundColor: "#1A1816",
   },
   status: {
-    fontSize: 22,
-    letterSpacing: 2,
+    fontSize: 20,
+    letterSpacing: 1.5,
     color: "#4D4D4D",
     fontStyle: "italic",
-    marginTop: 6,
+    marginTop: 12,
   },
   pauseBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#FF0000",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 4,
+    marginTop: 10,
   },
   pauseBar: {
-    width: 5,
-    height: 18,
+    width: 4,
+    height: 16,
     backgroundColor: "#FFFFFF",
     borderRadius: 2,
   },
-  row: { flexDirection: "row", gap: 8 },
+  row: { flexDirection: "row", gap: 8, marginTop: 12 },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#1A1816",
   },
   chipOn: { backgroundColor: "#1A1816" },
-  chipText: { color: "#BD7F02", fontSize: 15 },
+  chipText: { color: "#BD7F02", fontSize: 14 },
+  extra: {
+    paddingHorizontal: 16,
+    paddingBottom: 80,
+    gap: 8,
+  },
   input: {
-    width: "100%",
-    minHeight: 80,
+    minHeight: 70,
     borderWidth: 1,
     borderColor: "#1A1816",
     borderRadius: 8,
-    padding: 12,
+    padding: 10,
     color: "#1A1816",
     fontSize: 16,
-    backgroundColor: "rgba(254,252,235,0.85)",
+    backgroundColor: "rgba(254,252,235,0.9)",
     textAlignVertical: "top",
   },
   askBtn: {
-    height: 44,
-    width: 120,
+    height: 40,
+    width: 100,
     borderRadius: 8,
     backgroundColor: "#C44536",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
   },
-  askBtnText: { color: "#FEFCEB", fontSize: 16 },
-  error: { color: "#A33A3A", fontSize: 15 },
+  askBtnText: { color: "#FEFCEB", fontSize: 15 },
+  error: { color: "#A33A3A", fontSize: 14 },
   reply: {
-    width: "100%",
     borderWidth: 1,
     borderColor: "#BD7F02",
     borderRadius: 8,
-    padding: 12,
-    backgroundColor: "rgba(254,252,235,0.9)",
-    gap: 6,
+    padding: 10,
+    backgroundColor: "rgba(254,252,235,0.95)",
   },
-  replyLabel: { color: "#BD7F02", fontSize: 13 },
-  replyBody: { color: "#1A1816", fontSize: 17, lineHeight: 24 },
+  replyLabel: { color: "#BD7F02", fontSize: 12 },
+  replyBody: { color: "#1A1816", fontSize: 16, lineHeight: 22 },
   controlBar: {
     position: "absolute",
-    bottom: 56,
+    bottom: 50,
     left: 0,
     right: 0,
-    height: 64,
-    backgroundColor: "rgba(26,24,22,0.85)",
+    height: 60,
+    backgroundColor: "rgba(26,24,22,0.88)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 20,
+    gap: 18,
   },
   controlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: "#FF0000",
     alignItems: "center",
     justifyContent: "center",
   },
-  controlIcon: { fontSize: 22 },
+  controlIcon: { fontSize: 20 },
 });
