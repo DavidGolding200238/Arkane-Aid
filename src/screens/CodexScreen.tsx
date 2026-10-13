@@ -33,13 +33,13 @@ const book = require("../../assets/Codex/Rectangle 28.png");
 const cardArt = require("../../assets/Codex/Rectangle 28 (1).png");
 const scrollMark = require("../../assets/Codex/Polygon 22.png");
 
-type Tab = "all" | CodexKind;
+type Tab = "all" | "note" | "item";
 
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: Tab | "ledger"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "note", label: "Notes" },
   { id: "item", label: "Items" },
-  { id: "event", label: "Ledger" },
+  { id: "ledger", label: "Ledger" },
 ];
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
@@ -51,8 +51,8 @@ function shortDate(iso: string) {
 }
 
 function kindFor(tab: Tab): CodexKind {
-  if (tab === "all") return "note";
-  return tab;
+  if (tab === "item") return "item";
+  return "note";
 }
 
 export default function CodexScreen({ onBack, onOpen }: Props) {
@@ -96,9 +96,18 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   }, [load]);
 
   const shown = useMemo(() => {
-    if (tab === "all") return rows;
-    return rows.filter((row) => row.kind === tab);
+    const session = rows.filter((row) => row.kind !== "event");
+    if (tab === "all") return session;
+    return session.filter((row) => row.kind === tab);
   }, [rows, tab]);
+
+  const openTab = (id: Tab | "ledger") => {
+    if (id === "ledger") {
+      onOpen("ledger");
+      return;
+    }
+    setTab(id);
+  };
 
   const save = async () => {
     if (!partyId) return;
@@ -165,7 +174,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
             {TABS.map((item) => {
               const on = item.id === tab;
               return (
-                <Pressable key={item.id} onPress={() => setTab(item.id)} style={styles.tab}>
+                <Pressable key={item.id} onPress={() => openTab(item.id)} style={styles.tab}>
                   <Text
                     style={[
                       styles.tabLabel,
@@ -187,7 +196,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                 style={[styles.input, bodyFont ? { fontFamily: bodyFont } : null]}
                 value={title}
                 onChangeText={setTitle}
-                placeholder={tab === "item" ? "Item name" : tab === "event" ? "Event title" : "Title"}
+                placeholder={tab === "item" ? "Item name" : "Title"}
                 placeholderTextColor="#8A8175"
               />
               <TextInput
@@ -203,7 +212,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                   <ActivityIndicator color="#FEFCEB" />
                 ) : (
                   <Text style={[styles.saveText, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    Save {tab === "all" ? "note" : tab}
+                    Save {tab === "item" ? "item" : "note"}
                   </Text>
                 )}
               </Pressable>
@@ -222,7 +231,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
               <Text style={styles.link} onPress={() => onOpen("create")}>
                 Create
               </Text>
-              {" · "}
+              {" \u00b7 "}
               <Text style={styles.link} onPress={() => onOpen("join")}>
                 Join
               </Text>
