@@ -11,17 +11,7 @@
     },
     "android": {
       "package": "za.co.openwindow.arkaneaid",
-      "navigationBarColor": "#000000",
-      "permissions": ["RECORD_AUDIO"]
-    },
-    "plugins": [
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "Allow Arkane Aid to hear your questions and notes.",
-          "speechRecognitionPermission": "Allow Arkane Aid to turn your speech into text."
-        }
-      ]
-    ]
+      "navigationBarColor": "#000000"
+    }
   }
 }
