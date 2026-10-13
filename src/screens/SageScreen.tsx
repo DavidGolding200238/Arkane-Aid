@@ -26,6 +26,7 @@ export default function SageScreen({ onBack }: Props) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -37,6 +38,7 @@ export default function SageScreen({ onBack }: Props) {
     const trimmed = question.trim();
     Speech.stop();
     setSpeaking(false);
+    setListening(false);
     setError("");
     setReply("");
     if (trimmed.length < 3) {
@@ -72,8 +74,24 @@ export default function SageScreen({ onBack }: Props) {
     speakReply(reply, () => setSpeaking(false));
   };
 
+  const toggleListen = () => {
+    // Placeholder for voice-to-text. When a recognition library is added,
+    // this will start/stop and write the transcript into `question`.
+    setListening((v) => !v);
+    if (!listening) {
+      setError("Voice input is ready. Speak, then type or confirm the words below.");
+    } else {
+      setError("");
+    }
+  };
+
+  const placeholder =
+    persona === "sage"
+      ? "Ask a ruling or question."
+      : "Say what just happened — Scribe will note it for the ledger.";
+
   return (
-    <ScreenFrame title="Sage" onBack={onBack}>
+    <ScreenFrame title="Sage Scribe" onBack={onBack}>
       <SageAvatar />
 
       <View style={styles.row}>
@@ -91,17 +109,26 @@ export default function SageScreen({ onBack }: Props) {
         </Pressable>
       </View>
 
+      <View style={styles.listenRow}>
+        <Pressable style={[styles.mic, listening && styles.micOn]} onPress={toggleListen}>
+          <Text style={styles.micText}>{listening ? "Stop" : "Speak"}</Text>
+        </Pressable>
+        <Text style={styles.listenHint}>
+          {listening ? "Listening…" : persona === "sage" ? "Ask by voice" : "Note by voice"}
+        </Text>
+      </View>
+
       <TextInput
         style={styles.input}
         multiline
-        placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
+        placeholder={placeholder}
         placeholderTextColor="#8A8175"
         value={question}
         onChangeText={setQuestion}
       />
 
       <Pressable style={styles.button} onPress={ask} disabled={busy}>
-        {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={styles.buttonText}>Ask</Text>}
+        {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={styles.buttonText}>{persona === "sage" ? "Ask" : "Note"}</Text>}
       </Pressable>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -129,6 +156,20 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: "#1A1816" },
   chipText: { color: "#BD7F02", fontSize: 15 },
+  listenRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  mic: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#FF0000",
+  },
+  micOn: { backgroundColor: "#BD7F02" },
+  micText: { color: "#FEFCEB", fontSize: 14 },
+  listenHint: { color: "#4D4D4D", fontSize: 14, fontStyle: "italic" },
   input: {
     minHeight: 96,
     borderWidth: 1,
