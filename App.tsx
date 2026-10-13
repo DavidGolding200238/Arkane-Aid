@@ -62,14 +62,14 @@ function Gate() {
             </Suspense>
           </ScreenError>
         ) : null}
-        {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} /> : null}
+        {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "ledger" ? <LedgerScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "settings" ? <SettingsScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "create" ? (
-          <CreatePartyScreen onBack={() => setScreen("ledger")} onDone={() => setScreen("ledger")} />
+          <CreatePartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
         {screen === "join" ? (
-          <JoinPartyScreen onBack={() => setScreen("ledger")} onDone={() => setScreen("ledger")} />
+          <JoinPartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
         {tabbed && screen !== "home" ? <TabBar current={screen} onOpen={setScreen} /> : null}
       </View>
