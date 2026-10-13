@@ -23,9 +23,12 @@ create table if not exists public.characters (
   wis int not null default 10 check (wis between 1 and 30),
   cha int not null default 10 check (cha between 1 and 30),
   portrait_url text,
+  traits text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.characters add column if not exists traits text;
 
 create unique index if not exists characters_user_party_unique
   on public.characters (user_id, party_id)
