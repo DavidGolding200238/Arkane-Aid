@@ -20,6 +20,21 @@ import { errorText } from "../lib/parties";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 
+const FIRE = [
+  require("../../assets/Fire/Property 1=Variant2.png"),
+  require("../../assets/Fire/Property 1=Variant3.png"),
+  require("../../assets/Fire/Property 1=Variant4.png"),
+  require("../../assets/Fire/Property 1=Variant5.png"),
+  require("../../assets/Fire/Property 1=Variant6.png"),
+  require("../../assets/Fire/Property 1=Variant7.png"),
+  require("../../assets/Fire/Property 1=Variant8.png"),
+  require("../../assets/Fire/Property 1=Variant9.png"),
+];
+
+const ORB = 260;
+const FIRE_W = 238;
+const FIRE_H = 120;
+
 type Props = { onBack: () => void };
 
 function speakReply(text: string, onEnd: () => void) {
@@ -31,6 +46,25 @@ function speakReply(text: string, onEnd: () => void) {
     onStopped: onEnd,
     onError: onEnd,
   });
+}
+
+function OrbFire() {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFrame((current) => (current + 1) % FIRE.length);
+    }, 120);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Image
+      source={FIRE[frame]}
+      resizeMode="contain"
+      style={styles.fire}
+    />
+  );
 }
 
 export default function SageScreen({ onBack }: Props) {
@@ -117,8 +151,11 @@ export default function SageScreen({ onBack }: Props) {
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
-        <View style={styles.orbRing}>
-          <SageAvatar />
+        <View style={styles.orbStage}>
+          <View style={styles.orbRing}>
+            <SageAvatar />
+          </View>
+          <OrbFire />
         </View>
 
         <Text style={[styles.status, bodyFont ? { fontFamily: bodyFont } : null]}>{status}</Text>
@@ -260,12 +297,25 @@ const styles = StyleSheet.create({
     paddingBottom: 88,
     gap: 10,
   },
-  orbRing: {
+  orbStage: {
     marginTop: 4,
+    width: ORB + 24,
+    height: ORB + 36,
+    alignItems: "center",
+  },
+  orbRing: {
     padding: 6,
     borderRadius: 140,
     borderWidth: 1,
     borderColor: "#BD7F02",
+  },
+  fire: {
+    position: "absolute",
+    width: FIRE_W,
+    height: FIRE_H,
+    left: (ORB + 24 - FIRE_W) / 2,
+    bottom: 4,
+    zIndex: 2,
   },
   status: {
     fontSize: 18,
