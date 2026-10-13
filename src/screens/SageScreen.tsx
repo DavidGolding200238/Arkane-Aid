@@ -141,14 +141,30 @@ export default function SageScreen({ onBack }: Props) {
             onPress={() => setPersona("sage")}
           >
             <Text style={[styles.modeTitle, bodyFont ? { fontFamily: bodyFont } : null]}>Sage</Text>
-            <Text style={[styles.modeBody, bodyFont ? { fontFamily: bodyFont } : null]}>Ask a ruling</Text>
+            <Text
+              style={[
+                styles.modeBody,
+                persona === "sage" && styles.modeBodyOn,
+                bodyFont ? { fontFamily: bodyFont } : null,
+              ]}
+            >
+              Ask a ruling
+            </Text>
           </Pressable>
           <Pressable
             style={[styles.mode, persona === "scribe" && styles.modeOn]}
             onPress={() => setPersona("scribe")}
           >
             <Text style={[styles.modeTitle, bodyFont ? { fontFamily: bodyFont } : null]}>Scribe</Text>
-            <Text style={[styles.modeBody, bodyFont ? { fontFamily: bodyFont } : null]}>Note the table</Text>
+            <Text
+              style={[
+                styles.modeBody,
+                persona === "scribe" && styles.modeBodyOn,
+                bodyFont ? { fontFamily: bodyFont } : null,
+              ]}
+            >
+              Note the table
+            </Text>
           </Pressable>
         </View>
 
@@ -295,6 +311,7 @@ const styles = StyleSheet.create({
   },
   modeTitle: { color: "#BD7F02", fontSize: 16 },
   modeBody: { color: "#5A5348", fontSize: 13, marginTop: 2 },
+  modeBodyOn: { color: "#F4E6C8" },
   work: {
     width: "100%",
     gap: 8,
