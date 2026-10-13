@@ -15,6 +15,8 @@ import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import SageAvatar from "../components/SageAvatar";
+import { useParty } from "../context/PartyContext";
+import { addCodexEntry } from "../lib/codex";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
 
@@ -69,11 +71,19 @@ function OrbFire() {
   );
 }
 
+function noteTitle(text: string) {
+  const line = text.split(/\n|\./)[0]?.trim() || text.trim();
+  return line.length > 48 ? `${line.slice(0, 45)}...` : line;
+}
+
 export default function SageScreen({ onBack }: Props) {
+  const { selected } = useParty();
+  const partyId = selected?.party.id ?? null;
   const [persona, setPersona] = useState<SagePersona>("sage");
   const [question, setQuestion] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState("");
+  const [noted, setNoted] = useState("");
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [fontsLoaded] = useFonts({
@@ -96,6 +106,7 @@ export default function SageScreen({ onBack }: Props) {
     setSpeaking(false);
     setError("");
     setReply("");
+    setNoted("");
     if (trimmed.length < 3) {
       setError("Ask a real question. Three characters at least.");
       return;
@@ -109,6 +120,14 @@ export default function SageScreen({ onBack }: Props) {
         return;
       }
       setReply(text);
+      if (persona === "scribe") {
+        if (!partyId) {
+          setError("Join a party first. The note needs a table to land in.");
+        } else {
+          await addCodexEntry(partyId, "note", noteTitle(trimmed), text, "scribe");
+          setNoted("Written to the Codex.");
+        }
+      }
       setSpeaking(true);
       speakReply(text, () => setSpeaking(false));
     } catch (err) {
@@ -228,6 +247,9 @@ export default function SageScreen({ onBack }: Props) {
               </Text>
             )}
           </Pressable>
+          {noted ? (
+            <Text style={[styles.noted, bodyFont ? { fontFamily: bodyFont } : null]}>{noted}</Text>
+          ) : null}
           {error ? (
             <Text style={[styles.error, bodyFont ? { fontFamily: bodyFont } : null]}>{error}</Text>
           ) : null}
@@ -392,6 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: { color: "#FEFCEB", fontSize: 16 },
+  noted: { color: "#BD7F02", fontSize: 14 },
   error: { color: "#A33A3A", fontSize: 15 },
   reply: {
     width: "100%",
