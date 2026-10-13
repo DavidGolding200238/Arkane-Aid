@@ -66,12 +66,7 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
   let query = supabase.from("characters").select("*").eq("user_id", uid);
   query = partyId ? query.eq("party_id", partyId) : query.is("party_id", null);
   const { data, error } = await query.limit(1);
-  if (error) {
-    if (String(error.message).includes("traits")) {
-      throw new Error(`Traits column is missing. Run this once in the SQL editor: ${TRAITS_SQL}`);
-    }
-    throw error;
-  }
+  if (error) throw error;
   return (data?.[0] as Character | undefined) ?? null;
 }
 
@@ -124,9 +119,8 @@ export async function saveCharacter(
     return await writeCharacter(partyId, draft, existing, true);
   } catch (err) {
     if (!String(errorText(err)).toLowerCase().includes("traits")) throw err;
-    const saved = await writeCharacter(partyId, draft, existing, false);
+    await writeCharacter(partyId, draft, existing, false);
     throw new Error(`Sheet saved except traits. Run this once in the SQL editor: ${TRAITS_SQL}`);
-    return saved;
   }
 }
 
