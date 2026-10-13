@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Speech from "expo-speech";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import ScreenFrame from "../components/ScreenFrame";
 import SageAvatar from "../components/SageAvatar";
 import { askSage, type SagePersona } from "../lib/sage";
@@ -28,17 +32,45 @@ export default function SageScreen({ onBack }: Props) {
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
 
+  useSpeechRecognitionEvent("start", () => setListening(true));
+  useSpeechRecognitionEvent("end", () => setListening(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const text = event.results[0]?.transcript ?? "";
+    if (text) setQuestion(text);
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    setError(event.message || "Speech recognition failed.");
+    setListening(false);
+  });
+
   useEffect(() => {
     return () => {
       Speech.stop();
+      try {
+        ExpoSpeechRecognitionModule.abort();
+      } catch {}
     };
   }, []);
+
+  const startListening = async () => {
+    setError("");
+    const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!perm.granted) {
+      setError("Microphone permission is required to speak.");
+      return;
+    }
+    ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true });
+  };
+
+  const stopListening = () => {
+    ExpoSpeechRecognitionModule.stop();
+  };
 
   const ask = async () => {
     const trimmed = question.trim();
     Speech.stop();
     setSpeaking(false);
-    setListening(false);
+    if (listening) stopListening();
     setError("");
     setReply("");
     if (trimmed.length < 3) {
@@ -74,17 +106,6 @@ export default function SageScreen({ onBack }: Props) {
     speakReply(reply, () => setSpeaking(false));
   };
 
-  const toggleListen = () => {
-    // Placeholder for voice-to-text. When a recognition library is added,
-    // this will start/stop and write the transcript into `question`.
-    setListening((v) => !v);
-    if (!listening) {
-      setError("Voice input is ready. Speak, then type or confirm the words below.");
-    } else {
-      setError("");
-    }
-  };
-
   const placeholder =
     persona === "sage"
       ? "Ask a ruling or question."
@@ -110,11 +131,14 @@ export default function SageScreen({ onBack }: Props) {
       </View>
 
       <View style={styles.listenRow}>
-        <Pressable style={[styles.mic, listening && styles.micOn]} onPress={toggleListen}>
+        <Pressable
+          style={[styles.mic, listening && styles.micOn]}
+          onPress={listening ? stopListening : startListening}
+        >
           <Text style={styles.micText}>{listening ? "Stop" : "Speak"}</Text>
         </Pressable>
         <Text style={styles.listenHint}>
-          {listening ? "Listening…" : persona === "sage" ? "Ask by voice" : "Note by voice"}
+          {listening ? "Listening… tap Stop to finish" : persona === "sage" ? "Ask by voice" : "Note by voice"}
         </Text>
       </View>
 
