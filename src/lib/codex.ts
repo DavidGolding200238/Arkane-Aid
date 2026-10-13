@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 export type CodexKind = "note" | "item" | "event";
+export type CodexSource = "user" | "scribe";
 
 export type CodexEntry = {
   id: string;
@@ -9,7 +10,7 @@ export type CodexEntry = {
   kind: CodexKind;
   title: string | null;
   body: string;
-  source: "user" | "scribe";
+  source: CodexSource;
   created_at: string;
 };
 
@@ -27,7 +28,8 @@ export async function addCodexEntry(
   partyId: string,
   kind: CodexKind,
   title: string,
-  body: string
+  body: string,
+  source: CodexSource = "user"
 ): Promise<void> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
@@ -43,7 +45,7 @@ export async function addCodexEntry(
     kind,
     title: title.trim() || null,
     body: trimmed,
-    source: "user",
+    source,
   });
   if (error) throw error;
 }
