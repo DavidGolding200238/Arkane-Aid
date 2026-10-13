@@ -17,13 +17,12 @@ for (const ext of ["glb", "gltf"]) {
 // and @react-three/fiber calls it while the bundle is still starting:
 // [runtime not ready]: TypeError: undefined is not a function.
 const threeEsm = path.resolve(__dirname, "node_modules/three/build/three.module.js");
-const upstream = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "three") {
     return { type: "sourceFile", filePath: threeEsm };
   }
-  return upstream(context, moduleName, platform);
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;
