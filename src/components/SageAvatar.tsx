@@ -63,7 +63,7 @@ function fitOrb(root: THREE.Object3D) {
   const fitted = new THREE.Group();
   fitted.add(group);
   const max = Math.max(size.x, size.y, size.z) || 1;
-  fitted.scale.setScalar(2.15 / max);
+  fitted.scale.setScalar(1.85 / max);
   return fitted;
 }
 
@@ -126,11 +126,11 @@ export default function SageAvatar() {
 
   return (
     <View style={styles.slot} collapsable={false}>
-      <Canvas style={styles.canvas} camera={{ position: [0, 0.15, 3.5], fov: 35, near: 0.01, far: 50 }}>
-        <color attach="background" args={["#F4E6C8"]} />
-        <ambientLight intensity={1.15} />
-        <directionalLight position={[2.2, 3, 2.4]} intensity={1.7} />
-        <pointLight position={[0, 0, 0.4]} intensity={1.4} color="#F6D77A" />
+      <Canvas style={styles.canvas} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
+        <color attach="background" args={["#1A0A0A"]} />
+        <ambientLight intensity={1.1} />
+        <directionalLight position={[2.2, 3, 2.4]} intensity={1.6} />
+        <pointLight position={[0, 0, 0.4]} intensity={1.3} color="#F6D77A" />
         {orb ? <Spinning object={orb} /> : null}
       </Canvas>
       {!orb ? (
@@ -142,21 +142,24 @@ export default function SageAvatar() {
 
 const styles = StyleSheet.create({
   slot: {
-    height: 220,
-    borderWidth: 1,
-    borderColor: "#1A1816",
-    borderRadius: 12,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     overflow: "hidden",
-    backgroundColor: "#F4E6C8",
+    backgroundColor: "#1A0A0A",
+    alignSelf: "center",
   },
-  canvas: { width: "100%", height: 220 },
+  canvas: {
+    width: 260,
+    height: 260,
+  },
   note: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 10,
-    color: "#A33A3A",
-    fontSize: 13,
+    left: 16,
+    right: 16,
+    bottom: 16,
+    color: "#F6D77A",
+    fontSize: 12,
     textAlign: "center",
   },
 });
