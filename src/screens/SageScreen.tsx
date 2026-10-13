@@ -32,8 +32,8 @@ const FIRE = [
 ];
 
 const ORB = 260;
-const FIRE_W = 340;
-const FIRE_H = 160;
+const FIRE_W = 390;
+const FIRE_H = 170;
 const STAGE_W = FIRE_W;
 const STAGE_H = ORB + 56;
 
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     width: FIRE_W,
     height: FIRE_H,
     left: 0,
-    bottom: 0,
+    bottom: 22,
     zIndex: 2,
   },
   status: {
