@@ -32,8 +32,10 @@ const FIRE = [
 ];
 
 const ORB = 260;
-const FIRE_W = 238;
-const FIRE_H = 120;
+const FIRE_W = 340;
+const FIRE_H = 160;
+const STAGE_W = FIRE_W;
+const STAGE_H = ORB + 56;
 
 type Props = { onBack: () => void };
 
@@ -299,11 +301,13 @@ const styles = StyleSheet.create({
   },
   orbStage: {
     marginTop: 4,
-    width: ORB + 24,
-    height: ORB + 36,
+    width: STAGE_W,
+    height: STAGE_H,
     alignItems: "center",
+    overflow: "visible",
   },
   orbRing: {
+    marginTop: 8,
     padding: 6,
     borderRadius: 140,
     borderWidth: 1,
@@ -313,8 +317,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: FIRE_W,
     height: FIRE_H,
-    left: (ORB + 24 - FIRE_W) / 2,
-    bottom: 4,
+    left: 0,
+    bottom: 0,
     zIndex: 2,
   },
   status: {
