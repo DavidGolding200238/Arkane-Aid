@@ -15,9 +15,10 @@ import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import { SvgXml } from "react-native-svg";
 
 import type { AppScreen } from "../navigation/screens";
+import { bookXml, houseXml, settingsXml } from "../icons/dashboardIcons";
 
 const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
@@ -31,7 +32,6 @@ const gemGreen = require("../../assets/DasbBoard/Group 5929.png");
 const gemBlue = require("../../assets/DasbBoard/Group 5930.png");
 
 const INK = "#1A1816";
-const CREAM = "#FEFCEB";
 const SPLASH = "#A33A3A";
 const STEP = 120;
 
@@ -262,7 +262,7 @@ export default function HomeScreen({ onOpen }: Props) {
                 >
                   <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
                   <View style={styles.sealBody}>
-                    <SealIcon id={item.id} size={seal * 0.42} />
+                    <SealIcon id={item.id} size={seal * 0.38} />
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
@@ -282,53 +282,15 @@ export default function HomeScreen({ onOpen }: Props) {
   );
 }
 
+const SEAL_ICONS: Record<SealId, string> = {
+  sage: houseXml,
+  tome: settingsXml,
+  codex: bookXml,
+};
+
 function SealIcon({ id, size }: { id: SealId; size: number }) {
-  if (id === "sage") return <HatIcon size={size * 1.35} />;
-  if (id === "tome") return <GearIcon size={size * 1.1} />;
-  return <BookIcon size={size * 1.2} />;
-}
-
-function HatIcon({ size, light }: { size: number; light?: boolean }) {
-  const c = light ? CREAM : INK;
-  const band = light ? INK : "#F3E6C4";
-  return (
-    <Svg width={size} height={size * 0.7} viewBox="0 0 70 48">
-      <Path d="M36 2 C30 12 26 20 20 30 H48 C44 20 42 10 36 2 Z" fill={c} />
-      <Path d="M24 26.5 H46" stroke={band} strokeWidth={2.4} />
-      <Path d="M4 34 Q35 50 66 33" stroke={c} strokeWidth={5.2} fill="none" strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function BookIcon({ size, light }: { size: number; light?: boolean }) {
-  const c = light ? CREAM : INK;
-  const page = light ? INK : "#F3E6C4";
-  return (
-    <Svg width={size} height={size * 0.72} viewBox="0 0 68 48">
-      <Path d="M34 12 C26 8 12 9 6 14 V40 C16 35 26 35 34 42 Z" fill={c} />
-      <Path d="M34 12 C42 8 56 9 62 14 V40 C52 35 42 35 34 42 Z" fill={c} />
-      <Path d="M34 13.5 V40" stroke={page} strokeWidth={1.6} />
-      <Path d="M14 20 H26 M14 25 H26 M42 20 H54 M42 25 H54" stroke={page} strokeWidth={1.4} />
-    </Svg>
-  );
-}
-
-function GearIcon({ size, light }: { size: number; light?: boolean }) {
-  const c = light ? CREAM : INK;
-  return (
-    <Svg width={size} height={size} viewBox="0 0 64 64">
-      <Rect x={7} y={7} width={50} height={50} rx={11} fill="none" stroke={c} strokeWidth={3.2} />
-      <Circle cx={32} cy={32} r={6} fill="none" stroke={c} strokeWidth={2.8} />
-      <Rect x={29.2} y={15} width={5.6} height={7} rx={1} fill={c} />
-      <Rect x={29.2} y={42} width={5.6} height={7} rx={1} fill={c} />
-      <Rect x={15} y={29.2} width={7} height={5.6} rx={1} fill={c} />
-      <Rect x={42} y={29.2} width={7} height={5.6} rx={1} fill={c} />
-      <Rect x={18.2} y={18.2} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(-45 20.8 21.3)" />
-      <Rect x={40.6} y={18.2} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(45 43.2 21.3)" />
-      <Rect x={18.2} y={39.6} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(45 20.8 42.7)" />
-      <Rect x={40.6} y={39.6} width={5.2} height={6.2} rx={1} fill={c} transform="rotate(-45 43.2 42.7)" />
-    </Svg>
-  );
+  const xml = SEAL_ICONS[id].replace(/currentColor/g, INK);
+  return <SvgXml xml={xml} width={size} height={size} />;
 }
 
 const styles = StyleSheet.create({
