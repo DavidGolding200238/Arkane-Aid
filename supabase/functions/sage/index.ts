@@ -24,6 +24,7 @@ Deno.serve(async (request) => {
   const personaName = (payload.persona ?? "sage") as PersonaName;
   const persona = personalities[personaName];
   const question = String(payload.question ?? "").trim();
+  const sheet = String(payload.sheet ?? "").trim();
 
   if (!persona) {
     return Response.json(
@@ -34,6 +35,11 @@ Deno.serve(async (request) => {
   if (!question) {
     return Response.json({ error: "Missing question." }, { status: 400, headers: cors });
   }
+
+  const userContent =
+    sheet && !question.includes("Player sheet:")
+      ? `Player sheet:\n${sheet}\n\n${question}`
+      : question;
 
   const groq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -48,7 +54,7 @@ Deno.serve(async (request) => {
       reasoning_effort: "low",
       messages: [
         { role: "system", content: persona.system },
-        { role: "user", content: question },
+        { role: "user", content: userContent },
       ],
     }),
   });
