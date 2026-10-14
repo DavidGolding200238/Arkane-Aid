@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
@@ -46,6 +47,11 @@ function Gate() {
     return () => clearTimeout(id);
   }, []);
 
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync("#000000").catch(() => undefined);
+    NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
+  }, []);
+
   if (!splashDone || loading) return <SplashScreen />;
   if (!user) return <LoginScreen />;
 
@@ -71,7 +77,7 @@ function Gate() {
         {screen === "join" ? (
           <JoinPartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
-        {tabbed && screen !== "home" ? <TabBar current={screen} onOpen={setScreen} /> : null}
+        {screen !== "home" ? <TabBar current={screen} onOpen={setScreen} /> : null}
       </View>
     </PartyProvider>
   );
