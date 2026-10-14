@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
@@ -48,8 +49,9 @@ function Gate() {
   }, []);
 
   useEffect(() => {
-    NavigationBar.setBackgroundColorAsync("#000000").catch(() => undefined);
+    NavigationBar.setBackgroundColorAsync("#111111").catch(() => undefined);
     NavigationBar.setButtonStyleAsync("light").catch(() => undefined);
+    NavigationBar.setPositionAsync("absolute").catch(() => undefined);
   }, []);
 
   if (!splashDone || loading) return <SplashScreen />;
@@ -85,9 +87,11 @@ function Gate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
