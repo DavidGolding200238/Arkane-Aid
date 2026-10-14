@@ -1,12 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import House from "../../assets/Icons/icons8-house.svg";
+import Book from "../../assets/Icons/icons8-book.svg";
+import Hat from "../../assets/Icons/icons8-witch-hat.svg";
+import Settings from "../../assets/Icons/icons8-settings.svg";
 import type { AppScreen } from "../navigation/screens";
 
-const tabs: { id: AppScreen; label: string }[] = [
-  { id: "home", label: "Home" },
-  { id: "sage", label: "Sage" },
-  { id: "codex", label: "Codex" },
-  { id: "ledger", label: "Ledger" },
-  { id: "settings", label: "Settings" },
+const TABS: { id: AppScreen; Icon: typeof House }[] = [
+  { id: "home", Icon: House },
+  { id: "codex", Icon: Book },
+  { id: "sage", Icon: Hat },
+  { id: "settings", Icon: Settings },
 ];
 
 export default function TabBar({
@@ -18,11 +21,11 @@ export default function TabBar({
 }) {
   return (
     <View style={styles.row}>
-      {tabs.map((tab) => {
-        const on = tab.id === current;
+      {TABS.map(({ id, Icon }) => {
+        const on = id === current || (id === "codex" && current === "ledger") || (id === "settings" && (current === "create" || current === "join"));
         return (
-          <Pressable key={tab.id} style={styles.tab} onPress={() => onOpen(tab.id)}>
-            <Text style={[styles.label, on && styles.on]}>{tab.label}</Text>
+          <Pressable key={id} style={styles.tab} onPress={() => onOpen(id)} hitSlop={8}>
+            <Icon width={26} height={26} color={on ? "#FFFFFF" : "rgba(255,255,255,0.72)"} />
           </Pressable>
         );
       })}
@@ -33,15 +36,10 @@ export default function TabBar({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    backgroundColor: "#1A1816",
-    paddingBottom: 10,
-    paddingTop: 8,
+    backgroundColor: "#000000",
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 0,
   },
-  tab: { flex: 1, alignItems: "center", minHeight: 36, justifyContent: "center" },
-  label: {
-    color: "#F4E6C8",
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  on: { color: "#BD7F02", opacity: 1 },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36 },
 });
