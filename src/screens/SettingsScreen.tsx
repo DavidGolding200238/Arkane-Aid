@@ -52,6 +52,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
       {memberships.length === 0 ? <Text style={styles.meta}>None yet.</Text> : null}
       {memberships.map((row, index) => {
         const on = selected?.party.id === row.party.id;
+        const mine = seats[row.party.id]?.find((seat) => seat.user_id === row.user_id)?.name;
         return (
           <Pressable
             key={`${row.party.id}-${row.role}-${index}`}
