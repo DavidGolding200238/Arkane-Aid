@@ -222,7 +222,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: 10 * s, paddingBottom: 18 * s, gap: 10 * s }}
+          contentContainerStyle={{ paddingHorizontal: 10 * s, paddingBottom: 88, gap: 10 * s }}
           keyboardShouldPersistTaps="handled"
         >
           {!partyId ? (
