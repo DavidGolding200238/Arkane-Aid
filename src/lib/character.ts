@@ -155,6 +155,13 @@ export async function saveCharacter(
   }
 }
 
+export async function deleteCharacter(character: Character): Promise<void> {
+  const uid = await userId();
+  await supabase.storage.from("character-portraits").remove([`${uid}/${character.id}.jpg`]);
+  const { error } = await supabase.from("characters").delete().eq("id", character.id);
+  if (error) throw error;
+}
+
 export async function loadEquipment(characterId: string): Promise<Equipment[]> {
   const { data, error } = await supabase
     .from("character_equipment")
