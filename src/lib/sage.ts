@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-export type SagePersona = "sage" | "scribe";
+export type SagePersona = "sage" | "wizard" | "scribe";
 
 export async function askSage(question: string, persona: SagePersona = "sage", sheet = "") {
   const { data, error } = await supabase.functions.invoke("sage", {
