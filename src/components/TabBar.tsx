@@ -12,7 +12,7 @@ const TABS: { id: AppScreen; Icon: typeof House }[] = [
   { id: "settings", Icon: Settings },
 ];
 
-const SYSTEM_NAV = Platform.OS === "android" ? 48 : 20;
+const SYSTEM_NAV = Platform.OS === "android" ? 12 : 20;
 
 export default function TabBar({
   current,
