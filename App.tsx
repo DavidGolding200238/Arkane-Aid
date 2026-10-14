@@ -1,6 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import * as NavigationBar from "expo-navigation-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
@@ -47,11 +46,6 @@ function Gate() {
     return () => clearTimeout(id);
   }, []);
 
-  useEffect(() => {
-    NavigationBar.setStyle("light");
-    NavigationBar.setHidden(true);
-  }, []);
-
   if (!splashDone || loading) return <SplashScreen />;
   if (!user) return <LoginScreen />;
 
@@ -92,7 +86,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#111111" },
+  root: { flex: 1, backgroundColor: "#E8D7B8" },
   error: {
     flex: 1,
     backgroundColor: "#E8D7B8",
