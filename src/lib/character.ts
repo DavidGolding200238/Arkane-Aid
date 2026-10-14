@@ -10,6 +10,9 @@ export type Character = {
   class: string | null;
   race: string | null;
   background: string | null;
+  level: number;
+  hp_current: number;
+  hp_max: number;
   str: number;
   dex: number;
   con: number;
@@ -17,7 +20,6 @@ export type Character = {
   wis: number;
   cha: number;
   portrait_url: string | null;
-  traits: string | null;
 };
 
 export type Equipment = {
@@ -29,25 +31,34 @@ export type Equipment = {
   source: "user" | "scribe";
 };
 
+export type Trait = {
+  id: string;
+  character_id: string;
+  name: string;
+  source: "user" | "scribe";
+};
+
 export type CharacterDraft = {
   name: string;
   class: string;
   race: string;
   background: string;
+  level: number;
+  hp_current: number;
+  hp_max: number;
   str: number;
   dex: number;
   con: number;
   int: number;
   wis: number;
   cha: number;
-  traits: string;
 };
 
-const TRAITS_SQL =
-  "alter table public.characters add column if not exists traits text;";
+const SHEET_SQL =
+  "Run supabase/003_level_hp_traits.sql in the SQL editor once. It adds level, HP, and the traits list.";
 
 const SHEET_WORDS =
-  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|can i|do i|am i)\b/i;
+  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|can i|do i|am i)\b/i;
 
 function clip(value: string | null | undefined, max: number) {
   const text = (value ?? "").replace(/\s+/g, " ").trim();
@@ -76,37 +87,48 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
   query = partyId ? query.eq("party_id", partyId) : query.is("party_id", null);
   const { data, error } = await query.limit(1);
   if (error) throw error;
-  return (data?.[0] as Character | undefined) ?? null;
+  const row = (data?.[0] as Character | undefined) ?? null;
+  if (!row) return null;
+  return {
+    ...row,
+    level: row.level ?? 1,
+    hp_current: row.hp_current ?? 10,
+    hp_max: row.hp_max ?? 10,
+  };
 }
 
 export function needsSheet(question: string) {
   return SHEET_WORDS.test(question);
 }
 
-export function sheetBrief(character: Character | null, gear: Equipment[]): string {
+export function sheetBrief(character: Character | null, gear: Equipment[], traits: Trait[] = []): string {
   if (!character) return "";
   const name = clip(character.name, 24) || "Unnamed";
   const race = clip(character.race, 16);
   const klass = clip(character.class, 16);
-  const who = [name, race, klass].filter(Boolean).join(" ");
+  const who = [name, race, klass, `L${character.level}`].filter(Boolean).join(" ");
+  const hp = `HP ${character.hp_current}/${character.hp_max}`;
   const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
   const gearLine = gear
     .slice(0, 6)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
-  const traits = clip(character.traits, 80);
-  return [who, stats, gearLine ? `Gear: ${gearLine}` : "", traits ? `Traits: ${traits}` : ""]
+  const traitLine = traits
+    .slice(0, 6)
+    .map((item) => clip(item.name, 24))
+    .filter(Boolean)
+    .join(", ");
+  return [who, hp, stats, gearLine ? `Gear: ${gearLine}` : "", traitLine ? `Traits: ${traitLine}` : ""]
     .filter(Boolean)
     .join(". ");
 }
 
-async function writeCharacter(
+export async function saveCharacter(
   partyId: string | null,
   draft: CharacterDraft,
-  existing: Character | null,
-  withTraits: boolean
-) {
+  existing: Character | null
+): Promise<Character> {
   const uid = await userId();
   const row = {
     user_id: uid,
@@ -115,6 +137,9 @@ async function writeCharacter(
     class: draft.class.trim() || null,
     race: draft.race.trim() || null,
     background: draft.background.trim() || null,
+    level: draft.level,
+    hp_current: draft.hp_current,
+    hp_max: draft.hp_max,
     str: draft.str,
     dex: draft.dex,
     con: draft.con,
@@ -122,36 +147,28 @@ async function writeCharacter(
     wis: draft.wis,
     cha: draft.cha,
     updated_at: new Date().toISOString(),
-    ...(withTraits ? { traits: draft.traits.trim() || null } : {}),
   };
 
-  if (existing) {
-    const { data, error } = await supabase
-      .from("characters")
-      .update(row)
-      .eq("id", existing.id)
-      .select("*")
-      .single();
+  try {
+    if (existing) {
+      const { data, error } = await supabase
+        .from("characters")
+        .update(row)
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data as Character;
+    }
+    const { data, error } = await supabase.from("characters").insert(row).select("*").single();
     if (error) throw error;
     return data as Character;
-  }
-
-  const { data, error } = await supabase.from("characters").insert(row).select("*").single();
-  if (error) throw error;
-  return data as Character;
-}
-
-export async function saveCharacter(
-  partyId: string | null,
-  draft: CharacterDraft,
-  existing: Character | null
-): Promise<Character> {
-  try {
-    return await writeCharacter(partyId, draft, existing, true);
   } catch (err) {
-    if (!String(errorText(err)).toLowerCase().includes("traits")) throw err;
-    await writeCharacter(partyId, draft, existing, false);
-    throw new Error(`Sheet saved except traits. Run this once in the SQL editor: ${TRAITS_SQL}`);
+    const message = String(errorText(err)).toLowerCase();
+    if (message.includes("level") || message.includes("hp_")) {
+      throw new Error(SHEET_SQL);
+    }
+    throw err;
   }
 }
 
@@ -185,6 +202,38 @@ export async function addEquipment(characterId: string, name: string): Promise<v
 
 export async function removeEquipment(id: string): Promise<void> {
   const { error } = await supabase.from("character_equipment").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function loadTraits(characterId: string): Promise<Trait[]> {
+  const { data, error } = await supabase
+    .from("character_traits")
+    .select("id, character_id, name, source")
+    .eq("character_id", characterId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    if (String(errorText(error)).toLowerCase().includes("character_traits")) return [];
+    throw error;
+  }
+  return (data ?? []) as Trait[];
+}
+
+export async function addTrait(characterId: string, name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name the trait.");
+  const { error } = await supabase.from("character_traits").insert({
+    character_id: characterId,
+    name: trimmed,
+    source: "user",
+  });
+  if (error) {
+    if (String(errorText(error)).toLowerCase().includes("character_traits")) throw new Error(SHEET_SQL);
+    throw error;
+  }
+}
+
+export async function removeTrait(id: string): Promise<void> {
+  const { error } = await supabase.from("character_traits").delete().eq("id", id);
   if (error) throw error;
 }
 
