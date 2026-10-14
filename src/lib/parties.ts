@@ -59,10 +59,21 @@ export async function myParties(): Promise<Party[]> {
   return (data ?? []) as Party[];
 }
 
+export type Seat = {
+  user_id: string;
+  role: MemberRole;
+  name: string;
+};
+
 export async function myMemberships(): Promise<Membership[]> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!userData.user) return [];
+
   const { data, error } = await supabase
     .from("party_members")
     .select("party_id, user_id, role, parties(id, code, name, created_by, created_at)")
+    .eq("user_id", userData.user.id)
     .order("joined_at", { ascending: false });
   if (error) throw error;
 
@@ -75,6 +86,31 @@ export async function myMemberships(): Promise<Membership[]> {
       party: party as Party,
     };
   });
+}
+
+export async function partySeats(partyId: string): Promise<Seat[]> {
+  const { data: members, error } = await supabase
+    .from("party_members")
+    .select("user_id, role")
+    .eq("party_id", partyId);
+  if (error) throw error;
+
+  const { data: sheets } = await supabase
+    .from("characters")
+    .select("user_id, name")
+    .eq("party_id", partyId);
+
+  const names = new Map<string, string>();
+  for (const sheet of sheets ?? []) {
+    const name = String(sheet.name ?? "").trim();
+    if (name) names.set(sheet.user_id, name);
+  }
+
+  return (members ?? []).map((row) => ({
+    user_id: row.user_id,
+    role: row.role as MemberRole,
+    name: names.get(row.user_id) || "No sheet yet",
+  }));
 }
 
 export async function myProfile(): Promise<Profile | null> {
