@@ -455,13 +455,15 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               </Pressable>
             </View>
 
-            <Pressable onPress={pickPortrait} style={[styles.portraitWrap, { width: 146 * s, height: 146 * s, borderRadius: 73 * s }]}>
-              {row?.portrait_url ? (
-                <Image source={{ uri: row.portrait_url }} style={styles.fill} />
-              ) : (
-                <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
-              )}
-            </Pressable>
+            <View style={[styles.portraitRing, { width: 152 * s, height: 152 * s, borderRadius: 76 * s }]}>
+              <Pressable onPress={pickPortrait} style={[styles.portraitWrap, { width: 146 * s, height: 146 * s, borderRadius: 73 * s }]}>
+                {row?.portrait_url ? (
+                  <Image source={{ uri: row.portrait_url }} style={styles.fill} />
+                ) : (
+                  <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
+                )}
+              </Pressable>
+            </View>
 
             <View style={styles.metaRow}>
               {editing ? (
@@ -827,7 +829,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1A1816",
     paddingVertical: 4,
   },
-  portraitWrap: { alignSelf: "center", overflow: "hidden", marginTop: 12, backgroundColor: "#C8B48A" },
+  portraitRing: {
+    alignSelf: "center",
+    marginTop: 12,
+    borderWidth: 3,
+    borderColor: "#1A1816",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portraitWrap: { overflow: "hidden", backgroundColor: "#C8B48A" },
   metaRow: { flexDirection: "row", marginTop: 14 },
   meta: { flex: 1, color: "#1A1816", fontSize: 14 },
   metaRight: { textAlign: "right" },
