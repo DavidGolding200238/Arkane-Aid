@@ -85,5 +85,5 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   spacer: { width: 56 },
-  body: { paddingHorizontal: 20, paddingBottom: 28, gap: 12 },
+  body: { paddingHorizontal: 20, paddingBottom: 96, gap: 12 },
 });
