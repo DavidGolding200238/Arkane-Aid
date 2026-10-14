@@ -42,11 +42,25 @@ const STAGE_H = ORB + 56;
 
 type Props = { onBack: () => void };
 
-function speakReply(text: string, onEnd: () => void) {
+function cleanReply(text: string) {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function speakReply(text: string, fancy: boolean, onEnd: () => void) {
   Speech.stop();
   Speech.speak(text, {
     language: "en",
-    rate: 0.92,
+    rate: fancy ? 0.82 : 0.92,
+    pitch: fancy ? 0.82 : 1,
     onDone: onEnd,
     onStopped: onEnd,
     onError: onEnd,
@@ -81,6 +95,7 @@ export default function SageScreen({ onBack }: Props) {
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
   const [persona, setPersona] = useState<SagePersona>("sage");
+  const [fancy, setFancy] = useState(false);
   const [question, setQuestion] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState("");
@@ -124,9 +139,18 @@ export default function SageScreen({ onBack }: Props) {
         brief = sheetBrief(character, gear, traits);
         setSheetLine(brief ? "Sheet attached." : "No sheet yet.");
       }
-      const asked = brief ? `Sheet: ${brief}\nQ: ${trimmed}` : trimmed;
-      const data = await askSage(asked, persona, brief);
-      const text = String(data?.reply ?? "").trim();
+      const style = fancy
+        ? "Speak as an old court mage. Warm, ornate, short enough to read aloud. Plain text, no markdown.\n\n"
+        : "";
+      const asked = brief ? `${style}Sheet: ${brief}\nQ: ${trimmed}` : `${style}${trimmed}`;
+      let data;
+      try {
+        data = await askSage(asked, fancy && persona === "sage" ? "wizard" : persona, brief);
+      } catch (err) {
+        if (!String(errorText(err)).toLowerCase().includes("unknown persona")) throw err;
+        data = await askSage(asked, persona, brief);
+      }
+      const text = cleanReply(String(data?.reply ?? ""));
       if (!text) {
         setError("Sage returned an empty reply. Try again, or check the Edge Function logs.");
         return;
@@ -141,7 +165,7 @@ export default function SageScreen({ onBack }: Props) {
         }
       }
       setSpeaking(true);
-      speakReply(text, () => setSpeaking(false));
+      speakReply(text, fancy, () => setSpeaking(false));
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -157,7 +181,7 @@ export default function SageScreen({ onBack }: Props) {
     }
     if (!reply) return;
     setSpeaking(true);
-    speakReply(reply, () => setSpeaking(false));
+    speakReply(reply, fancy, () => setSpeaking(false));
   };
 
   const status = speaking ? "Speaking..." : busy ? "Thinking..." : reply ? "Reply ready" : "Ready";
@@ -204,6 +228,21 @@ export default function SageScreen({ onBack }: Props) {
         <Text style={[styles.pauseHint, bodyFont ? { fontFamily: bodyFont } : null]}>
           {speaking ? "Tap to stop the reply" : reply ? "Tap to hear the reply" : "The reply plays here"}
         </Text>
+
+        {persona === "sage" ? (
+          <View style={styles.voices}>
+            <Pressable style={[styles.voice, !fancy && styles.voiceOn]} onPress={() => setFancy(false)}>
+              <Text style={[styles.voiceText, !fancy && styles.voiceTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
+                Plain
+              </Text>
+            </Pressable>
+            <Pressable style={[styles.voice, fancy && styles.voiceOn]} onPress={() => setFancy(true)}>
+              <Text style={[styles.voiceText, fancy && styles.voiceTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
+                Wizard
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.modes}>
           <Pressable
@@ -273,7 +312,7 @@ export default function SageScreen({ onBack }: Props) {
         {reply ? (
           <View style={styles.reply}>
             <Text style={[styles.replyLabel, bodyFont ? { fontFamily: bodyFont } : null]}>
-              {persona === "sage" ? "Sage" : "Scribe"}
+              {persona === "sage" ? (fancy ? "Wizard" : "Sage") : "Scribe"}
             </Text>
             <Text style={[styles.replyBody, bodyFont ? { fontFamily: bodyFont } : null]}>{reply}</Text>
           </View>
@@ -403,6 +442,17 @@ const styles = StyleSheet.create({
   modeTitle: { color: "#BD7F02", fontSize: 16 },
   modeBody: { color: "#5A5348", fontSize: 13, marginTop: 2 },
   modeBodyOn: { color: "#F4E6C8" },
+  voices: { flexDirection: "row", gap: 8 },
+  voice: {
+    borderWidth: 1,
+    borderColor: "#BD7F02",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  voiceOn: { backgroundColor: "#BD7F02" },
+  voiceText: { color: "#BD7F02", fontSize: 13 },
+  voiceTextOn: { color: "#FEFCEB" },
   work: {
     width: "100%",
     gap: 8,
