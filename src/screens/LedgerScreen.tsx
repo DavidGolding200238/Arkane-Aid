@@ -19,15 +19,19 @@ import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyp
 import { useParty } from "../context/PartyContext";
 import {
   addEquipment,
+  addTrait,
   deleteCharacter,
   loadCharacter,
   loadEquipment,
+  loadTraits,
   removeEquipment,
+  removeTrait,
   saveCharacter,
   uploadPortrait,
   type Character,
   type CharacterDraft,
   type Equipment,
+  type Trait,
 } from "../lib/character";
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
@@ -87,13 +91,15 @@ const EMPTY: CharacterDraft = {
   class: "",
   race: "",
   background: "",
+  level: 1,
+  hp_current: 10,
+  hp_max: 10,
   str: 10,
   dex: 10,
   con: 10,
   int: 10,
   wis: 10,
   cha: 10,
-  traits: "",
 };
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
@@ -105,6 +111,18 @@ function clampStat(value: string) {
   return Math.min(30, Math.max(1, n));
 }
 
+function clampLevel(value: string) {
+  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
+  if (Number.isNaN(n)) return 1;
+  return Math.min(20, Math.max(1, n));
+}
+
+function clampHp(value: string, min: number) {
+  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
+  if (Number.isNaN(n)) return min;
+  return Math.min(999, Math.max(min, n));
+}
+
 function draftFrom(row: Character | null): CharacterDraft {
   if (!row) return EMPTY;
   return {
@@ -112,13 +130,15 @@ function draftFrom(row: Character | null): CharacterDraft {
     class: row.class ?? "",
     race: row.race ?? "",
     background: row.background ?? "",
+    level: row.level ?? 1,
+    hp_current: row.hp_current ?? 10,
+    hp_max: row.hp_max ?? 10,
     str: row.str,
     dex: row.dex,
     con: row.con,
     int: row.int,
     wis: row.wis,
     cha: row.cha,
-    traits: row.traits ?? "",
   };
 }
 
@@ -135,7 +155,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const [row, setRow] = useState<Character | null>(null);
   const [draft, setDraft] = useState<CharacterDraft>(EMPTY);
   const [gear, setGear] = useState<Equipment[]>([]);
+  const [traits, setTraits] = useState<Trait[]>([]);
   const [gearName, setGearName] = useState("");
+  const [traitName, setTraitName] = useState("");
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState<Picker>(null);
   const [customRace, setCustomRace] = useState(false);
@@ -153,6 +175,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       setRow(next);
       setDraft(draftFrom(next));
       setGear(next ? await loadEquipment(next.id) : []);
+      setTraits(next ? await loadTraits(next.id) : []);
       setError("");
     } catch (err) {
       setError(errorText(err));
@@ -179,13 +202,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       setPicker(null);
       setError("");
     } catch (err) {
-      const message = errorText(err);
-      if (message.startsWith("Sheet saved except traits")) {
-        const saved = await loadCharacter(partyId);
-        setRow(saved);
-        if (saved) setDraft((current) => ({ ...draftFrom(saved), traits: current.traits }));
-      }
-      setError(message);
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }
@@ -252,6 +269,34 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     }
   };
 
+  const addOneTrait = async () => {
+    setBusy(true);
+    try {
+      const saved = await ensureRow();
+      await addTrait(saved.id, traitName);
+      setTraitName("");
+      setTraits(await loadTraits(saved.id));
+      setError("");
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dropTrait = async (id: string) => {
+    if (!row) return;
+    setBusy(true);
+    try {
+      await removeTrait(id);
+      setTraits(await loadTraits(row.id));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const removeSheet = () => {
     if (!row) return;
     Alert.alert("Delete sheet", `Remove this character from ${partyName}? Other parties keep theirs.`, [
@@ -266,6 +311,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             setRow(null);
             setDraft(EMPTY);
             setGear([]);
+            setTraits([]);
             setEditing(false);
             setError("");
           } catch (err) {
@@ -288,7 +334,6 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const boxW = Math.floor((width - 36 * s - 16 * s) / 3);
   const boxH = boxW * (90 / 91);
   const headH = boxH * (28 / 90);
-  const traitLines = draft.traits.split("\n").map((line) => line.trim()).filter(Boolean);
   const side = 44 * s;
 
   const renderPicker = (field: "race" | "class", options: string[]) => {
@@ -417,6 +462,47 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             </View>
             {renderPicker("race", RACES)}
             {renderPicker("class", CLASSES)}
+
+            <View style={styles.vitalRow}>
+              <View style={styles.vital}>
+                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>Level</Text>
+                {editing ? (
+                  <TextInput
+                    style={[styles.vitalInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                    keyboardType="number-pad"
+                    value={String(draft.level)}
+                    onChangeText={(value) => setDraft((current) => ({ ...current, level: clampLevel(value) }))}
+                  />
+                ) : (
+                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>{draft.level}</Text>
+                )}
+              </View>
+              <View style={styles.vital}>
+                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>HP</Text>
+                {editing ? (
+                  <View style={styles.hpEdit}>
+                    <TextInput
+                      style={[styles.vitalInput, styles.hpInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                      keyboardType="number-pad"
+                      value={String(draft.hp_current)}
+                      onChangeText={(value) => setDraft((current) => ({ ...current, hp_current: clampHp(value, 0) }))}
+                    />
+                    <Text style={[styles.hpSlash, bodyFont ? { fontFamily: bodyFont } : null]}>/</Text>
+                    <TextInput
+                      style={[styles.vitalInput, styles.hpInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                      keyboardType="number-pad"
+                      value={String(draft.hp_max)}
+                      onChangeText={(value) => setDraft((current) => ({ ...current, hp_max: clampHp(value, 1) }))}
+                    />
+                  </View>
+                ) : (
+                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>
+                    {draft.hp_current}/{draft.hp_max}
+                  </Text>
+                )}
+              </View>
+            </View>
+
             <View style={styles.rule} />
 
             <View style={styles.stats}>
@@ -506,25 +592,31 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           <View style={{ padding: 16 * s }}>
             <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Traits</Text>
             <View style={styles.sectionRule} />
-            {editing ? (
-              <TextInput
-                style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                multiline
-                scrollEnabled={false}
-                value={draft.traits}
-                onChangeText={(traits) => setDraft((current) => ({ ...current, traits }))}
-                placeholder="One trait per line"
-                placeholderTextColor="#8A8175"
-              />
-            ) : traitLines.length === 0 ? (
+            {traits.length === 0 ? (
               <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>No traits yet.</Text>
-            ) : (
-              traitLines.map((line) => (
-                <Text key={line} style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  {line}
+            ) : null}
+            {traits.map((item) => (
+              <Pressable key={item.id} onPress={() => (editing ? dropTrait(item.id) : undefined)}>
+                <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
+                  {item.name}
+                  {editing ? "  \u00d7" : ""}
                 </Text>
-              ))
-            )}
+              </Pressable>
+            ))}
+            {editing ? (
+              <View style={styles.addRow}>
+                <TextInput
+                  style={[styles.addInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                  value={traitName}
+                  onChangeText={setTraitName}
+                  placeholder="Add a trait"
+                  placeholderTextColor="#8A8175"
+                />
+                <Pressable style={styles.addButton} onPress={addOneTrait}>
+                  <Text style={styles.addButtonText}>Add</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -615,6 +707,22 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1A1816",
     paddingVertical: 2,
   },
+  vitalRow: { flexDirection: "row", marginTop: 12, gap: 12 },
+  vital: { flex: 1, alignItems: "center" },
+  vitalLabel: { color: "#5A5348", fontSize: 12, letterSpacing: 0.6 },
+  vitalValue: { color: "#1A1816", fontSize: 18, marginTop: 2 },
+  vitalInput: {
+    color: "#1A1816",
+    fontSize: 18,
+    textAlign: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#1A1816",
+    minWidth: 36,
+    paddingVertical: 2,
+  },
+  hpEdit: { flexDirection: "row", alignItems: "center", gap: 4 },
+  hpInput: { minWidth: 42 },
+  hpSlash: { color: "#1A1816", fontSize: 18 },
   picker: {
     marginTop: 10,
     borderWidth: 1,
