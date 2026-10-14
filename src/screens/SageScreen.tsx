@@ -55,12 +55,40 @@ function cleanReply(text: string) {
     .trim();
 }
 
+let wizardVoice = "";
+
+function scoreVoice(voice: { identifier?: string; name?: string; language?: string }) {
+  const id = `${voice.identifier ?? ""} ${voice.name ?? ""}`.toLowerCase();
+  const lang = (voice.language ?? "").toLowerCase();
+  if (!lang.startsWith("en")) return -1;
+  if (/female|woman|samantha|victoria|karen|moira|tessa/.test(id)) return 0;
+  let score = 1;
+  if (/male|man|daniel|fred|rjs|iom|alex|bruce|ralph|gordon|arthur/.test(id)) score += 4;
+  if (/en-gb|en_gb|british|uk/.test(id) || lang.startsWith("en-gb")) score += 2;
+  if (/old|deep|low/.test(id)) score += 2;
+  return score;
+}
+
+async function loadWizardVoice() {
+  try {
+    const voices = await Speech.getAvailableVoicesAsync();
+    const ranked = voices
+      .map((voice) => ({ voice, score: scoreVoice(voice) }))
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score);
+    wizardVoice = ranked[0]?.voice.identifier ?? "";
+  } catch {
+    wizardVoice = "";
+  }
+}
+
 function speakReply(text: string, fancy: boolean, onEnd: () => void) {
   Speech.stop();
   Speech.speak(text, {
     language: "en",
-    rate: fancy ? 0.82 : 0.92,
-    pitch: fancy ? 0.82 : 1,
+    rate: fancy ? 0.86 : 0.92,
+    pitch: 1,
+    voice: fancy && wizardVoice ? wizardVoice : undefined,
     onDone: onEnd,
     onStopped: onEnd,
     onError: onEnd,
@@ -112,6 +140,7 @@ export default function SageScreen({ onBack }: Props) {
   const bodyFont = fontsLoaded ? "AtkinsonHyperlegible_400Regular" : undefined;
 
   useEffect(() => {
+    loadWizardVoice();
     return () => {
       Speech.stop();
     };
