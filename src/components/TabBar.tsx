@@ -1,5 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import House from "../../assets/Icons/icons8-house.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Hat from "../../assets/Icons/icons8-witch-hat.svg";
@@ -13,6 +12,8 @@ const TABS: { id: AppScreen; Icon: typeof House }[] = [
   { id: "settings", Icon: Settings },
 ];
 
+const SYSTEM_NAV = Platform.OS === "android" ? 48 : 20;
+
 export default function TabBar({
   current,
   onOpen,
@@ -20,11 +21,8 @@ export default function TabBar({
   current: AppScreen;
   onOpen: (screen: AppScreen) => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const lift = Math.max(insets.bottom, 0);
-
   return (
-    <View style={[styles.row, { paddingBottom: lift }]}>
+    <View style={[styles.row, { paddingBottom: SYSTEM_NAV }]}>
       {TABS.map(({ id, Icon }) => {
         const on =
           id === current ||
@@ -46,7 +44,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#111111",
     paddingTop: 12,
-    paddingBottom: 0,
   },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", height: 44 },
 });
