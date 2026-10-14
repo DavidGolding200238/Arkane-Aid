@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import ScreenFrame from "../components/ScreenFrame";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
-import { errorText, myProfile, type Profile } from "../lib/parties";
+import { errorText, myProfile, partySeats, type Profile, type Seat } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
@@ -13,12 +13,30 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const { memberships, selected, select, refresh, error } = useParty();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileError, setProfileError] = useState("");
+  const [seats, setSeats] = useState<Record<string, Seat[]>>({});
 
   useEffect(() => {
     myProfile()
       .then(setProfile)
       .catch((err) => setProfileError(errorText(err)));
   }, [user?.id]);
+
+  useEffect(() => {
+    let live = true;
+    Promise.all(
+      memberships.map(async (row) => [row.party.id, await partySeats(row.party.id)] as const)
+    )
+      .then((rows) => {
+        if (!live) return;
+        const next: Record<string, Seat[]> = {};
+        for (const [id, list] of rows) next[id] = list;
+        setSeats(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [memberships]);
 
   return (
     <ScreenFrame title="Settings" onBack={onBack}>
@@ -43,7 +61,13 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             <Text style={styles.body}>{row.party.name}</Text>
             <Text style={styles.meta}>
               {row.party.code} · {row.role}
+              {mine ? ` · ${mine}` : ""}
             </Text>
+            {(seats[row.party.id] ?? []).map((seat) => (
+              <Text key={seat.user_id} style={styles.seat}>
+                {seat.name} · {seat.role}
+              </Text>
+            ))}
           </Pressable>
         );
       })}
@@ -76,6 +100,7 @@ const styles = StyleSheet.create({
   label: { color: "#A33A3A", fontSize: 14 },
   body: { color: "#1A1816", fontSize: 16 },
   meta: { color: "#5A5348", fontSize: 13, marginTop: 2 },
+  seat: { color: "#1A1816", fontSize: 13, marginTop: 4 },
   button: {
     height: 44,
     borderRadius: 8,
