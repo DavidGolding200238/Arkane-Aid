@@ -46,6 +46,15 @@ export type CharacterDraft = {
 const TRAITS_SQL =
   "alter table public.characters add column if not exists traits text;";
 
+const SHEET_WORDS =
+  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|can i|do i|am i)\b/i;
+
+function clip(value: string | null | undefined, max: number) {
+  const text = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
+}
+
 function decodeBase64(input: string) {
   const clean = input.replace(/\s/g, "");
   const binary = atob(clean);
@@ -70,20 +79,26 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
   return (data?.[0] as Character | undefined) ?? null;
 }
 
+export function needsSheet(question: string) {
+  return SHEET_WORDS.test(question);
+}
+
 export function sheetBrief(character: Character | null, gear: Equipment[]): string {
   if (!character) return "";
-  const gearLine = gear.length ? gear.map((item) => item.name).join(", ") : "none";
-  return [
-    `Name: ${character.name || "Unnamed"}`,
-    `Race: ${character.race || "unknown"}`,
-    `Class: ${character.class || "unknown"}`,
-    `STR ${character.str} DEX ${character.dex} CON ${character.con} INT ${character.int} WIS ${character.wis} CHA ${character.cha}`,
-    character.background ? `Background: ${character.background}` : "",
-    character.traits ? `Traits: ${character.traits}` : "",
-    `Equipment: ${gearLine}`,
-  ]
+  const name = clip(character.name, 24) || "Unnamed";
+  const race = clip(character.race, 16);
+  const klass = clip(character.class, 16);
+  const who = [name, race, klass].filter(Boolean).join(" ");
+  const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
+  const gearLine = gear
+    .slice(0, 6)
+    .map((item) => clip(item.name, 24))
     .filter(Boolean)
-    .join("\n");
+    .join(", ");
+  const traits = clip(character.traits, 80);
+  return [who, stats, gearLine ? `Gear: ${gearLine}` : "", traits ? `Traits: ${traits}` : ""]
+    .filter(Boolean)
+    .join(". ");
 }
 
 async function writeCharacter(
