@@ -37,8 +37,8 @@ Deno.serve(async (request) => {
   }
 
   const userContent =
-    sheet && !question.includes("Player sheet:")
-      ? `Player sheet:\n${sheet}\n\n${question}`
+    sheet && !question.includes("Sheet:")
+      ? `Sheet: ${sheet}\nQ: ${question}`
       : question;
 
   const groq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
