@@ -70,6 +70,22 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
   return (data?.[0] as Character | undefined) ?? null;
 }
 
+export function sheetBrief(character: Character | null, gear: Equipment[]): string {
+  if (!character) return "";
+  const gearLine = gear.length ? gear.map((item) => item.name).join(", ") : "none";
+  return [
+    `Name: ${character.name || "Unnamed"}`,
+    `Race: ${character.race || "unknown"}`,
+    `Class: ${character.class || "unknown"}`,
+    `STR ${character.str} DEX ${character.dex} CON ${character.con} INT ${character.int} WIS ${character.wis} CHA ${character.cha}`,
+    character.background ? `Background: ${character.background}` : "",
+    character.traits ? `Traits: ${character.traits}` : "",
+    `Equipment: ${gearLine}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function writeCharacter(
   partyId: string | null,
   draft: CharacterDraft,
