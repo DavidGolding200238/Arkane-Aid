@@ -32,11 +32,11 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
       <Text style={styles.label}>Parties</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {memberships.length === 0 ? <Text style={styles.meta}>None yet.</Text> : null}
-      {memberships.map((row) => {
+      {memberships.map((row, index) => {
         const on = selected?.party.id === row.party.id;
         return (
           <Pressable
-            key={row.party.id}
+            key={`${row.party.id}-${row.role}-${index}`}
             style={[styles.card, on && styles.on]}
             onPress={() => select(row.party.id)}
           >
