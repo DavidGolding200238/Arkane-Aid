@@ -16,7 +16,7 @@ import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorativ
 import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import SageAvatar from "../components/SageAvatar";
 import { useParty } from "../context/PartyContext";
-import { loadCharacter, loadEquipment, sheetBrief } from "../lib/character";
+import { loadCharacter, loadEquipment, needsSheet, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
@@ -116,18 +116,14 @@ export default function SageScreen({ onBack }: Props) {
     }
     setBusy(true);
     try {
-      const character = await loadCharacter(partyId);
-      const gear = character ? await loadEquipment(character.id) : [];
-      const brief = sheetBrief(character, gear);
-      const asked = brief
-        ? `Player sheet:\n${brief}\n\nUse the sheet only if this question depends on the character, their stats, gear, or traits. For a general rule, ignore the sheet.\n\nQuestion: ${trimmed}`
-        : trimmed;
-      if (brief) {
-        const name = character?.name || "your character";
-        setSheetLine(`Sheet ready for ${name}. Used only if the question needs it.`);
-      } else {
-        setSheetLine("No sheet yet. Sage is answering without one.");
+      let brief = "";
+      if (persona === "sage" && needsSheet(trimmed)) {
+        const character = await loadCharacter(partyId);
+        const gear = character ? await loadEquipment(character.id) : [];
+        brief = sheetBrief(character, gear);
+        setSheetLine(brief ? "Sheet attached." : "No sheet yet.");
       }
+      const asked = brief ? `Sheet: ${brief}\nQ: ${trimmed}` : trimmed;
       const data = await askSage(asked, persona, brief);
       const text = String(data?.reply ?? "").trim();
       if (!text) {
