@@ -1,24 +1,103 @@
 # Arkane Aid
 
-Spoken Dungeons and Dragons aid for a live table. Android first. Expo TypeScript client, Supabase for auth and data, Groq for Sage through a server-side Edge Function.
+**A spoken companion for a live Dungeons and Dragons table.**
 
-Stay in the game. Ask a rule, file a note, keep a character sheet. The dungeon master still decides.
+Arkane Aid keeps the game moving. Ask a rule and hear the answer. File a note without leaving the table. Keep a character sheet that travels with the party. The dungeon master still decides.
 
-## What it does now
+Built with Expo (React Native, TypeScript), Supabase, and Groq. Android first. Tested in Expo Go.
 
-- Sign up, log in, and log out with Supabase Auth. A profile row is created on first sign-in.
-- Create or join a party with a code. Switch the active party in Settings. One character sheet per person per party. Codex notes stay with that party.
-- Ledger is the player sheet. Name, race, class, six abilities, background, traits, equipment, and a gallery portrait. Race and class pick from the official species and class list, with a custom option. Edit, save, and delete the sheet for the current party.
-- Codex is the session book. Tabs for All, Notes, and Items. The Ledger tab opens the player sheet. Long-press a card to delete it. Scribe mode writes a note into Codex for the current party.
-- Sage answers a typed ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question needs the character. General rules send no sheet. Speech in is a placeholder until the development build.
-- Rules answers are meant to stay inside a short local extract in `src/data/rules.json`, drawn from the official Dungeons and Dragons rules (SRD 5.2.1, CC-BY-4.0). A question outside that extract is refused and sent to the dungeon master. That refusal is the design, not a bug.
+---
 
-## Run it now
+## 1. Overview
+
+### Problem
+
+A live table stops when someone has to look up a rule, write a note, or find a number on a character sheet. Paper and rulebooks are slow. Most digital tools are built for the dungeon master, not for the player who is already holding dice.
+
+### Solution
+
+Arkane Aid is a player-side companion.
+
+Sage answers a ruling in short spoken sentences. Scribe turns what just happened into a note in the Codex. The Ledger holds the character sheet for the current party. Settings handles the account and the party code. The dungeon master is never replaced.
+
+### Target users
+
+A small live table. Two personas drove the design.
+
+- Jack Thompson, 26, Johannesburg. A developer. Wants a fast ruling and no rulebook dump.
+- Alex Carter, 24, Cape Town. A student with dyslexia. Needs short plain sentences that can be read aloud.
+
+### Platform
+
+Android first. The client runs in Expo Go for the milestone. A development build is required later for speech in and a full native orb. There is no Play Store release this year.
+
+---
+
+## 2. Features
+
+### Authentication
+
+Email sign up and login through Supabase Auth. A profile row is created on first sign in. Logout from Settings.
+
+### Parties
+
+Create a party and get a code. Join a party with that code. The creator is the dungeon master. Joiners are players. Switch the active party in Settings. Codex notes and the character sheet are scoped to the selected party. One sheet per person per party.
+
+### Sage
+
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. Speech in is a placeholder until a development build.
+
+### Scribe
+
+Turn what the table just said into one ledger line. Past tense. No advice. The line is written into the Codex for the current party.
+
+### Codex
+
+The session book. Tabs for All, Notes, and Items. The Ledger tab opens the player sheet. Add a note or an item. Long-press a card to delete it. Notes from other parties do not appear.
+
+### Ledger
+
+The player sheet. Name, race, class, level, hit points, armour class, speed, proficiency bonus, six abilities, skills, languages, features, background, traits, equipment, and a gallery portrait. Race and class pick from the official species and class list, with a custom option. Edit, save, and delete the sheet for the current party.
+
+### Rules
+
+Answers are meant to stay inside a short local extract in `src/data/rules.json`, drawn from the official Dungeons and Dragons System Reference Document 5.2.1 (CC-BY-4.0). A question outside that extract is refused and sent to the dungeon master. That refusal is the design, not a bug.
+
+### Settings
+
+Account, sign out, create party, join party, and switch the active party.
+
+---
+
+## 3. Tech stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Expo SDK 57 |
+| Language | TypeScript |
+| UI | React Native |
+| Auth and data | Supabase Auth, Postgres, Storage, Row Level Security |
+| AI | Groq, called from a Supabase Edge Function |
+| Speech | expo-speech |
+| Portrait | expo-image-picker |
+| Orb slot | three, @react-three/fiber, expo-gl |
+| Fonts | Cinzel Decorative, Atkinson Hyperlegible |
+| Icons | react-native-svg |
+| Android package | za.co.openwindow.arkaneaid |
+
+The Groq key lives on the Edge Function. It is never in the client or the APK.
+
+---
+
+## 4. Run it
 
 Expo Go on Android. No APK yet.
 
-1. Install Node 20 or newer, and the Expo Go app on the phone.
-2. Clone the repo and install dependencies:
+### Requirements
+
+Node.js 20 or newer. The Expo Go app on the phone. The phone and the laptop on the same network, or a tunnel.
+
+### Steps
 
 ```bash
 git clone https://github.com/DavidGolding200238/Arkane-Aid.git
@@ -26,46 +105,125 @@ cd Arkane-Aid
 npm install
 ```
 
-3. Copy `.env.example` to `.env` and set the publishable key:
+Copy `.env.example` to `.env` and set the publishable key.
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://pxbtkynhcnyrypskouwb.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-The Groq key is not in the client. It lives on the Sage Edge Function in Supabase.
-
-4. Start Metro:
+Start Metro.
 
 ```bash
 npx expo start
 ```
 
-If the phone is not on the same network, use `npx expo start --tunnel`.
+If the phone is not on the same network, use `npx expo start --tunnel`. Scan the QR code with Expo Go.
 
-5. Scan the QR code with Expo Go.
+### Backend
 
-## Dependencies
-
-Installed by `npm install`. Main ones:
-
-- Expo 57, React Native 0.86, React 19, TypeScript
-- `@supabase/supabase-js` for auth and data
-- `expo-speech` for spoken replies
-- `expo-image-picker` and `expo-file-system` for the portrait
-- `expo-font` with Cinzel Decorative and Atkinson Hyperlegible
-- `three`, `@react-three/fiber`, `@react-three/drei`, `expo-gl` for the orb slot
-- `react-native-svg` and `react-native-svg-transformer` for icons
-- `@expo/ngrok` for the tunnel
-
-Backend, already applied on the Supabase project:
+Already applied on the Supabase project. Re-run only on a fresh project, in order.
 
 - `supabase/001_auth_and_parties.sql` for profiles, parties, members, and ledger entries
 - `supabase/002_characters_codex_storage.sql` for characters, equipment, Codex entries, and the portrait bucket
-- `supabase/functions/sage` for the Groq call. `GROQ_API_KEY` is set on the function, not in the APK or the client
+- `supabase/003_level_hp_traits.sql` for level, hit points, and traits
+- `supabase/004_sheet_combat.sql` for armour class, speed, skills, languages, and features
+- `supabase/functions/sage` for the Groq call. `GROQ_API_KEY` is set on the function
 
-## Moving to an APK build
+---
 
-Current testing is Expo Go. Speech in, the exported orb, and a few native packages need a development build, not Expo Go. That build is an Android preview APK, same pattern as previous modules. There is no Play Store release this year.
+## 5. How the app works
 
-The free Expo plan allows a limited number of APK updates, so the development build is held until the screens are settled. The next pass finishes the frontend, then a small APK pass covers push-to-talk, the orb phases, and anything else Expo Go cannot run. The Groq key stays on the Edge Function and is never shipped in the APK.
+1. The player signs in.
+2. They create a party or join one with a code.
+3. They open the Ledger and fill a sheet for that party.
+4. At the table, they ask Sage a ruling. The reply is spoken.
+5. They tell Scribe what just happened. The line lands in the Codex.
+6. Switching party loads only that party's sheet and notes.
+
+---
+
+## 6. Screens
+
+| Screen | Purpose |
+|--------|---------|
+| Splash | Title and load |
+| Login and Sign up | Email authentication |
+| Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
+| Sage | Ask a ruling or note the table. Plain or Wizard voice |
+| Codex | Session book. Notes and items. Ledger tab opens the sheet |
+| Ledger | Player sheet for the current party |
+| Settings | Account, parties, sign out |
+| Create and Join | Party code |
+
+Figma is the source of truth for layout. File: ARKANE-AID-DEV.
+
+---
+
+## 7. Project structure
+
+```
+App.tsx                 screen gate and tab bar
+src/
+  screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
+  components/           TabBar, SageAvatar, ScreenFrame
+  context/              AuthContext, PartyContext
+  lib/                  supabase, parties, character, codex, sage
+  data/
+    rules.json          SRD 5.2.1 extract
+    sage-personalities.json
+assets/
+  Splash Screen/        title art
+  Icons/                tab and seal icons
+  Codex/                session book art
+  Ledger/               sheet art
+  Fire/                 orb flame frames
+  Sage/                 orb model
+supabase/
+  001_auth_and_parties.sql
+  002_characters_codex_storage.sql
+  003_level_hp_traits.sql
+  004_sheet_combat.sql
+  functions/sage/       Groq Edge Function
+```
+
+### Data
+
+`parties` and `party_members` hold the table and the roles.
+`characters` is one row per user per party.
+`character_equipment` and traits hang off the character.
+`codex_entries` are party notes and items.
+Portraits live in the `character-portraits` bucket.
+
+---
+
+## 8. Design choices
+
+Sage speaks in short sentences because Alex has dyslexia and Jack wants a fast ruling.
+
+The player sheet is attached only when the question needs it. A general rule does not spend tokens on the sheet.
+
+A question outside the local rules extract is refused. Inventing a rule is worse than saying the dungeon master should decide.
+
+One sheet per person per party. Switching party must not leak another campaign's notes or gear.
+
+The orb is a slot. A Spline embed will not run in Expo Go. Do not add an orb implementation unless asked.
+
+The phone's own navigation bar stays white in Expo Go. The app bar is black and sits above it.
+
+---
+
+## 9. Repository
+
+Public repository: DavidGolding200238/Arkane-Aid
+Active branch: main
+
+---
+
+## 10. Notes for reviewers
+
+The recommended way to evaluate the app is Expo Go on an Android phone, on the same network as the laptop running Metro.
+
+The loop to walk is: log in, open Sage, ask a ruling, Scribe a note, open Codex, open the sheet, create or join a party.
+
+Speech in, a true 3D orb, and a black system navigation bar need a development build. They are out of scope for the Expo Go milestone.
