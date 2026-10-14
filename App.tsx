@@ -1,16 +1,6 @@
-import { Component, lazy, LogBox, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
-
-LogBox.ignoreLogs([
-  "THREE.Clock",
-  "expo-notifications",
-  "Require cycle",
-  "An update for expo",
-  "setBackgroundColorAsync",
-  "setButtonStyleAsync",
-  "setPositionAsync",
-]);
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
