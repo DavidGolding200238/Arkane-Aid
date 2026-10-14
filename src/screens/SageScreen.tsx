@@ -119,10 +119,12 @@ export default function SageScreen({ onBack }: Props) {
       const character = await loadCharacter(partyId);
       const gear = character ? await loadEquipment(character.id) : [];
       const brief = sheetBrief(character, gear);
-      const asked = brief ? `Player sheet:\n${brief}\n\nQuestion: ${trimmed}` : trimmed;
+      const asked = brief
+        ? `Player sheet:\n${brief}\n\nUse the sheet only if this question depends on the character, their stats, gear, or traits. For a general rule, ignore the sheet.\n\nQuestion: ${trimmed}`
+        : trimmed;
       if (brief) {
         const name = character?.name || "your character";
-        setSheetLine(`Using ${name}'s sheet.`);
+        setSheetLine(`Sheet ready for ${name}. Used only if the question needs it.`);
       } else {
         setSheetLine("No sheet yet. Sage is answering without one.");
       }
