@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -18,6 +19,7 @@ import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyp
 import { useParty } from "../context/PartyContext";
 import {
   addEquipment,
+  deleteCharacter,
   loadCharacter,
   loadEquipment,
   removeEquipment,
@@ -39,6 +41,7 @@ const portraitArt = require("../../assets/Ledger/Rectangle 27.png");
 const statHead = require("../../assets/Ledger/Rectangle 39.png");
 const statBody = require("../../assets/Ledger/Rectangle 4914.png");
 const storyPanel = require("../../assets/Ledger/Rectangle 4909.png");
+const paper = require("../../assets/Codex/Rectangle 28 (1).png");
 const editCircle = require("../../assets/Codex/Rectangle 26.png");
 
 const STATS = [
@@ -124,6 +127,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const s = width / 360;
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
+  const partyName = selected?.party.name ?? "No party";
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
     AtkinsonHyperlegible_400Regular,
@@ -148,8 +152,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       const next = await loadCharacter(partyId);
       setRow(next);
       setDraft(draftFrom(next));
-      setError("");
       setGear(next ? await loadEquipment(next.id) : []);
+      setError("");
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -248,6 +252,32 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     }
   };
 
+  const removeSheet = () => {
+    if (!row) return;
+    Alert.alert("Delete sheet", `Remove this character from ${partyName}? Other parties keep theirs.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await deleteCharacter(row);
+            setRow(null);
+            setDraft(EMPTY);
+            setGear([]);
+            setEditing(false);
+            setError("");
+          } catch (err) {
+            setError(errorText(err));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const choose = (field: "race" | "class", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
     if (field === "race") setCustomRace(false);
@@ -259,6 +289,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const boxH = boxW * (90 / 91);
   const headH = boxH * (28 / 90);
   const traitLines = draft.traits.split("\n").map((line) => line.trim()).filter(Boolean);
+  const side = 44 * s;
 
   const renderPicker = (field: "race" | "class", options: string[]) => {
     if (picker !== field) return null;
@@ -272,11 +303,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         {options.map((option) => {
           const on = current === option;
           return (
-            <Pressable
-              key={option}
-              onPress={() => choose(field, option)}
-              style={[styles.option, on && styles.optionOn]}
-            >
+            <Pressable key={option} onPress={() => choose(field, option)} style={[styles.option, on && styles.optionOn]}>
               <Text style={[styles.optionText, on && styles.optionTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
                 {option}
               </Text>
@@ -310,7 +337,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <View style={[styles.header, { paddingTop: 48 * s }]}>
-        <Pressable onPress={onBack} hitSlop={10} style={{ width: 44 * s, height: 43 * s }}>
+        <Pressable onPress={onBack} hitSlop={10} style={{ width: side, height: 43 * s }}>
           <Image source={backCircle} style={styles.fill} resizeMode="stretch" />
           <Image source={backChevron} style={styles.chevron} resizeMode="contain" />
         </Pressable>
@@ -319,8 +346,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             LEDGER
           </Text>
           <Image source={underline} style={{ width: 156 * s, height: 8 * s, marginTop: 2 }} resizeMode="contain" />
+          <Text style={[styles.party, bodyFont ? { fontFamily: bodyFont } : null]}>{partyName}</Text>
         </View>
-        <View style={{ width: 44 * s }} />
+        <View style={{ width: side }} />
       </View>
 
       <ScrollView
@@ -332,6 +360,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           <Image source={sheet} style={styles.fill} resizeMode="stretch" />
           <View style={{ paddingHorizontal: 14 * s, paddingTop: 14 * s, paddingBottom: 16 * s }}>
             <View style={styles.nameRow}>
+              <View style={{ width: side }} />
               {editing ? (
                 <TextInput
                   style={[styles.nameInput, titleFont ? { fontFamily: titleFont } : null]}
@@ -350,7 +379,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                   setEditing((on) => !on);
                   setPicker(null);
                 }}
-                style={{ width: 44 * s, height: 43 * s }}
+                style={{ width: side, height: 43 * s }}
               >
                 <Image source={editCircle} style={styles.fill} resizeMode="stretch" />
               </Pressable>
@@ -375,10 +404,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>Race: {draft.race || "\u2014"}</Text>
               )}
               {editing ? (
-                <Pressable
-                  style={[styles.metaInput, styles.metaRight]}
-                  onPress={() => setPicker(picker === "class" ? null : "class")}
-                >
+                <Pressable style={[styles.metaInput, styles.metaRight]} onPress={() => setPicker(picker === "class" ? null : "class")}>
                   <Text style={[styles.meta, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}>
                     {draft.class || "Choose class"}
                   </Text>
@@ -442,56 +468,64 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           </View>
         </View>
 
-        <View style={styles.block}>
-          <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Equipment</Text>
-          <View style={styles.sectionRule} />
-          {gear.length === 0 ? <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>Nothing carried.</Text> : null}
-          {gear.map((item) => (
-            <Pressable key={item.id} onPress={() => (editing ? dropGear(item.id) : undefined)}>
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {item.name}
-                {editing ? "  \u00d7" : ""}
-              </Text>
-            </Pressable>
-          ))}
-          {editing ? (
-            <View style={styles.addRow}>
-              <TextInput
-                style={[styles.addInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                value={gearName}
-                onChangeText={setGearName}
-                placeholder="Add equipment"
-                placeholderTextColor="#8A8175"
-              />
-              <Pressable style={styles.addButton} onPress={addGear}>
-                <Text style={styles.addButtonText}>Add</Text>
+        <View style={[styles.paper, { marginTop: 10 * s }]}>
+          <Image source={paper} style={styles.fill} resizeMode="stretch" />
+          <View style={{ padding: 16 * s }}>
+            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Equipment</Text>
+            <View style={styles.sectionRule} />
+            {gear.length === 0 ? (
+              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>Nothing carried.</Text>
+            ) : null}
+            {gear.map((item) => (
+              <Pressable key={item.id} onPress={() => (editing ? dropGear(item.id) : undefined)}>
+                <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
+                  {item.name}
+                  {editing ? "  \u00d7" : ""}
+                </Text>
               </Pressable>
-            </View>
-          ) : null}
+            ))}
+            {editing ? (
+              <View style={styles.addRow}>
+                <TextInput
+                  style={[styles.addInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                  value={gearName}
+                  onChangeText={setGearName}
+                  placeholder="Add equipment"
+                  placeholderTextColor="#8A8175"
+                />
+                <Pressable style={styles.addButton} onPress={addGear}>
+                  <Text style={styles.addButtonText}>Add</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        <View style={styles.block}>
-          <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Traits</Text>
-          <View style={styles.sectionRule} />
-          {editing ? (
-            <TextInput
-              style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
-              multiline
-              scrollEnabled={false}
-              value={draft.traits}
-              onChangeText={(traits) => setDraft((current) => ({ ...current, traits }))}
-              placeholder="One trait per line"
-              placeholderTextColor="#8A8175"
-            />
-          ) : traitLines.length === 0 ? (
-            <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>No traits yet.</Text>
-          ) : (
-            traitLines.map((line) => (
-              <Text key={line} style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {line}
-              </Text>
-            ))
-          )}
+        <View style={[styles.paper, { marginTop: 10 * s }]}>
+          <Image source={paper} style={styles.fill} resizeMode="stretch" />
+          <View style={{ padding: 16 * s }}>
+            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Traits</Text>
+            <View style={styles.sectionRule} />
+            {editing ? (
+              <TextInput
+                style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                multiline
+                scrollEnabled={false}
+                value={draft.traits}
+                onChangeText={(traits) => setDraft((current) => ({ ...current, traits }))}
+                placeholder="One trait per line"
+                placeholderTextColor="#8A8175"
+              />
+            ) : traitLines.length === 0 ? (
+              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>No traits yet.</Text>
+            ) : (
+              traitLines.map((line) => (
+                <Text key={line} style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
+                  {line}
+                </Text>
+              ))
+            )}
+          </View>
         </View>
 
         {!partyId ? (
@@ -505,13 +539,26 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               Join
             </Text>
           </Text>
-        ) : null}
+        ) : (
+          <Text style={[styles.note, bodyFont ? { fontFamily: bodyFont } : null]}>
+            This sheet is only for {partyName}. A new party gets a new character.
+          </Text>
+        )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {editing ? (
           <Pressable style={styles.save} onPress={persist} disabled={busy}>
-            {busy ? <ActivityIndicator color="#FEFCEB" /> : <Text style={[styles.saveText, bodyFont ? { fontFamily: bodyFont } : null]}>Save sheet</Text>}
+            {busy ? (
+              <ActivityIndicator color="#FEFCEB" />
+            ) : (
+              <Text style={[styles.saveText, bodyFont ? { fontFamily: bodyFont } : null]}>Save sheet</Text>
+            )}
+          </Pressable>
+        ) : null}
+        {editing && row ? (
+          <Pressable style={styles.delete} onPress={removeSheet} disabled={busy}>
+            <Text style={[styles.deleteText, bodyFont ? { fontFamily: bodyFont } : null]}>Delete sheet</Text>
           </Pressable>
         ) : null}
       </ScrollView>
@@ -541,10 +588,11 @@ const styles = StyleSheet.create({
   chevron: { position: "absolute", width: 18, height: 18, left: 13, top: 12 },
   titleBox: { flex: 1, alignItems: "center" },
   title: { color: "#1A1816", letterSpacing: 0.6 },
+  party: { color: "#5A5348", fontSize: 13, marginTop: 2 },
   scroll: { flex: 1 },
   body: { gap: 4, alignItems: "stretch" },
   card: { overflow: "hidden", borderRadius: 4, alignSelf: "stretch" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  nameRow: { flexDirection: "row", alignItems: "center" },
   name: { flex: 1, color: "#1A1816", textAlign: "center", letterSpacing: 0.4 },
   nameInput: {
     flex: 1,
@@ -628,6 +676,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   panel: { alignSelf: "stretch", overflow: "hidden", borderRadius: 4, minHeight: 120 },
+  paper: { alignSelf: "stretch", overflow: "hidden", borderRadius: 4, minHeight: 96 },
   panelInner: { alignItems: "stretch" },
   section: { color: "#1A1816", fontSize: 18, textAlign: "center", alignSelf: "center" },
   sectionRule: { alignSelf: "center", width: 126, height: 1, backgroundColor: "#1A1816", marginTop: 4, marginBottom: 8 },
@@ -639,8 +688,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlignVertical: "top",
   },
-  block: { alignSelf: "stretch", paddingHorizontal: 16, paddingTop: 16 },
-  line: { color: "#1A1816", fontSize: 16, lineHeight: 26 },
+  line: { color: "#1A1816", fontSize: 16, lineHeight: 26, textAlign: "center" },
   addRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   addInput: {
     flex: 1,
@@ -657,9 +705,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addButtonText: { color: "#FEFCEB", fontSize: 14 },
-  note: { color: "#5A5348", fontSize: 14, textAlign: "center", marginTop: 8 },
+  note: { color: "#5A5348", fontSize: 13, textAlign: "center", marginTop: 10 },
   link: { color: "#A33A3A" },
-  error: { color: "#A33A3A", fontSize: 14, marginTop: 8 },
+  error: { color: "#A33A3A", fontSize: 14, marginTop: 8, textAlign: "center" },
   save: {
     marginTop: 12,
     height: 44,
@@ -669,4 +717,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   saveText: { color: "#FEFCEB", fontSize: 16 },
+  delete: {
+    marginTop: 8,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#A33A3A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteText: { color: "#A33A3A", fontSize: 15 },
 });
