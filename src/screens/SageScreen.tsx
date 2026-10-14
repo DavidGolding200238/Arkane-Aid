@@ -16,6 +16,7 @@ import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorativ
 import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import SageAvatar from "../components/SageAvatar";
 import { useParty } from "../context/PartyContext";
+import { loadCharacter, loadEquipment, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
@@ -84,6 +85,7 @@ export default function SageScreen({ onBack }: Props) {
   const [reply, setReply] = useState("");
   const [error, setError] = useState("");
   const [noted, setNoted] = useState("");
+  const [sheetLine, setSheetLine] = useState("");
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [fontsLoaded] = useFonts({
@@ -107,13 +109,24 @@ export default function SageScreen({ onBack }: Props) {
     setError("");
     setReply("");
     setNoted("");
+    setSheetLine("");
     if (trimmed.length < 3) {
       setError("Ask a real question. Three characters at least.");
       return;
     }
     setBusy(true);
     try {
-      const data = await askSage(trimmed, persona);
+      const character = await loadCharacter(partyId);
+      const gear = character ? await loadEquipment(character.id) : [];
+      const brief = sheetBrief(character, gear);
+      const asked = brief ? `Player sheet:\n${brief}\n\nQuestion: ${trimmed}` : trimmed;
+      if (brief) {
+        const name = character?.name || "your character";
+        setSheetLine(`Using ${name}'s sheet.`);
+      } else {
+        setSheetLine("No sheet yet. Sage is answering without one.");
+      }
+      const data = await askSage(asked, persona, brief);
       const text = String(data?.reply ?? "").trim();
       if (!text) {
         setError("Sage returned an empty reply. Try again, or check the Edge Function logs.");
@@ -247,6 +260,9 @@ export default function SageScreen({ onBack }: Props) {
               </Text>
             )}
           </Pressable>
+          {sheetLine ? (
+            <Text style={[styles.noted, bodyFont ? { fontFamily: bodyFont } : null]}>{sheetLine}</Text>
+          ) : null}
           {noted ? (
             <Text style={[styles.noted, bodyFont ? { fontFamily: bodyFont } : null]}>{noted}</Text>
           ) : null}
