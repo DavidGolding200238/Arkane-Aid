@@ -13,6 +13,11 @@ export type Character = {
   level: number;
   hp_current: number;
   hp_max: number;
+  ac: number;
+  speed: number;
+  languages: string | null;
+  features: string | null;
+  skills: string[];
   str: number;
   dex: number;
   con: number;
@@ -46,6 +51,11 @@ export type CharacterDraft = {
   level: number;
   hp_current: number;
   hp_max: number;
+  ac: number;
+  speed: number;
+  languages: string;
+  features: string;
+  skills: string[];
   str: number;
   dex: number;
   con: number;
@@ -56,9 +66,36 @@ export type CharacterDraft = {
 
 const SHEET_SQL =
   "Run supabase/003_level_hp_traits.sql in the SQL editor once. It adds level, HP, and the traits list.";
+const COMBAT_SQL =
+  "Run supabase/004_sheet_combat.sql in the SQL editor once. It adds armor class, speed, skills, languages, and features.";
 
 const SHEET_WORDS =
-  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|can i|do i|am i)\b/i;
+  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|ac|armor|speed|skill|language|spell|feature|can i|do i|am i)\b/i;
+
+export const SKILLS = [
+  "Acrobatics",
+  "Animal Handling",
+  "Arcana",
+  "Athletics",
+  "Deception",
+  "History",
+  "Insight",
+  "Intimidation",
+  "Investigation",
+  "Medicine",
+  "Nature",
+  "Perception",
+  "Performance",
+  "Persuasion",
+  "Religion",
+  "Sleight of Hand",
+  "Stealth",
+  "Survival",
+] as const;
+
+export function proficiencyBonus(level: number) {
+  return 2 + Math.floor((Math.max(1, Math.min(20, level)) - 1) / 4);
+}
 
 function clip(value: string | null | undefined, max: number) {
   const text = (value ?? "").replace(/\s+/g, " ").trim();
@@ -94,6 +131,11 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
     level: row.level ?? 1,
     hp_current: row.hp_current ?? 10,
     hp_max: row.hp_max ?? 10,
+    ac: row.ac ?? 10,
+    speed: row.speed ?? 30,
+    languages: row.languages ?? null,
+    features: row.features ?? null,
+    skills: Array.isArray(row.skills) ? row.skills : [],
   };
 }
 
@@ -107,19 +149,29 @@ export function sheetBrief(character: Character | null, gear: Equipment[], trait
   const race = clip(character.race, 16);
   const klass = clip(character.class, 16);
   const who = [name, race, klass, `L${character.level}`].filter(Boolean).join(" ");
-  const hp = `HP ${character.hp_current}/${character.hp_max}`;
+  const combat = `AC${character.ac} SPD${character.speed} PB+${proficiencyBonus(character.level)} HP ${character.hp_current}/${character.hp_max}`;
   const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
+  const skills = (character.skills ?? []).slice(0, 8).join(", ");
   const gearLine = gear
     .slice(0, 6)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
   const traitLine = traits
-    .slice(0, 6)
+    .slice(0, 4)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
-  return [who, hp, stats, gearLine ? `Gear: ${gearLine}` : "", traitLine ? `Traits: ${traitLine}` : ""]
+  const features = clip(character.features, 80);
+  return [
+    who,
+    combat,
+    stats,
+    skills ? `Skills: ${skills}` : "",
+    gearLine ? `Gear: ${gearLine}` : "",
+    traitLine ? `Traits: ${traitLine}` : "",
+    features ? `Features: ${features}` : "",
+  ]
     .filter(Boolean)
     .join(". ");
 }
@@ -140,6 +192,11 @@ export async function saveCharacter(
     level: draft.level,
     hp_current: draft.hp_current,
     hp_max: draft.hp_max,
+    ac: draft.ac,
+    speed: draft.speed,
+    languages: draft.languages.trim() || null,
+    features: draft.features.trim() || null,
+    skills: draft.skills,
     str: draft.str,
     dex: draft.dex,
     con: draft.con,
@@ -165,6 +222,9 @@ export async function saveCharacter(
     return data as Character;
   } catch (err) {
     const message = String(errorText(err)).toLowerCase();
+    if (message.includes("ac") || message.includes("speed") || message.includes("skills") || message.includes("features")) {
+      throw new Error(COMBAT_SQL);
+    }
     if (message.includes("level") || message.includes("hp_")) {
       throw new Error(SHEET_SQL);
     }
