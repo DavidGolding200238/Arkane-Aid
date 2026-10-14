@@ -2,9 +2,9 @@ import { supabase } from "./supabase";
 
 export type SagePersona = "sage" | "scribe";
 
-export async function askSage(question: string, persona: SagePersona = "sage") {
+export async function askSage(question: string, persona: SagePersona = "sage", sheet = "") {
   const { data, error } = await supabase.functions.invoke("sage", {
-    body: { question, persona },
+    body: { question, persona, sheet },
   });
   if (error) {
     const context = (error as { context?: Response }).context;
