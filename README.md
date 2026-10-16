@@ -182,7 +182,7 @@ assets/
     buttons/            btn-circle-red@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
-    ledger/             stat-header, stat-body, portrait-placeholder (3x PNG, transparent)
+    ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   Fire/                 orb flame frames
   Sage/                 orb model
 supabase/

@@ -19,5 +19,5 @@ export const radius = {
 
 export const stroke = {
   hairline: 1, // panel and card borders, rules
-  portrait: 3, // portrait ring (deliberately thicker than Figma)
+  portrait: 3, // old smooth portrait ring; Ledger now uses the inked outline art
 } as const;
