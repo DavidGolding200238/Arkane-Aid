@@ -11,7 +11,6 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
-import Svg, { Circle } from "react-native-svg";
 import Rule from "../components/Rule";
 import { inkText, useScale } from "../theme";
 
@@ -20,8 +19,6 @@ const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2124:39
 const d20 = require("../../assets/images/splash/die-d20-glow.png"); // Group 5948, 2132:28
 const loaderArt = require("../../assets/images/splash/loader-ring.png"); // Loader, 2314:645
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type Props = {
   /** Real preload progress, 0..1 (finished tasks / all tasks, see lib/preload). */
@@ -57,9 +54,9 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
     return () => loop.stop();
   }, [spin]);
 
-  // The bar eases towards the real progress instead of jumping task by task; the percentage
-  // follows the eased value. When everything is loaded it finishes the sweep, then lets the
-  // user in.
+  // The percentage eases towards the real progress instead of jumping task by task. When
+  // everything is loaded it finishes counting to 100%, then lets the user in. The ring's
+  // orbiting gold dots are decoration and keep spinning as before.
   const shown = useRef(new Animated.Value(0)).current;
   const finished = useRef(false);
   useEffect(() => {
@@ -72,7 +69,7 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
       toValue: target,
       duration: ready ? 420 : 520,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false, // drives the SVG arc and the number
+      useNativeDriver: false, // drives the number
     });
     anim.start(({ finished: done }) => {
       if (done && ready && !finished.current) {
@@ -91,10 +88,6 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
   const skullW = s(338);
   const skullH = skullW;
   const loaderSize = s(223);
-  // Progress arc laid over the loader ring's own circle (radius 32.2% of the art).
-  const arcR = loaderSize * 0.322;
-  const arcC = 2 * Math.PI * arcR;
-  const arcW = s(2.6);
   const dieW = skullW * 0.4;
   const dieH = dieW * 0.9;
 
@@ -142,22 +135,6 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
             style={[styles.loader, { transform: [{ rotate }] }]}
             resizeMode="contain"
           />
-          {/* The loading bar: a gold ink arc that fills clockwise from the top with real progress. */}
-          <Svg width={loaderSize} height={loaderSize} style={styles.loader} pointerEvents="none">
-            <AnimatedCircle
-              cx={loaderSize / 2}
-              cy={loaderSize / 2}
-              r={arcR}
-              stroke="#C9971E"
-              strokeOpacity={0.9}
-              strokeWidth={arcW}
-              strokeLinecap="round"
-              fill="none"
-              strokeDasharray={`${arcC} ${arcC}`}
-              strokeDashoffset={shown.interpolate({ inputRange: [0, 1], outputRange: [arcC, 0] })}
-              transform={`rotate(-90 ${loaderSize / 2} ${loaderSize / 2})`}
-            />
-          </Svg>
           <Text
             accessibilityRole="progressbar"
             accessibilityValue={{ min: 0, max: 100, now: percent }}
