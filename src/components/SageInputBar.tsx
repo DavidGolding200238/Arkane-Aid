@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, TextInput, type StyleProp, type ViewStyle } from "react-native";
 import CircleButton from "./CircleButton";
 import ParchmentPanel from "./ParchmentPanel";
 import { SendArrowIcon } from "./icons";
@@ -21,7 +21,7 @@ const MAX_LINES = 5;
 // The square torn-parchment typing box (the Ledger panel art lightened to cream, so it stands
 // out from the page) with the
 // round red send arrow tucked into its bottom-right corner. The text grows line by line up
-// to five lines, then scrolls inside. Send is dimmed until there is something to send.
+// to five lines, then scrolls inside. The send circle always shows in full colour but only sends when there is text.
 export default function SageInputBar({ persona, value, onChangeText, onSend, busy, onFocus, style }: Props) {
   const { s, fs } = useScale();
   const sage = persona === "sage";
@@ -45,16 +45,16 @@ export default function SageInputBar({ persona, value, onChangeText, onSend, bus
         onFocus={onFocus}
         accessibilityLabel={sage ? "Question for the Sage" : "Note for the Scribe"}
       />
-      <View style={disabled ? styles.dim : null}>
-        <CircleButton
-          size={send}
-          onPress={onSend}
-          disabled={disabled}
-          accessibilityLabel={sage ? "Ask the Sage" : "Send to the Scribe"}
-        >
-          <SendArrowIcon circleSize={send} />
-        </CircleButton>
-      </View>
+      {/* Always full colour, exactly like the other red circle buttons; it just doesn't send
+          while the box is empty or a reply is on its way. */}
+      <CircleButton
+        size={send}
+        onPress={onSend}
+        disabled={disabled}
+        accessibilityLabel={sage ? "Ask the Sage" : "Send to the Scribe"}
+      >
+        <SendArrowIcon circleSize={send} />
+      </CircleButton>
     </ParchmentPanel>
   );
 }
@@ -62,5 +62,4 @@ export default function SageInputBar({ persona, value, onChangeText, onSend, bus
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end" },
   input: { flex: 1, fontFamily: fonts.body, color: colors.ink, textAlignVertical: "top", padding: 0 },
-  dim: { opacity: 0.45 },
 });
