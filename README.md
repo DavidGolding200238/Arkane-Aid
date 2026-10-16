@@ -179,7 +179,7 @@ assets/
   Icons/                tab and seal icons
   images/
     backgrounds/        parchment.png
-    splash/             die-d20-glow, loader-ring (3x PNG, transparent; the skull is dashboard/skull-dragon)
+    splash/             die-d20-glow (4x PNG), loader-ring (3x PNG), both transparent; the skull is dashboard/skull-dragon
     decor/              ink-underline + ink-underline-end (the splash heading's inked rule, 3x, tintable; Rule uses them for every heading and divider)
     buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
