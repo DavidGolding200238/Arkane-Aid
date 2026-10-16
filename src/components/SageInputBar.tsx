@@ -25,7 +25,7 @@ const MAX_LINES = 5;
 export default function SageInputBar({ persona, value, onChangeText, onSend, busy, onFocus, style }: Props) {
   const { s, fs } = useScale();
   const sage = persona === "sage";
-  const send = s(38);
+  const send = s(44); // same size as the back button, so the red reads the same
   const lineH = fs(LINE);
   const disabled = value.trim().length === 0 || !!busy;
 

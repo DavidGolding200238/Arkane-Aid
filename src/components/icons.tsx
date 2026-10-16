@@ -35,11 +35,11 @@ export function QuillIcon({ circleSize }: { circleSize: number }) {
 
 // Send arrow for the Sage typing bar: a cream arrow pointing up, drawn in SVG so it is crisp at any size.
 export function SendArrowIcon({ circleSize, color = colors.cream }: { circleSize: number; color?: string }) {
-  const size = circleSize * 0.46;
+  const size = circleSize * 0.44;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 20V5" stroke={color} strokeWidth={2.6} strokeLinecap="round" fill="none" />
-      <Path d="M5.5 11.2L12 4.6l6.5 6.6" stroke={color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path d="M12 20V5" stroke={color} strokeWidth={3} strokeLinecap="round" fill="none" />
+      <Path d="M5.5 11.2L12 4.6l6.5 6.6" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </Svg>
   );
 }
