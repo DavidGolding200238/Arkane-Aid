@@ -4,7 +4,10 @@ import {
   CinzelDecorative_700Bold,
 } from "@expo-google-fonts/cinzel-decorative";
 import { Asul_400Regular, Asul_700Bold } from "@expo-google-fonts/asul";
-import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
+import {
+  AtkinsonHyperlegible_400Regular,
+  AtkinsonHyperlegible_400Regular_Italic,
+} from "@expo-google-fonts/atkinson-hyperlegible";
 import { MedievalSharp_400Regular } from "@expo-google-fonts/medievalsharp";
 
 // Font family names as registered with expo-font.
@@ -14,6 +17,7 @@ export const fonts = {
   heading: "Asul_400Regular", // race, class, list items
   headingBold: "Asul_700Bold", // headings, tabs, buttons, dates
   body: "AtkinsonHyperlegible_400Regular", // paragraphs and inputs
+  bodyItalic: "AtkinsonHyperlegible_400Regular_Italic", // Sage status line
   stat: "MedievalSharp_400Regular", // ability scores and badges
 } as const;
 
@@ -36,6 +40,7 @@ export function useAppFonts() {
     Asul_400Regular,
     Asul_700Bold,
     AtkinsonHyperlegible_400Regular,
+    AtkinsonHyperlegible_400Regular_Italic,
     MedievalSharp_400Regular,
   });
   return loaded;
