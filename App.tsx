@@ -60,7 +60,7 @@ function Gate() {
         {screen === "sage" ? (
           <ScreenError onBack={() => setScreen("home")}>
             <Suspense fallback={<View style={styles.root} />}>
-              <SageScreen onBack={() => setScreen("home")} />
+              <SageScreen onBack={() => setScreen("home")} onOpenTome={() => setScreen("settings")} />
             </Suspense>
           </ScreenError>
         ) : null}

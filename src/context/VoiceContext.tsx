@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import Storage from "expo-sqlite/kv-store";
 
-// The Sage's speaking voice, picked on the Tome screen. Sage does not read it
-// yet; it will in a later step. Stored on the device (expo-sqlite key-value
+// The Sage's speaking voice, picked on the Tome screen and read by the Sage
+// screen (Wizard = ornate "wizard" persona and red fire, Plain = blue). Stored on the device (expo-sqlite key-value
 // store, already used by the Supabase session), not in the database.
 
 export type VoiceId = "wizard" | "plain" | "bard";
