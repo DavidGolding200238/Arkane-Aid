@@ -2,6 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import Svg, { ClipPath, Defs, G, Image as SvgImage, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
 import {
   Image,
+  PixelRatio,
   StyleSheet,
   View,
   type ImageSourcePropType,
@@ -61,10 +62,16 @@ const FILL_INSET = 3;
 
 type Size = { w: number; h: number };
 
+// Band edges land on whole device pixels and neighbouring bands overlap by one pixel, so no
+// half-covered row of pixels can let a lighter seam through where two slices meet.
+const snap = (v: number) => PixelRatio.roundToNearestPixel(v);
+const onePx = () => 1 / PixelRatio.get();
+
 function Slices({ source, art, size }: { source: ImageSourcePropType; art: Art; size: Size }) {
   const { w, h } = size;
+  const px = onePx();
   const k = w / art.width; // dp on screen per art dp, applied evenly in width
-  const cap = Math.min(CAP * k, h / 2); // on-screen cap height
+  const cap = snap(Math.min(CAP * k, h / 2)); // on-screen cap height, on the pixel grid
   const capArt = cap / k;
   const midH = Math.max(0, h - cap * 2);
   const midArt = art.height - capArt * 2;
@@ -77,10 +84,10 @@ function Slices({ source, art, size }: { source: ImageSourcePropType; art: Art; 
         <Image source={source} style={{ position: "absolute", top: 0, left: 0, width: w, height: fullH }} resizeMode="stretch" />
       </View>
       {midH > 0 ? (
-        <View style={[styles.slice, { top: cap, height: midH }]}>
+        <View style={[styles.slice, { top: cap - px, height: midH + px * 2 }]}>
           <Image
             source={source}
-            style={{ position: "absolute", top: -capArt * sy, left: 0, width: w, height: art.height * sy }}
+            style={{ position: "absolute", top: px - capArt * sy, left: 0, width: w, height: art.height * sy }}
             resizeMode="stretch"
           />
         </View>
@@ -110,16 +117,18 @@ export type PanelFadeSpec = {
 // The same three-slice placement as <Slices>, as SVG images, in panel coordinates.
 function SvgSlices({ id, source, art, size }: { id: string; source: ImageSourcePropType; art: Art; size: Size }) {
   const { w, h } = size;
+  const px = onePx();
   const k = w / art.width;
-  const cap = Math.min(CAP * k, h / 2);
+  const cap = snap(Math.min(CAP * k, h / 2));
   const capArt = cap / k;
   const midH = Math.max(0, h - cap * 2);
   const midArt = art.height - capArt * 2;
   const sy = midArt > 0 ? midH / midArt : 1;
   const fullH = art.height * k;
+  // Same bands as <Slices>, the middle one overlapping its neighbours by a pixel.
   const bands = [
     { top: 0, height: cap, imgY: 0, imgH: fullH },
-    { top: cap, height: midH, imgY: cap - capArt * sy, imgH: art.height * sy },
+    { top: cap - px, height: midH > 0 ? midH + px * 2 : 0, imgY: cap - capArt * sy, imgH: art.height * sy },
     { top: h - cap, height: cap, imgY: h - fullH, imgH: fullH },
   ].filter((b) => b.height > 0);
   return (
@@ -148,26 +157,37 @@ function PanelFade({ spec, art, size, inset }: { spec: PanelFadeSpec; art: Art; 
   const { top, height, direction, solid = 0 } = spec;
   if (height <= 0) return null;
   const id = `pf${raw}`;
+  const px = onePx();
+  // Box on whole device pixels, pushed one pixel past its solid end so that end overlaps the
+  // panel paper it sits on (redrawn paper over identical paper) instead of meeting it on a
+  // half-covered row.
+  const y0 = snap(top) - (direction === "down" ? px : 0);
+  const y1 = snap(top + height) + (direction === "up" ? px : 0);
+  const boxH = y1 - y0;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
   const stops: [number, number][] =
-    direction === "down" ? [[0, 1], [solid, 1], [1, 0]] : [[0, 0], [1 - solid, 1], [1, 1]];
+    direction === "down"
+      ? [[0, 1], [clamp((snap(top) + solid * height - y0) / boxH), 1], [1, 0]]
+      : [[0, 0], [clamp((snap(top + height) - solid * height - y0) / boxH), 1], [1, 1]];
   return (
-    <View pointerEvents="none" style={[styles.fade, { top, height }]}>
-      <Svg width={size.w} height={height}>
+    <View pointerEvents="none" style={[styles.fade, { top: y0, height: boxH }]}>
+      <Svg width={size.w} height={boxH}>
         <Defs>
-          <LinearGradient id={`${id}-g`} x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={`${id}-g`} x1="0" y1="0" x2="0" y2={boxH} gradientUnits="userSpaceOnUse">
             {stops.map(([offset, opacity], i) => (
               <Stop key={i} offset={offset} stopColor="#fff" stopOpacity={opacity} />
             ))}
           </LinearGradient>
-          <Mask id={`${id}-m`} x="0" y="0" width={size.w} height={height} maskUnits="userSpaceOnUse">
-            <Rect x="0" y="0" width={size.w} height={height} fill={`url(#${id}-g)`} />
+          {/* The mask reaches a pixel beyond the box on every side so its own edges never soften. */}
+          <Mask id={`${id}-m`} x={-px} y={-px} width={size.w + px * 2} height={boxH + px * 2} maskUnits="userSpaceOnUse">
+            <Rect x={-px} y={-px} width={size.w + px * 2} height={boxH + px * 2} fill={`url(#${id}-g)`} />
           </Mask>
           <ClipPath id={`${id}-fill`}>
             <Rect x={inset} y={inset} width={size.w - inset * 2} height={size.h - inset * 2} rx={inset * 2} />
           </ClipPath>
         </Defs>
         <G mask={`url(#${id}-m)`}>
-          <G transform={`translate(0, ${-top})`}>
+          <G transform={`translate(0, ${-y0})`}>
             <G clipPath={`url(#${id}-fill)`}>
               <SvgSlices id={`${id}-f`} source={art.fill} art={art} size={size} />
             </G>
