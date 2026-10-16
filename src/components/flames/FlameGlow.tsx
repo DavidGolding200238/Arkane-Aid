@@ -21,9 +21,11 @@ function Halo({ id, colour, size }: { id: string; colour: string; size: number }
   return (
     <Svg width={size} height={size}>
       <Defs>
-        <RadialGradient id={id} cx="50%" cy="54%" r="50%" fx="50%" fy="58%">
-          <Stop offset="0.35" stopColor={colour} stopOpacity={0.75} />
-          <Stop offset="0.62" stopColor={colour} stopOpacity={0.32} />
+        {/* The orb covers the middle; the colour is strongest at the orb's rim and fades out. */}
+        <RadialGradient id={id} cx="50%" cy="50%" r="50%" fx="50%" fy="56%">
+          <Stop offset="0.6" stopColor={colour} stopOpacity={0.7} />
+          <Stop offset="0.76" stopColor={colour} stopOpacity={0.36} />
+          <Stop offset="0.9" stopColor={colour} stopOpacity={0.1} />
           <Stop offset="1" stopColor={colour} stopOpacity={0} />
         </RadialGradient>
       </Defs>
