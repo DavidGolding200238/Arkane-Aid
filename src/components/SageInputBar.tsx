@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, type StyleProp, type ViewStyle } from "react-native";
 import CircleButton from "./CircleButton";
 import ParchmentPanel from "./ParchmentPanel";
-import { SendArrowIcon } from "./icons";
+import { SendNibIcon } from "./icons";
 import type { SagePersona } from "../lib/sage";
 import { colors, fonts, useScale } from "../theme";
 
@@ -20,7 +20,7 @@ const MAX_LINES = 5;
 
 // The square torn-parchment typing box (the Ledger panel art lightened to cream, so it stands
 // out from the page) with the
-// round red send arrow tucked into its bottom-right corner. The text grows line by line up
+// round red send button (a cream pen nib) tucked into its bottom-right corner. The text grows line by line up
 // to five lines, then scrolls inside. The send circle always shows in full colour but only sends when there is text.
 export default function SageInputBar({ persona, value, onChangeText, onSend, busy, onFocus, style }: Props) {
   const { s, fs } = useScale();
@@ -53,7 +53,7 @@ export default function SageInputBar({ persona, value, onChangeText, onSend, bus
         disabled={disabled}
         accessibilityLabel={sage ? "Ask the Sage" : "Send to the Scribe"}
       >
-        <SendArrowIcon circleSize={send} />
+        <SendNibIcon circleSize={send} />
       </CircleButton>
     </ParchmentPanel>
   );
