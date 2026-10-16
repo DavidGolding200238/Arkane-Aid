@@ -63,9 +63,9 @@ The player sheet. Name, race, class, level, hit points, armour class, speed, pro
 
 Answers are meant to stay inside a short local extract in `src/data/rules.json`, drawn from the official Dungeons and Dragons System Reference Document 5.2.1 (CC-BY-4.0). A question outside that extract is refused and sent to the dungeon master. That refusal is the design, not a bug.
 
-### Settings
+### Settings (Tome)
 
-Account, sign out, create party, join party, and switch the active party.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage voice (Wizard or Plain; Bard is coming soon). The choice is saved on the device in `VoiceContext`. Sage will read it in a later step.
 
 ---
 
@@ -153,7 +153,7 @@ Already applied on the Supabase project. Re-run only on a fresh project, in orde
 | Sage | Ask a ruling or note the table. Plain or Wizard voice |
 | Codex | Session book. Notes and items. Ledger tab opens the sheet |
 | Ledger | Player sheet for the current party |
-| Settings | Account, parties, sign out |
+| Tome (Settings) | Account and parties, guidance, voice personality |
 | Create and Join | Party code |
 
 Figma is the source of truth for layout. File: ARKANE-AID-DEV.
@@ -167,9 +167,9 @@ App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
   components/           TabBar, SageAvatar, ScreenFrame, PageHeader, CircleButton,
-                        ParchmentPanel, ThemedButton, Rule, icons
+                        ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
   theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
-  context/              AuthContext, PartyContext
+  context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
   lib/                  supabase, parties, character, codex, sage
   data/
     rules.json          SRD 5.2.1 extract
@@ -179,9 +179,10 @@ assets/
   Icons/                tab and seal icons
   images/
     backgrounds/        parchment.png
-    buttons/            btn-circle-red@3x.png
+    buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
+    tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   Fire/                 orb flame frames
   Sage/                 orb model
