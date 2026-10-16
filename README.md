@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome; the Sage screen shows it under the title (tap it to change it) and colours the orb fire to match: red for Wizard, blue for Plain. The leather band toggle switches between Sage (microphone) and Scribe (quill). Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain. The leather band toggle switches between Sage (microphone) and Scribe (quill). The Ask the Sage / Tell the Scribe button opens a parchment pop-up for typing, which sits above the keyboard. Speech in is a placeholder until a development build.
 
 ### Scribe
 
@@ -166,7 +166,7 @@ Figma is the source of truth for layout. File: ARKANE-AID-DEV.
 App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
-  components/           TabBar, SageAvatar, ScreenFrame, PageHeader, CircleButton,
+  components/           TabBar, SageAvatar, SageOrb, SageAskSheet, ScreenFrame, PageHeader, CircleButton,
                         ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
   theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
