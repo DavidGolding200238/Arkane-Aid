@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PageHeader from "../components/PageHeader";
+import PageFade from "../components/PageFade";
 import ScreenVignette from "../components/ScreenVignette";
 import SageInputBar from "../components/SageInputBar";
 import SageReplyCard from "../components/SageReplyCard";
@@ -124,6 +126,13 @@ export default function SageScreen({ onBack }: Props) {
   // Follow the quill down the page until the user scrolls by hand.
   const follow = useRef(false);
   const glow = useRef(new Animated.Value(1)).current;
+  // Layout of the page, for the soft fades: screen size, header height, and the scroll area.
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const insets = useSafeAreaInsets();
+  // Start from PageHeader's own maths (top padding + 44 dp button + 8 dp) so the orb doesn't
+  // shift when the real height is measured.
+  const [headerH, setHeaderH] = useState(() => Math.max(s(48), insets.top + s(8)) + s(44) + s(8));
+  const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
   useEffect(() => {
     loadWizardVoice();
@@ -245,22 +254,41 @@ export default function SageScreen({ onBack }: Props) {
   const sage = persona === "sage";
   const replyLabel = sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
   const footNote = [sheetLine, noted].filter(Boolean).join(" ");
+  // Fade sizes: the top fade starts a little inside the header's bottom padding and ends just
+  // above the orb's glow; the bottom fade is about one line of reply text tall.
+  const topFadeLead = s(14);
+  const topFadeTail = s(2);
+  const gapUnderHeader = s(6); // the orb itself stays clear of the fade; only its faint outer glow tucks into it
+  const bottomFade = fs(25);
   const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(persona, busy, speaking, fancy);
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior="padding">
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior="padding"
+      onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
-      <ScreenVignette />
 
-      <PageHeader title="Sage Scribe" onBack={onBack} ruleWidth={s(219)} />
-
+      {/* The page scrolls from the very top, under a header with no background of its own, so the
+          orb's glow is never cut off by a strip; a fade made of the same paper hides what scrolls
+          behind the title. */}
       <ScrollView
         ref={scroll}
         style={styles.flex}
-        contentContainerStyle={[styles.body, { paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.xs), paddingBottom: s(spacing.xl) }]}
+        contentContainerStyle={[
+          styles.body,
+          {
+            paddingHorizontal: s(spacing.lg),
+            paddingTop: headerH + gapUnderHeader,
+            // Room for the last reply line to scroll fully clear of the bottom fade.
+            paddingBottom: s(spacing.xl) + bottomFade,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         onScrollBeginDrag={() => {
           follow.current = false;
         }}
@@ -299,6 +327,32 @@ export default function SageScreen({ onBack }: Props) {
         ) : null}
       </ScrollView>
 
+      {/* Fade under the title: solid paper behind the header, melting away just above the orb. */}
+      <PageFade
+        direction="down"
+        top={0}
+        height={headerH + topFadeTail}
+        solid={headerH > 0 ? Math.max(0, (headerH - topFadeLead) / (headerH + topFadeTail)) : 0}
+        screenWidth={screen.w}
+        screenHeight={screen.h}
+      />
+      {/* About one line of fade just above the docked typing box. */}
+      <PageFade
+        direction="up"
+        top={scrollBox.y + scrollBox.h - bottomFade}
+        height={scrollBox.h > 0 ? bottomFade : 0}
+        screenWidth={screen.w}
+        screenHeight={screen.h}
+      />
+      <ScreenVignette />
+      <PageHeader
+        title="Sage Scribe"
+        onBack={onBack}
+        ruleWidth={s(219)}
+        style={styles.header}
+        onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+      />
+
       {/* Docked typing bar, always just above the keyboard or the tab bar. */}
       <View style={{ paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.sm), paddingBottom: s(spacing.md) }}>
         {error ? (
@@ -334,6 +388,7 @@ const styles = StyleSheet.create({
     opacity: 0.28,
   },
   flex: { flex: 1 },
+  header: { position: "absolute", top: 0, left: 0, right: 0 },
   // Top-aligned on purpose: the orb stays put when the reply card appears below.
   body: { flexGrow: 1, alignItems: "center" },
   full: { width: "100%" },

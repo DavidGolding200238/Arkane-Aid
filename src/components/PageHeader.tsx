@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CircleButton from "./CircleButton";
 import Rule from "./Rule";
@@ -13,19 +13,25 @@ type Props = {
   subtitle?: string;
   /** Underline width in dp (already scaled). Defaults to the Codex/Ledger 156. */
   ruleWidth?: number;
+  /** Extra container style, e.g. Sage floats the header over its page. The header itself has no background. */
+  style?: StyleProp<ViewStyle>;
+  onLayout?: (e: LayoutChangeEvent) => void;
 };
 
 // Back button, Cinzel title with a drawn underline, and an optional caption.
 // The title is centred on the screen: the back button on the left is balanced by an
 // equal-width spacer on the right.
 // Used by Codex, Ledger, Tome and Sage.
-export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props) {
+export default function PageHeader({ title, onBack, subtitle, ruleWidth, style, onLayout }: Props) {
   const { s, fs } = useScale();
   const insets = useSafeAreaInsets();
   const circle = s(44);
 
   return (
     <View
+      onLayout={onLayout}
+      // Only the back button takes touches; drags on the title fall through to whatever is under it.
+      pointerEvents="box-none"
       style={[
         styles.row,
         {
@@ -34,6 +40,7 @@ export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props
           paddingHorizontal: s(16),
           paddingBottom: s(8),
         },
+        style,
       ]}
     >
       <CircleButton size={circle} onPress={onBack} accessibilityLabel="Back">
