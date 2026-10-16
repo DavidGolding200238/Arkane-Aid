@@ -31,18 +31,21 @@ export const fontSize = {
   stat: 30,
 } as const;
 
+// Every font the app uses, keyed by the family name it registers under.
+export const appFonts = {
+  CinzelDecorative_400Regular,
+  CinzelDecorative_700Bold,
+  Asul_400Regular,
+  Asul_700Bold,
+  AtkinsonHyperlegible_400Regular,
+  AtkinsonHyperlegible_400Regular_Italic,
+  MedievalSharp_400Regular,
+};
+
 // Loads every font the themed screens use. expo-font registers fonts
 // globally, so calling this from several screens only loads them once.
 export function useAppFonts() {
-  const [loaded] = useFonts({
-    CinzelDecorative_400Regular,
-    CinzelDecorative_700Bold,
-    Asul_400Regular,
-    Asul_700Bold,
-    AtkinsonHyperlegible_400Regular,
-    AtkinsonHyperlegible_400Regular_Italic,
-    MedievalSharp_400Regular,
-  });
+  const [loaded] = useFonts(appFonts);
   return loaded;
 }
 

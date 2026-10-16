@@ -11,6 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
+import Svg, { Circle } from "react-native-svg";
 import Rule from "../components/Rule";
 import { inkText, useScale } from "../theme";
 
@@ -20,7 +21,18 @@ const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3
 const d20 = require("../../assets/images/splash/die-d20-glow.png"); // Group 5948, 2132:28
 const loaderArt = require("../../assets/images/splash/loader-ring.png"); // Loader, 2314:645
 
-export default function SplashScreen() {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+type Props = {
+  /** Real preload progress, 0..1 (finished tasks / all tasks, see lib/preload). */
+  progress?: number;
+  /** True once preloading has finished (or timed out). */
+  ready?: boolean;
+  /** Called once the bar has visibly reached 100% after `ready`. */
+  onFinish?: () => void;
+};
+
+export default function SplashScreen({ progress = 0, ready = false, onFinish }: Props) {
   // Same Figma-unit scaling as every other screen (360 wide design, see theme/scale).
   const { s, fs, height } = useScale();
   const spin = useRef(new Animated.Value(0)).current;
@@ -45,18 +57,31 @@ export default function SplashScreen() {
     return () => loop.stop();
   }, [spin]);
 
+  // The bar eases towards the real progress instead of jumping task by task; the percentage
+  // follows the eased value. When everything is loaded it finishes the sweep, then lets the
+  // user in.
+  const shown = useRef(new Animated.Value(0)).current;
+  const finished = useRef(false);
   useEffect(() => {
-    let value = 0;
-    const id = setInterval(() => {
-      value += 1;
-      if (value >= 100) {
-        value = 100;
-        clearInterval(id);
+    const id = shown.addListener(({ value }) => setPercent(Math.round(value * 100)));
+    return () => shown.removeListener(id);
+  }, [shown]);
+  useEffect(() => {
+    const target = ready ? 1 : Math.min(progress, 0.99);
+    const anim = Animated.timing(shown, {
+      toValue: target,
+      duration: ready ? 420 : 520,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // drives the SVG arc and the number
+    });
+    anim.start(({ finished: done }) => {
+      if (done && ready && !finished.current) {
+        finished.current = true;
+        setTimeout(() => onFinish?.(), 220);
       }
-      setPercent(value);
-    }, 35);
-    return () => clearInterval(id);
-  }, []);
+    });
+    return () => anim.stop();
+  }, [progress, ready, shown, onFinish]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],
@@ -66,6 +91,10 @@ export default function SplashScreen() {
   const skullW = s(338);
   const skullH = skullW;
   const loaderSize = s(223);
+  // Progress arc laid over the loader ring's own circle (radius 32.2% of the art).
+  const arcR = loaderSize * 0.322;
+  const arcC = 2 * Math.PI * arcR;
+  const arcW = s(2.6);
   const dieW = skullW * 0.4;
   const dieH = dieW * 0.9;
 
@@ -113,7 +142,26 @@ export default function SplashScreen() {
             style={[styles.loader, { transform: [{ rotate }] }]}
             resizeMode="contain"
           />
-          <Text style={[styles.percent, { fontSize: fs(30) }]}>{percent}%</Text>
+          {/* The loading bar: a gold ink arc that fills clockwise from the top with real progress. */}
+          <Svg width={loaderSize} height={loaderSize} style={styles.loader} pointerEvents="none">
+            <AnimatedCircle
+              cx={loaderSize / 2}
+              cy={loaderSize / 2}
+              r={arcR}
+              stroke="#C9971E"
+              strokeOpacity={0.9}
+              strokeWidth={arcW}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${arcC} ${arcC}`}
+              strokeDashoffset={shown.interpolate({ inputRange: [0, 1], outputRange: [arcC, 0] })}
+              transform={`rotate(-90 ${loaderSize / 2} ${loaderSize / 2})`}
+            />
+          </Svg>
+          <Text
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: 100, now: percent }}
+            style={[styles.percent, { fontSize: fs(30) }]}>{percent}%</Text>
         </View>
 
         <Text style={[styles.caption, { fontSize: fs(15), lineHeight: fs(22), marginTop: s(14) }]}>

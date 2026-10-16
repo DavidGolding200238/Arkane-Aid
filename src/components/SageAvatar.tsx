@@ -94,6 +94,28 @@ async function readModel() {
   return fitOrb(gltf.scene);
 }
 
+// The parsed orb is kept for the life of the app: the splash starts loading it (see
+// lib/preload), and every later visit to the Sage reuses it instead of reading and parsing
+// the 2 MB model again. R3F never disposes <primitive> objects, so sharing it is safe.
+let orbReady: THREE.Group | null = null;
+let orbLoading: Promise<THREE.Group> | null = null;
+
+export function preloadSageOrb() {
+  if (orbReady) return Promise.resolve(orbReady);
+  if (!orbLoading) {
+    orbLoading = readModel()
+      .then((orb) => {
+        orbReady = orb;
+        return orb;
+      })
+      .catch((err: unknown) => {
+        orbLoading = null; // let the screen try again
+        throw err;
+      });
+  }
+  return orbLoading;
+}
+
 function Spinning({ object }: { object: THREE.Group }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((_state: unknown, delta: number) => {
@@ -101,19 +123,20 @@ function Spinning({ object }: { object: THREE.Group }) {
   });
   return (
     <group ref={ref}>
-      <primitive object={object} />
+      <primitive object={object} dispose={null} />
     </group>
   );
 }
 
 /** size is the orb diameter in dp (already scaled). Defaults to the old fixed 260. */
 export default function SageAvatar({ size = 260 }: { size?: number }) {
-  const [orb, setOrb] = useState<THREE.Group | null>(null);
+  const [orb, setOrb] = useState<THREE.Group | null>(orbReady);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let live = true;
-    readModel()
+    if (orbReady) return;
+    preloadSageOrb()
       .then((next) => {
         if (live) setOrb(next);
       })

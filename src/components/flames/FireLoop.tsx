@@ -8,8 +8,8 @@ import { Image } from "expo-image";
 // stepping. Playback is decoded natively by expo-image: no JS timers, no per-frame work on
 // the JS thread. Both loops are 725 x 393 px on the same canvas as the original frames and are
 // stretched to exactly the same box, so the orb alignment is unchanged.
-const LOOP_RED = require("../../../assets/images/sage/fire-red-loop.webp");
-const LOOP_BLUE = require("../../../assets/images/sage/fire-blue-loop.webp");
+export const LOOP_RED = require("../../../assets/images/sage/fire-red-loop.webp");
+export const LOOP_BLUE = require("../../../assets/images/sage/fire-blue-loop.webp");
 // Reduce Motion: the first frame of each loop, which is the original Figma frame 1.
 const STILL_RED = require("../../../assets/images/sage/fire-red-1.png");
 const STILL_BLUE = require("../../../assets/images/sage/fire-blue-1.png");
@@ -34,7 +34,7 @@ function FireLoop({ width, height, blue, still }: Props) {
       contentFit="fill"
       autoplay={!still}
       transition={0}
-      cachePolicy="memory"
+      cachePolicy="memory-disk"
       accessible={false}
     />
   );
