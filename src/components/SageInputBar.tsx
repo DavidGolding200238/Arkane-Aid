@@ -34,11 +34,14 @@ export default function SageInputBar({ persona, value, onChangeText, onSend, bus
       style={style}
       contentStyle={[styles.row, { paddingLeft: s(18), paddingRight: s(12), paddingTop: s(12), paddingBottom: s(12), gap: s(10) }]}
     >
+      {/* Cream wash over the paper so the box reads lighter than the page behind it. It stops
+          just inside the torn edge, so the edge and a hint of texture still show. */}
+      <View pointerEvents="none" style={[styles.wash, { top: s(5), left: s(5), right: s(5), bottom: s(5), borderRadius: s(3) }]} />
       <TextInput
         style={[styles.input, { fontSize: fs(16), lineHeight: lineH, minHeight: lineH * 2, maxHeight: lineH * MAX_LINES }]}
         multiline
         placeholder={sage ? "Ask a ruling..." : "Note for the Codex..."}
-        placeholderTextColor={colors.placeholder}
+        placeholderTextColor={colors.muted}
         value={value}
         onChangeText={onChangeText}
         onFocus={onFocus}
@@ -60,6 +63,8 @@ export default function SageInputBar({ persona, value, onChangeText, onSend, bus
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end" },
+  // #FFF6E2 at 60%: lifts the Ledger paper to the light #ffebc8 family.
+  wash: { position: "absolute", backgroundColor: "rgba(255,246,226,0.6)" },
   input: { flex: 1, fontFamily: fonts.body, color: colors.ink, textAlignVertical: "top", padding: 0 },
   dim: { opacity: 0.45 },
 });
