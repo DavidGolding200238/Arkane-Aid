@@ -603,7 +603,10 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 <Text style={styles.vitalValue}>{draft.level}</Text>
               )}
             </View>
-            <View style={[styles.vital, styles.vitalWide]}>
+            {/* Empty middle column, so HP sits in the third column straight above Bonus,
+                the way Level sits above AC. */}
+            <View style={styles.vital} />
+            <View style={[styles.vital, styles.vitalHp]}>
               <Text style={styles.vitalLabel}>HP</Text>
               {editing ? (
                 <View style={styles.hpEdit}>
@@ -813,13 +816,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.rule,
     paddingVertical: 2,
   },
-  // Level, HP, AC, Speed and Bonus keep the original 125ce45 layout and sizes.
-  // Same structure as 125ce45 (two rows, label over value). Both rows sit on one
-  // three-column grid: Level lines up with AC, and HP takes the other two
-  // columns so long values like 120/120 have room, centred over Speed/Bonus.
+  // Level, HP, AC, Speed and Bonus keep the original 125ce45 boxes and sizes.
+  // Two rows, label over value, on one three-column grid: Level is centred over AC
+  // and HP over Bonus (the middle column of the first row is empty).
   vitalRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 14 },
   vital: { flex: 1, alignItems: "center", paddingHorizontal: 4 },
-  vitalWide: { flex: 2 },
+  // HP may be wider than its column while editing (two boxes and a slash); it stays centred
+  // on the column and spills evenly into the empty space beside it.
+  vitalHp: { paddingHorizontal: 0 },
   vitalLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, letterSpacing: 0.6 },
   vitalValue: { fontFamily: fonts.body, color: colors.ink, fontSize: 18, marginTop: 4, fontVariant: ["tabular-nums"] },
   vitalInput: {
@@ -834,7 +838,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   hpEdit: { flexDirection: "row", alignItems: "center", gap: 6 },
-  hpInput: { minWidth: 56 },
+  hpInput: { minWidth: 44 },
   hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
   rule: { marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
