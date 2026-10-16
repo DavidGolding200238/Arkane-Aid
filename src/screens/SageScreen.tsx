@@ -254,12 +254,16 @@ export default function SageScreen({ onBack }: Props) {
   const sage = persona === "sage";
   const replyLabel = sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
   const footNote = [sheetLine, noted].filter(Boolean).join(" ");
-  // Fade sizes: the top fade starts a little inside the header's bottom padding and ends just
-  // above the orb's glow; the bottom fade is about one line of reply text tall.
-  const topFadeLead = s(14);
-  const topFadeTail = s(2);
-  const gapUnderHeader = s(6); // the orb itself stays clear of the fade; only its faint outer glow tucks into it
+  // Fade sizes. Top: solid paper from the very top of the screen (behind the status bar and the
+  // header) down to the header's bottom edge, just below the title underline, then a short fade.
+  // The orb starts below that fade. Bottom: about one line of reply text, fading up from the
+  // typing box's area; everything from there down (the box, beside it, below it) is solid paper.
+  const topFadeTail = s(12);
+  const gapUnderHeader = topFadeTail; // the orb itself stays clear of the fade
   const bottomFade = fs(25);
+  const dockTop = scrollBox.y + scrollBox.h; // where the scroll area ends and the typing box area begins
+  const bottomFadeTop = dockTop - bottomFade;
+  const bottomFadeH = scrollBox.h > 0 && screen.h > 0 ? screen.h - bottomFadeTop : 0;
   const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(persona, busy, speaking, fancy);
 
   return (
@@ -327,20 +331,23 @@ export default function SageScreen({ onBack }: Props) {
         ) : null}
       </ScrollView>
 
-      {/* Fade under the title: solid paper behind the header, melting away just above the orb. */}
+      {/* Fade under the title: solid paper from the top of the screen to below the underline,
+          then melting away just above the orb. */}
       <PageFade
         direction="down"
         top={0}
         height={headerH + topFadeTail}
-        solid={headerH > 0 ? Math.max(0, (headerH - topFadeLead) / (headerH + topFadeTail)) : 0}
+        solid={headerH / (headerH + topFadeTail)}
         screenWidth={screen.w}
         screenHeight={screen.h}
       />
-      {/* About one line of fade just above the docked typing box. */}
+      {/* Solid paper behind and around the docked typing box down to the bottom of the screen,
+          fading upward over one line above it. */}
       <PageFade
         direction="up"
-        top={scrollBox.y + scrollBox.h - bottomFade}
-        height={scrollBox.h > 0 ? bottomFade : 0}
+        top={bottomFadeTop}
+        height={bottomFadeH}
+        solid={bottomFadeH > 0 ? (bottomFadeH - bottomFade) / bottomFadeH : 0}
         screenWidth={screen.w}
         screenHeight={screen.h}
       />
