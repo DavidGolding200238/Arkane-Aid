@@ -6,6 +6,7 @@ import ParchmentPanel from "../components/ParchmentPanel";
 import Rule from "../components/Rule";
 import ThemedButton from "../components/ThemedButton";
 import TornButton from "../components/TornButton";
+import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
 import { errorText, myProfile, partySeats, type Profile, type Seat } from "../lib/parties";
@@ -28,7 +29,8 @@ const TIPS = [
 ];
 
 // "Tome": the settings screen. Account and party tools sit behind ACCOUNT,
-// quick how-to tips behind GUIDANCE, and the Sage's voice is picked below.
+// quick how-to tips behind GUIDANCE, and the Sage's voice is picked below
+// (saved in VoiceContext; Sage starts reading it in a later step).
 export default function SettingsScreen({ onBack, onOpen }: Props) {
   const fontsLoaded = useAppFonts();
   const { s, fs } = useScale();
@@ -212,6 +214,12 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             ))}
           </ParchmentPanel>
         ) : null}
+
+        <Rule width={s(249)} thickness={2} color={colors.rule} style={{ marginTop: s(24) }} />
+        <Text style={[styles.voiceHeading, { fontSize: fs(20), marginTop: s(22), marginBottom: s(8) }]}>
+          Voice Personality
+        </Text>
+        <VoiceCarousel />
       </ScrollView>
     </View>
   );
@@ -251,4 +259,5 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: fonts.headingBold, color: colors.cream, letterSpacing: 0.8 },
   tipNumber: { fontFamily: fonts.stat, color: colors.wordmark, textAlign: "center" },
   tipTitle: { fontFamily: fonts.headingBold, color: colors.ink },
+  voiceHeading: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center" },
 });
