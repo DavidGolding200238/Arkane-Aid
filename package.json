@@ -12,6 +12,7 @@
     "@expo-google-fonts/atkinson-hyperlegible": "^0.4.1",
     "@expo-google-fonts/cinzel": "^0.4.2",
     "@expo-google-fonts/cinzel-decorative": "^0.4.1",
+    "@expo-google-fonts/medievalsharp": "^0.4.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@supabase/supabase-js": "^2.57.4",
@@ -27,6 +28,7 @@
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^2.0.0",
     "three": "^0.186.1"

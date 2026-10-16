@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
 import SplashScreen from "./src/screens/SplashScreen";
@@ -79,9 +80,11 @@ function Gate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
