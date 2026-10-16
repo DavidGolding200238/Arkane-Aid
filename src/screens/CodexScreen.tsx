@@ -1,19 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useFonts } from "expo-font";
-import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
-import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import { useParty } from "../context/PartyContext";
 import {
   addCodexEntry,
@@ -24,14 +11,15 @@ import {
 } from "../lib/codex";
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
+import PageHeader from "../components/PageHeader";
+import ParchmentPanel from "../components/ParchmentPanel";
+import CircleButton from "../components/CircleButton";
+import ThemedButton from "../components/ThemedButton";
+import Rule from "../components/Rule";
+import { ChevronDownIcon, QuillIcon } from "../components/icons";
+import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
-const backCircle = require("../../assets/Codex/Rectangle 26.png");
-const backChevron = require("../../assets/Codex/Polygon 21.png");
-const book = require("../../assets/Codex/Rectangle 28.png");
-const cardArt = require("../../assets/Codex/Rectangle 28 (1).png");
-const scrollMark = require("../../assets/Codex/Polygon 22.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
 
 type Tab = "all" | "note" | "item";
 
@@ -56,24 +44,19 @@ function kindFor(tab: Tab): CodexKind {
 }
 
 export default function CodexScreen({ onBack, onOpen }: Props) {
-  const { width } = useWindowDimensions();
-  const s = width / 360;
+  const { s, fs } = useScale();
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
-  const [fontsLoaded] = useFonts({
-    CinzelDecorative_400Regular,
-    AtkinsonHyperlegible_400Regular,
-  });
+  const fontsLoaded = useAppFonts();
   const [tab, setTab] = useState<Tab>("all");
   const [rows, setRows] = useState<CodexEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Where the scrolling list sits inside the book, for its soft top and bottom fades.
+  const [listBox, setListBox] = useState({ y: 0, h: 0 });
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-
-  const titleFont = fontsLoaded ? "CinzelDecorative_400Regular" : undefined;
-  const bodyFont = fontsLoaded ? "AtkinsonHyperlegible_400Regular" : undefined;
 
   const load = useCallback(async () => {
     if (!partyId) {
@@ -139,94 +122,103 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
     }
   };
 
+  if (!fontsLoaded) return <View style={styles.root} />;
+
+  const badge = s(38);
+  // Soft ends for the list: about one line of fade at the bottom (fading up from the chevron)
+  // and a shorter one under the tabs, both made of the book's own paper.
+  const bottomFade = fs(22);
+  const topFade = s(12);
+  const fades =
+    listBox.h > 0
+      ? [
+          { top: listBox.y, height: topFade, direction: "down" as const },
+          { top: listBox.y + listBox.h - bottomFade, height: bottomFade, direction: "up" as const },
+        ]
+      : undefined;
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.header, { paddingTop: 48 * s }]}>
-        <Pressable onPress={onBack} hitSlop={10} style={{ width: 44 * s, height: 43 * s }}>
-          <Image source={backCircle} style={styles.fill} resizeMode="stretch" />
-          <Image source={backChevron} style={styles.chevron} resizeMode="contain" />
-        </Pressable>
-        <View style={styles.titleBox}>
-          <Text style={[styles.title, titleFont ? { fontFamily: titleFont, fontSize: 22 * s } : { fontSize: 22 * s }]}>
-            CODEX
-          </Text>
-          <Image source={underline} style={{ width: 156 * s, height: 8 * s, marginTop: 2 }} resizeMode="contain" />
-        </View>
-        <View style={{ width: 44 * s }} />
-      </View>
+      <PageHeader title="Codex" subtitle={selected?.party.name ?? "No party"} onBack={onBack} />
 
-      <View style={[styles.book, { marginHorizontal: 12 * s, marginTop: 6 * s }]}>
-        <Image source={book} style={styles.fill} resizeMode="stretch" />
-        <View style={{ paddingHorizontal: 14 * s, paddingTop: 14 * s, paddingBottom: 8 * s }}>
+      <ParchmentPanel
+        style={[styles.book, { marginHorizontal: s(19), marginTop: s(6), marginBottom: s(12) }]}
+        contentStyle={styles.bookInner}
+        fades={fades}
+      >
+        <View style={{ paddingHorizontal: s(12), paddingTop: s(12), paddingBottom: s(8) }}>
           <View style={styles.sessionRow}>
-            <Text style={[styles.session, bodyFont ? { fontFamily: bodyFont, fontSize: 16 * s } : { fontSize: 16 * s }]}>
-              {selected?.party.name ?? "No party"}
-            </Text>
-            <Pressable onPress={() => setWriting((on) => !on)} hitSlop={8}>
-              <Text style={[styles.add, bodyFont ? { fontFamily: bodyFont } : null]}>{writing ? "Close" : "Add"}</Text>
-            </Pressable>
+            <Text style={[styles.session, { fontSize: fs(18) }]}>Session notes</Text>
+            <ThemedButton
+              size="small"
+              variant={writing ? "outline" : "primary"}
+              label={writing ? "Close" : "Add"}
+              onPress={() => setWriting((on) => !on)}
+            />
           </View>
 
-          <View style={styles.tabs}>
+          <View style={[styles.tabs, { marginTop: s(10) }]}>
             {TABS.map((item) => {
               const on = item.id === tab;
               return (
-                <Pressable key={item.id} onPress={() => openTab(item.id)} style={styles.tab}>
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      on && styles.tabOn,
-                      bodyFont ? { fontFamily: bodyFont, fontSize: 14 * s } : { fontSize: 14 * s },
-                    ]}
-                  >
+                <Pressable
+                  key={item.id}
+                  onPress={() => openTab(item.id)}
+                  style={styles.tab}
+                  hitSlop={6}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text style={[styles.tabLabel, on && styles.tabOn, { fontSize: fs(17) }]} numberOfLines={1}>
                     {item.label}
                   </Text>
-                  {on ? <View style={styles.tabRule} /> : <View style={styles.tabRuleOff} />}
                 </Pressable>
               );
             })}
           </View>
+          <Rule style={{ marginTop: s(2) }} />
 
           {writing ? (
-            <View style={styles.form}>
+            <View style={[styles.form, { marginTop: s(10), gap: s(8) }]}>
               <TextInput
-                style={[styles.input, bodyFont ? { fontFamily: bodyFont } : null]}
+                style={[styles.input, { fontSize: fs(15) }]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder={tab === "item" ? "Item name" : "Title"}
-                placeholderTextColor="#8A8175"
+                placeholderTextColor={colors.placeholder}
               />
               <TextInput
-                style={[styles.input, styles.inputBody, bodyFont ? { fontFamily: bodyFont } : null]}
+                style={[styles.input, styles.inputBody, { fontSize: fs(15), minHeight: s(56) }]}
                 value={body}
                 onChangeText={setBody}
                 placeholder="What happened"
-                placeholderTextColor="#8A8175"
+                placeholderTextColor={colors.placeholder}
                 multiline
               />
-              <Pressable style={styles.save} onPress={save} disabled={busy || !partyId}>
-                {busy ? (
-                  <ActivityIndicator color="#FEFCEB" />
-                ) : (
-                  <Text style={[styles.saveText, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    Save {tab === "item" ? "item" : "note"}
-                  </Text>
-                )}
-              </Pressable>
+              <ThemedButton
+                label={`Save ${tab === "item" ? "item" : "note"}`}
+                onPress={save}
+                busy={busy}
+                disabled={!partyId}
+              />
             </View>
           ) : null}
         </View>
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: 10 * s, paddingBottom: 88, gap: 10 * s }}
+          contentContainerStyle={{ paddingHorizontal: s(10), paddingTop: s(4) + topFade, paddingBottom: s(16) + bottomFade, gap: s(12) }}
           keyboardShouldPersistTaps="handled"
+          onLayout={(e) => {
+            const { y, height } = e.nativeEvent.layout;
+            setListBox((box) => (Math.abs(box.y - y) > 0.5 || Math.abs(box.h - height) > 0.5 ? { y, h: height } : box));
+          }}
         >
           {!partyId ? (
-            <Text style={[styles.empty, bodyFont ? { fontFamily: bodyFont } : null]}>
+            <Text style={[styles.empty, { fontSize: fs(14) }]}>
               Not in a party yet.{" "}
               <Text style={styles.link} onPress={() => onOpen("create")}>
                 Create
@@ -237,59 +229,52 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
               </Text>
             </Text>
           ) : shown.length === 0 && !busy ? (
-            <Text style={[styles.empty, bodyFont ? { fontFamily: bodyFont } : null]}>
-              Nothing recorded yet.
-            </Text>
+            <Text style={[styles.empty, { fontSize: fs(14) }]}>Nothing recorded yet.</Text>
           ) : null}
 
           {shown.map((row) => (
             <Pressable
               key={row.id}
               onLongPress={() => drop(row.id)}
-              style={{ minHeight: 120 * s }}
+              accessibilityHint="Long press to delete"
+              style={({ pressed }) => pressed && styles.cardPressed}
             >
-              <Image source={cardArt} style={styles.fill} resizeMode="stretch" />
-              <View style={{ paddingHorizontal: 12 * s, paddingTop: 10 * s, paddingBottom: 12 * s }}>
-                <View style={styles.cardTop}>
-                  <Text
-                    style={[
-                      styles.cardTitle,
-                      bodyFont ? { fontFamily: bodyFont, fontSize: 15 * s } : { fontSize: 15 * s },
-                    ]}
-                    numberOfLines={2}
-                  >
+              <ParchmentPanel
+                variant="card"
+                contentStyle={[styles.card, { minHeight: s(132), padding: s(12), paddingBottom: s(10) }]}
+              >
+                <View style={[styles.cardTop, { gap: s(8) }]}>
+                  <Text style={[styles.cardTitle, { fontSize: fs(15), lineHeight: fs(20) }]} numberOfLines={2}>
                     {row.title || "Untitled"}
                   </Text>
-                  <View style={{ width: 36 * s, height: 36 * s }}>
-                    <Image source={backCircle} style={styles.fill} resizeMode="stretch" />
-                  </View>
+                  <CircleButton size={badge}>
+                    <QuillIcon circleSize={badge} />
+                  </CircleButton>
                 </View>
                 <Text
-                  style={[styles.cardBody, bodyFont ? { fontFamily: bodyFont, fontSize: 13 * s } : { fontSize: 13 * s }]}
+                  style={[styles.cardBody, { fontSize: fs(13), lineHeight: fs(19), marginTop: s(6) }]}
                   numberOfLines={3}
                 >
                   {row.body}
                 </Text>
-                <Text style={[styles.date, bodyFont ? { fontFamily: bodyFont, fontSize: 12 * s } : { fontSize: 12 * s }]}>
-                  {shortDate(row.created_at)}
-                </Text>
-              </View>
+                <Text style={[styles.date, { fontSize: fs(18), marginTop: s(8) }]}>{shortDate(row.created_at)}</Text>
+              </ParchmentPanel>
             </Pressable>
           ))}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
         </ScrollView>
 
-        <View style={styles.chevronWrap}>
-          <Image source={scrollMark} style={{ width: 28 * s, height: 22 * s }} resizeMode="contain" />
+        <View style={[styles.chevronWrap, { paddingTop: s(4), paddingBottom: s(8) }]} pointerEvents="none">
+          <ChevronDownIcon width={s(32)} />
         </View>
-      </View>
+      </ParchmentPanel>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: colors.wash },
   parchment: {
     position: "absolute",
     top: 0,
@@ -300,50 +285,32 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
-  chevron: { position: "absolute", width: 18, height: 18, left: 13, top: 12 },
-  titleBox: { flex: 1, alignItems: "center" },
-  title: { color: "#1A1816", letterSpacing: 0.6 },
-  book: { flex: 1, marginBottom: 72, overflow: "hidden", borderRadius: 4 },
+  book: { flex: 1 },
+  bookInner: { flex: 1 },
   sessionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  session: { color: "#1A1816" },
-  add: { color: "#A33A3A", fontSize: 14 },
-  tabs: { flexDirection: "row", marginTop: 10, gap: 6 },
+  session: { fontFamily: fonts.headingBold, ...inkText.heading },
+  tabs: { flexDirection: "row" },
   tab: { flex: 1, alignItems: "center" },
-  tabLabel: { color: "#1A1816" },
-  tabOn: { fontWeight: "700" },
-  tabRule: { marginTop: 3, height: 1, width: "70%", backgroundColor: "#1A1816" },
-  tabRuleOff: { marginTop: 3, height: 1, width: "70%" },
-  form: { marginTop: 10, gap: 6 },
+  tabLabel: { fontFamily: fonts.headingBold, color: colors.ink },
+  tabOn: { color: colors.activeTab },
+  form: {},
   input: {
+    fontFamily: fonts.body,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
-    color: "#1A1816",
-    fontSize: 15,
+    borderBottomColor: colors.rule,
+    color: colors.ink,
     paddingVertical: 4,
   },
-  inputBody: { minHeight: 56, textAlignVertical: "top" },
-  save: {
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: "#C44536",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveText: { color: "#FEFCEB", fontSize: 14 },
+  inputBody: { textAlignVertical: "top" },
   scroll: { flex: 1 },
-  empty: { color: "#5A5348", fontSize: 14, textAlign: "center", marginTop: 18 },
-  link: { color: "#A33A3A" },
-  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  cardTitle: { flex: 1, color: "#1A1816", lineHeight: 20 },
-  cardBody: { color: "#1A1816", lineHeight: 18, marginTop: 6 },
-  date: { color: "#1A1816", textAlign: "right", marginTop: 8 },
-  error: { color: "#A33A3A", fontSize: 14, marginTop: 8 },
-  chevronWrap: { alignItems: "center", paddingBottom: 8 },
+  empty: { fontFamily: fonts.body, color: colors.muted, textAlign: "center", marginTop: 18 },
+  link: { color: colors.wordmark },
+  cardPressed: { opacity: 0.85 },
+  card: { justifyContent: "space-between" },
+  cardTop: { flexDirection: "row", alignItems: "flex-start" },
+  cardTitle: { flex: 1, fontFamily: fonts.headingBold, ...inkText.heading },
+  cardBody: { flexGrow: 1, fontFamily: fonts.body, color: colors.ink, letterSpacing: 1 },
+  date: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "right" },
+  error: { fontFamily: fonts.body, color: colors.wordmark, marginTop: 8 },
+  chevronWrap: { alignItems: "center" },
 });

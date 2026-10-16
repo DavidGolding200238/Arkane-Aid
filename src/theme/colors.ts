@@ -1,6 +1,36 @@
-export const ink = "#1A1816";
-export const parchment = "#FEFCEB";
-export const accent = "#FF0000";
-export const secondary = "#BD7F02";
-export const blood = "#A33A3A";
-export const wash = "#E8D7B8";
+// Arkane Aid colour tokens, taken from the ARKANE-AID-DEV Figma file ("Final Work").
+// Use these instead of typing hex codes into screens.
+export const colors = {
+  // Base
+  wash: "#E8D7B8", // screen background under the parchment texture
+  ink: "#1A1816", // main text and outlines
+  muted: "#5A5348", // secondary text
+  placeholder: "#8A8175", // input placeholders
+  cream: "#FEFCEB", // text on red buttons
+  gold: "#BD7F02",
+
+  // Reds
+  wordmark: "#A33A3A", // links, errors, outline buttons
+  primary: "#C44536", // filled buttons (brick red)
+  activeTab: "#960000", // selected tab label
+  statLabel: "#D9D9D9", // labels on the red stat headers
+
+  // Parchment panels and frames
+  panel: "#FFEBC8",
+  panelStroke: "#764F00",
+  cardStroke: "#3F382D",
+  statStroke: "#3C341C",
+  rule: "#2E2E2E", // thin divider lines
+  chevron: "#2C2C2C",
+  portrait: "#C8B48A",
+} as const;
+
+export type ColorName = keyof typeof colors;
+
+// Older names kept so nothing that imported them breaks.
+export const ink = colors.ink;
+export const parchment = colors.cream;
+export const accent = colors.primary;
+export const secondary = colors.gold;
+export const blood = colors.wordmark;
+export const wash = colors.wash;

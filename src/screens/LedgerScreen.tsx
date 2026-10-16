@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -9,13 +8,11 @@ import {
   Text,
   TextInput,
   View,
-  useWindowDimensions,
+  type StyleProp,
+  type TextStyle,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
-import { useFonts } from "expo-font";
-import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
-import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
 import { useParty } from "../context/PartyContext";
 import {
   addEquipment,
@@ -37,18 +34,83 @@ import {
 } from "../lib/character";
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
+import PageHeader from "../components/PageHeader";
+import ParchmentPanel from "../components/ParchmentPanel";
+import CircleButton from "../components/CircleButton";
+import ThemedButton from "../components/ThemedButton";
+import Rule from "../components/Rule";
+import { QuillIcon } from "../components/icons";
+import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
-const backCircle = require("../../assets/Codex/Rectangle 26.png");
-const backChevron = require("../../assets/Codex/Polygon 21.png");
-const sheet = require("../../assets/Ledger/Rectangle 28.png");
-const portraitArt = require("../../assets/Ledger/Rectangle 27.png");
-const statHead = require("../../assets/Ledger/Rectangle 39.png");
-const statBody = require("../../assets/Ledger/Rectangle 4914.png");
-const storyPanel = require("../../assets/Ledger/Rectangle 4909.png");
-const paper = require("../../assets/Codex/Rectangle 28 (1).png");
-const editCircle = require("../../assets/Codex/Rectangle 26.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
+const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
+// Hand-inked outline from Figma's portrait frame (2167:647), transparent everywhere else.
+const portraitInk = require("../../assets/images/ledger/portrait-ink.png");
+// The photo is clipped to this share of the outline's size so its edge sits
+// under the wobbly ink line (the ink runs from about 97% to 101% of the art).
+const PORTRAIT_PHOTO = 0.99;
+const statHead = require("../../assets/images/ledger/stat-header.png");
+const statBody = require("../../assets/images/ledger/stat-body.png");
+
+// Figma ability box (Group 873): torn paper body (2167:686, with its drop
+// shadow) and the red textured header (2167:658) laid over its top edge.
+// Art sizes are 3x pixels; the paper itself is 279 x 276 of the 292 x 296 body
+// export, the rest is the torn edge overhang and the shadow.
+// The header's red texture comes from Figma; its torn, ink-rimmed edge is a
+// mask built to match the paper's edge (the Figma layer itself is square).
+// It overhangs the paper by about 1.5 dp so it covers the paper's top stroke.
+const BODY = { w: 292, h: 296, paperX: 7, paperY: 1, paperW: 279, paperH: 276 };
+const HEAD = { w: 272, h: 85, overhang: 0.016 };
+
+function StatFrame({
+  label,
+  children,
+  width,
+  labelSize,
+}: {
+  label: string;
+  children: ReactNode;
+  width: number;
+  labelSize: number;
+}) {
+  const k = width / BODY.paperW;
+  const height = BODY.paperH * k;
+  const over = width * HEAD.overhang;
+  const headW = width + over * 2;
+  const headH = headW * (HEAD.h / HEAD.w);
+  return (
+    <View style={{ width, height }}>
+      <Image
+        source={statBody}
+        style={{
+          position: "absolute",
+          left: -BODY.paperX * k,
+          top: -BODY.paperY * k,
+          width: BODY.w * k,
+          height: BODY.h * k,
+        }}
+        resizeMode="stretch"
+      />
+      <View style={[styles.statHead, { top: -over, left: -over, width: headW, height: headH }]}>
+        <Image source={statHead} style={styles.fill} resizeMode="stretch" />
+        <Text style={[styles.statLabel, { fontSize: labelSize }]} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+      <View style={styles.statValueBox}>{children}</View>
+    </View>
+  );
+}
+
+// Asul Bold heading with a drawn underline as wide as the text.
+function SectionTitle({ children, center, size }: { children: string; center?: boolean; size: number }) {
+  return (
+    <View style={[styles.sectionTitle, center ? styles.sectionCenter : styles.sectionLeft]}>
+      <Text style={[styles.section, { fontSize: size }]}>{children}</Text>
+      <Rule color={colors.ink} style={styles.sectionRule} />
+    </View>
+  );
+}
 
 const STATS = [
   ["str", "STR"],
@@ -161,15 +223,11 @@ function draftFrom(row: Character | null): CharacterDraft {
 }
 
 export default function LedgerScreen({ onBack, onOpen }: Props) {
-  const { width } = useWindowDimensions();
-  const s = width / 360;
+  const { width, s, fs } = useScale();
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
   const partyName = selected?.party.name ?? "No party";
-  const [fontsLoaded] = useFonts({
-    CinzelDecorative_400Regular,
-    AtkinsonHyperlegible_400Regular,
-  });
+  const fontsLoaded = useAppFonts();
   const [row, setRow] = useState<Character | null>(null);
   const [draft, setDraft] = useState<CharacterDraft>(EMPTY);
   const [gear, setGear] = useState<Equipment[]>([]);
@@ -182,9 +240,6 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const [customClass, setCustomClass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  const titleFont = fontsLoaded ? "CinzelDecorative_400Regular" : undefined;
-  const bodyFont = fontsLoaded ? "AtkinsonHyperlegible_400Regular" : undefined;
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -356,27 +411,30 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     setPicker(null);
   };
 
-  const boxW = Math.floor((width - 36 * s - 16 * s) / 3);
-  const boxH = boxW * (90 / 91);
-  const headH = boxH * (28 / 90);
-  const side = 44 * s;
+  if (!fontsLoaded) return <View style={styles.root} />;
+
+  // Ability boxes: three per row, Figma proportions 91 x 90 with a 28 high header.
+  const pagePad = s(12);
+  const sheetPad = s(16);
+  const statGap = s(14);
+  const boxW = Math.floor((width - pagePad * 2 - sheetPad * 2 - 2 - statGap * 2) / 3);
+  const edit = s(44);
+  const portrait = s(152);
+
+  const statValue: StyleProp<TextStyle> = [styles.statValue, { fontSize: fs(30) }];
 
   const renderPicker = (field: "race" | "class", options: string[]) => {
     if (picker !== field) return null;
     const custom = field === "race" ? customRace : customClass;
     const current = draft[field];
     return (
-      <View style={styles.picker}>
-        <Text style={[styles.pickerLabel, titleFont ? { fontFamily: titleFont } : null]}>
-          {field === "race" ? "Race" : "Class"}
-        </Text>
+      <View style={[styles.picker, { marginTop: s(10) }]}>
+        <Text style={[styles.pickerLabel, { fontSize: fs(15) }]}>{field === "race" ? "Race" : "Class"}</Text>
         {options.map((option) => {
           const on = current === option;
           return (
             <Pressable key={option} onPress={() => choose(field, option)} style={[styles.option, on && styles.optionOn]}>
-              <Text style={[styles.optionText, on && styles.optionTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {option}
-              </Text>
+              <Text style={[styles.optionText, on && styles.optionTextOn, { fontSize: fs(15) }]}>{option}</Text>
             </Pressable>
           );
         })}
@@ -384,378 +442,313 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           onPress={() => (field === "race" ? setCustomRace(true) : setCustomClass(true))}
           style={[styles.option, custom && styles.optionOn]}
         >
-          <Text style={[styles.optionText, custom && styles.optionTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
-            Custom
-          </Text>
+          <Text style={[styles.optionText, custom && styles.optionTextOn, { fontSize: fs(15) }]}>Custom</Text>
         </Pressable>
         {custom ? (
           <TextInput
-            style={[styles.customInput, bodyFont ? { fontFamily: bodyFont } : null]}
+            style={[styles.customInput, { fontSize: fs(15) }]}
             value={current}
             onChangeText={(value) => setDraft((next) => ({ ...next, [field]: value }))}
             placeholder={field === "race" ? "Custom race" : "Custom class"}
-            placeholderTextColor="#8A8175"
+            placeholderTextColor={colors.placeholder}
           />
         ) : null}
       </View>
     );
   };
 
+  const listItem = (name: string, onRemove: () => void, key: string) => (
+    <Pressable key={key} onPress={() => (editing ? onRemove() : undefined)} disabled={!editing}>
+      <Text style={[styles.listItem, { fontSize: fs(16), lineHeight: fs(26) }]}>
+        {name}
+        {editing ? <Text style={styles.remove}>{"  \u00d7"}</Text> : null}
+      </Text>
+    </Pressable>
+  );
+
+  const addRow = (value: string, onChange: (v: string) => void, placeholder: string, onAdd: () => void) => (
+    <View style={[styles.addRow, { marginTop: s(8), gap: s(8) }]}>
+      <TextInput
+        style={[styles.addInput, { fontSize: fs(16) }]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.placeholder}
+      />
+      <ThemedButton size="small" label="Add" onPress={onAdd} />
+    </View>
+  );
+
+  const textSection = (
+    title: string,
+    value: string,
+    field: "languages" | "features",
+    placeholder: string,
+    empty: string,
+  ) => (
+    <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+      <SectionTitle size={fs(18)}>{title}</SectionTitle>
+      {editing ? (
+        <TextInput
+          style={[styles.storyInput, { fontSize: fs(15), lineHeight: fs(22), minHeight: s(72) }]}
+          multiline
+          scrollEnabled={false}
+          value={value}
+          onChangeText={(next) => setDraft((current) => ({ ...current, [field]: next }))}
+          placeholder={placeholder}
+          placeholderTextColor={colors.placeholder}
+        />
+      ) : (
+        <Text style={[styles.story, { fontSize: fs(15), lineHeight: fs(22) }]}>{value || empty}</Text>
+      )}
+    </ParchmentPanel>
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.header, { paddingTop: 48 * s }]}>
-        <Pressable onPress={onBack} hitSlop={10} style={{ width: side, height: 43 * s }}>
-          <Image source={backCircle} style={styles.fill} resizeMode="stretch" />
-          <Image source={backChevron} style={styles.chevron} resizeMode="contain" />
-        </Pressable>
-        <View style={styles.titleBox}>
-          <Text style={[styles.title, titleFont ? { fontFamily: titleFont, fontSize: 22 * s } : { fontSize: 22 * s }]}>
-            LEDGER
-          </Text>
-          <Image source={underline} style={{ width: 156 * s, height: 8 * s, marginTop: 2 }} resizeMode="contain" />
-          <Text style={[styles.party, bodyFont ? { fontFamily: bodyFont } : null]}>{partyName}</Text>
-        </View>
-        <View style={{ width: side }} />
-      </View>
+      <PageHeader title="Ledger" subtitle={partyName} onBack={onBack} />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.body, { paddingHorizontal: 12 * s, paddingBottom: 96 }]}
+        contentContainerStyle={{ paddingHorizontal: pagePad, paddingTop: s(4), paddingBottom: s(24) }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.card}>
-          <Image source={sheet} style={styles.fill} resizeMode="stretch" />
-          <View style={{ paddingHorizontal: 14 * s, paddingTop: 14 * s, paddingBottom: 16 * s }}>
-            <View style={styles.nameRow}>
-              <View style={{ width: side }} />
+        <ParchmentPanel variant="ledger" contentStyle={{ paddingHorizontal: sheetPad, paddingTop: s(12), paddingBottom: s(14) }}>
+          <View style={styles.nameRow}>
+            <View style={{ width: edit }} />
+            {editing ? (
+              <TextInput
+                style={[styles.nameInput, { fontSize: fs(18) }]}
+                value={draft.name}
+                onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
+                placeholder="Name"
+                placeholderTextColor={colors.placeholder}
+              />
+            ) : (
+              <Text style={[styles.name, { fontSize: fs(18) }]} numberOfLines={2}>
+                {draft.name || "Unnamed"}
+              </Text>
+            )}
+            <CircleButton
+              size={edit}
+              accessibilityLabel={editing ? "Stop editing" : "Edit sheet"}
+              onPress={() => {
+                setEditing((on) => !on);
+                setPicker(null);
+              }}
+              style={editing && styles.editOn}
+            >
+              <QuillIcon circleSize={edit} />
+            </CircleButton>
+          </View>
+
+          <View style={[styles.portraitBox, { width: portrait, height: portrait, marginTop: s(12) }]}>
+            <Pressable
+              onPress={pickPortrait}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="Change portrait"
+              style={[
+                styles.portraitWrap,
+                {
+                  width: portrait * PORTRAIT_PHOTO,
+                  height: portrait * PORTRAIT_PHOTO,
+                  borderRadius: (portrait * PORTRAIT_PHOTO) / 2,
+                },
+              ]}
+            >
+              {row?.portrait_url ? (
+                <Image source={{ uri: row.portrait_url }} style={styles.fill} />
+              ) : (
+                <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
+              )}
+            </Pressable>
+            <View style={styles.portraitInk} pointerEvents="none">
+              <Image source={portraitInk} style={styles.fill} resizeMode="stretch" />
+            </View>
+          </View>
+
+          <View style={[styles.metaRow, { marginTop: s(14), gap: s(12) }]}>
+            {editing ? (
+              <Pressable style={styles.metaInput} onPress={() => setPicker(picker === "race" ? null : "race")}>
+                <Text style={[styles.meta, { fontSize: fs(14) }]}>{draft.race || "Choose race"}</Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.meta, { fontSize: fs(14) }]}>Race: {draft.race || "\u2014"}</Text>
+            )}
+            {editing ? (
+              <Pressable style={styles.metaInput} onPress={() => setPicker(picker === "class" ? null : "class")}>
+                <Text style={[styles.meta, styles.metaRight, { fontSize: fs(14) }]}>{draft.class || "Choose class"}</Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.meta, styles.metaRight, { fontSize: fs(14) }]}>Class: {draft.class || "\u2014"}</Text>
+            )}
+          </View>
+          {renderPicker("race", RACES)}
+          {renderPicker("class", CLASSES)}
+
+          <View style={styles.vitalRow}>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Level</Text>
               {editing ? (
                 <TextInput
-                  style={[styles.nameInput, titleFont ? { fontFamily: titleFont } : null]}
-                  value={draft.name}
-                  onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
-                  placeholder="Name"
-                  placeholderTextColor="#8A8175"
+                  style={styles.vitalInput}
+                  keyboardType="number-pad"
+                  value={String(draft.level)}
+                  onChangeText={(value) => setDraft((current) => ({ ...current, level: clampLevel(value) }))}
                 />
               ) : (
-                <Text style={[styles.name, titleFont ? { fontFamily: titleFont, fontSize: 18 * s } : { fontSize: 18 * s }]}>
-                  {draft.name || "Unnamed"}
-                </Text>
+                <Text style={styles.vitalValue}>{draft.level}</Text>
               )}
-              <Pressable
-                onPress={() => {
-                  setEditing((on) => !on);
-                  setPicker(null);
-                }}
-                style={{ width: side, height: 43 * s }}
-              >
-                <Image source={editCircle} style={styles.fill} resizeMode="stretch" />
-              </Pressable>
             </View>
-
-            <View style={[styles.portraitRing, { width: 152 * s, height: 152 * s, borderRadius: 76 * s }]}>
-              <Pressable onPress={pickPortrait} style={[styles.portraitWrap, { width: 146 * s, height: 146 * s, borderRadius: 73 * s }]}>
-                {row?.portrait_url ? (
-                  <Image source={{ uri: row.portrait_url }} style={styles.fill} />
-                ) : (
-                  <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
-                )}
-              </Pressable>
-            </View>
-
-            <View style={styles.metaRow}>
+            {/* Empty middle column, so HP sits in the third column straight above Bonus,
+                the way Level sits above AC. */}
+            <View style={styles.vital} />
+            <View style={[styles.vital, styles.vitalHp]}>
+              <Text style={styles.vitalLabel}>HP</Text>
               {editing ? (
-                <Pressable style={styles.metaInput} onPress={() => setPicker(picker === "race" ? null : "race")}>
-                  <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    {draft.race || "Choose race"}
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={[styles.meta, bodyFont ? { fontFamily: bodyFont } : null]}>Race: {draft.race || "\u2014"}</Text>
-              )}
-              {editing ? (
-                <Pressable style={[styles.metaInput, styles.metaRight]} onPress={() => setPicker(picker === "class" ? null : "class")}>
-                  <Text style={[styles.meta, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    {draft.class || "Choose class"}
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={[styles.meta, styles.metaRight, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  Class: {draft.class || "\u2014"}
-                </Text>
-              )}
-            </View>
-            {renderPicker("race", RACES)}
-            {renderPicker("class", CLASSES)}
-
-            <View style={styles.vitalRow}>
-              <View style={styles.vital}>
-                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>Level</Text>
-                {editing ? (
+                <View style={styles.hpEdit}>
                   <TextInput
-                    style={[styles.vitalInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                    style={[styles.vitalInput, styles.hpInput]}
                     keyboardType="number-pad"
-                    value={String(draft.level)}
-                    onChangeText={(value) => setDraft((current) => ({ ...current, level: clampLevel(value) }))}
+                    value={String(draft.hp_current)}
+                    onChangeText={(value) => setDraft((current) => ({ ...current, hp_current: clampHp(value, 0) }))}
                   />
-                ) : (
-                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>{draft.level}</Text>
-                )}
-              </View>
-              <View style={styles.vital}>
-                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>HP</Text>
-                {editing ? (
-                  <View style={styles.hpEdit}>
-                    <TextInput
-                      style={[styles.vitalInput, styles.hpInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                      keyboardType="number-pad"
-                      value={String(draft.hp_current)}
-                      onChangeText={(value) => setDraft((current) => ({ ...current, hp_current: clampHp(value, 0) }))}
-                    />
-                    <Text style={[styles.hpSlash, bodyFont ? { fontFamily: bodyFont } : null]}>/</Text>
-                    <TextInput
-                      style={[styles.vitalInput, styles.hpInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                      keyboardType="number-pad"
-                      value={String(draft.hp_max)}
-                      onChangeText={(value) => setDraft((current) => ({ ...current, hp_max: clampHp(value, 1) }))}
-                    />
-                  </View>
-                ) : (
-                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    {draft.hp_current}/{draft.hp_max}
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            <View style={styles.vitalRow}>
-              <View style={styles.vital}>
-                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>AC</Text>
-                {editing ? (
+                  <Text style={styles.hpSlash}>/</Text>
                   <TextInput
-                    style={[styles.vitalInput, bodyFont ? { fontFamily: bodyFont } : null]}
+                    style={[styles.vitalInput, styles.hpInput]}
                     keyboardType="number-pad"
-                    value={String(draft.ac)}
-                    onChangeText={(value) => setDraft((current) => ({ ...current, ac: clampRange(value, 0, 30, 10) }))}
+                    value={String(draft.hp_max)}
+                    onChangeText={(value) => setDraft((current) => ({ ...current, hp_max: clampHp(value, 1) }))}
                   />
-                ) : (
-                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>{draft.ac}</Text>
-                )}
-              </View>
-              <View style={styles.vital}>
-                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>Speed</Text>
-                {editing ? (
-                  <TextInput
-                    style={[styles.vitalInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                    keyboardType="number-pad"
-                    value={String(draft.speed)}
-                    onChangeText={(value) => setDraft((current) => ({ ...current, speed: clampRange(value, 0, 120, 30) }))}
-                  />
-                ) : (
-                  <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>{draft.speed}</Text>
-                )}
-              </View>
-              <View style={styles.vital}>
-                <Text style={[styles.vitalLabel, bodyFont ? { fontFamily: bodyFont } : null]}>Bonus</Text>
-                <Text style={[styles.vitalValue, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  +{proficiencyBonus(draft.level)}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.rule} />
-
-            <View style={styles.stats}>
-              {STATS.map(([key, label]) => (
-                <View key={key} style={{ width: boxW, height: boxH, marginBottom: 8 * s }}>
-                  <Image source={statBody} style={styles.fill} resizeMode="stretch" />
-                  <Image source={statHead} style={[styles.statHead, { height: headH }]} resizeMode="stretch" />
-                  <Text style={[styles.statLabel, { height: headH, fontSize: 13 * s }, bodyFont ? { fontFamily: bodyFont } : null]}>
-                    {label}
-                  </Text>
-                  {editing ? (
-                    <TextInput
-                      style={[styles.statInput, { top: headH }, bodyFont ? { fontFamily: bodyFont } : null]}
-                      keyboardType="number-pad"
-                      value={String(draft[key])}
-                      onChangeText={(value) => setStat(key, value)}
-                    />
-                  ) : (
-                    <Text style={[styles.statValue, { top: headH, fontSize: 28 * s }, bodyFont ? { fontFamily: bodyFont } : null]}>
-                      {draft[key]}
-                    </Text>
-                  )}
                 </View>
-              ))}
+              ) : (
+                <Text style={styles.vitalValue}>
+                  {draft.hp_current}/{draft.hp_max}
+                </Text>
+              )}
             </View>
           </View>
-        </View>
 
-        <View style={[styles.panel, { marginTop: 10 * s }]}>
-          <Image source={storyPanel} style={styles.fill} resizeMode="stretch" />
-          <View style={[styles.panelInner, { padding: 18 * s }]}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Background</Text>
-            <View style={styles.sectionRule} />
-            {editing ? (
-              <TextInput
-                style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                multiline
-                scrollEnabled={false}
-                value={draft.background}
-                onChangeText={(background) => setDraft((current) => ({ ...current, background }))}
-                placeholder="Background story"
-                placeholderTextColor="#8A8175"
-              />
-            ) : (
-              <Text style={[styles.story, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {draft.background || "No story yet."}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.paper, { marginTop: 10 * s }]}>
-          <Image source={paper} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Skills</Text>
-            <View style={styles.sectionRule} />
-            {editing ? (
-              <View style={styles.chips}>
-                {SKILLS.map((skill) => {
-                  const on = draft.skills.includes(skill);
-                  return (
-                    <Pressable key={skill} onPress={() => toggleSkill(skill)} style={[styles.chip, on && styles.chipOn]}>
-                      <Text style={[styles.chipText, on && styles.chipTextOn, bodyFont ? { fontFamily: bodyFont } : null]}>
-                        {skill}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : draft.skills.length === 0 ? (
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>None marked.</Text>
-            ) : (
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>{draft.skills.join(", ")}</Text>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.paper, { marginTop: 10 * s }]}>
-          <Image source={paper} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Languages</Text>
-            <View style={styles.sectionRule} />
-            {editing ? (
-              <TextInput
-                style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                multiline
-                scrollEnabled={false}
-                value={draft.languages}
-                onChangeText={(languages) => setDraft((current) => ({ ...current, languages }))}
-                placeholder="Common, Elvish"
-                placeholderTextColor="#8A8175"
-              />
-            ) : (
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {draft.languages || "None listed."}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.paper, { marginTop: 10 * s }]}>
-          <Image source={paper} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Features</Text>
-            <View style={styles.sectionRule} />
-            {editing ? (
-              <TextInput
-                style={[styles.storyInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                multiline
-                scrollEnabled={false}
-                value={draft.features}
-                onChangeText={(features) => setDraft((current) => ({ ...current, features }))}
-                placeholder="Class features, fighting style, spells"
-                placeholderTextColor="#8A8175"
-              />
-            ) : (
-              <Text style={[styles.story, bodyFont ? { fontFamily: bodyFont } : null]}>
-                {draft.features || "None yet."}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.paper, { marginTop: 10 * s }]}>
-          <Image source={paper} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Equipment</Text>
-            <View style={styles.sectionRule} />
-            {gear.length === 0 ? (
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>Nothing carried.</Text>
-            ) : null}
-            {gear.map((item) => (
-              <Pressable key={item.id} onPress={() => (editing ? dropGear(item.id) : undefined)}>
-                <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  {item.name}
-                  {editing ? "  \u00d7" : ""}
-                </Text>
-              </Pressable>
-            ))}
-            {editing ? (
-              <View style={styles.addRow}>
+          <View style={styles.vitalRow}>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>AC</Text>
+              {editing ? (
                 <TextInput
-                  style={[styles.addInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                  value={gearName}
-                  onChangeText={setGearName}
-                  placeholder="Add equipment"
-                  placeholderTextColor="#8A8175"
+                  style={styles.vitalInput}
+                  keyboardType="number-pad"
+                  value={String(draft.ac)}
+                  onChangeText={(value) => setDraft((current) => ({ ...current, ac: clampRange(value, 0, 30, 10) }))}
                 />
-                <Pressable style={styles.addButton} onPress={addGear}>
-                  <Text style={styles.addButtonText}>Add</Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={[styles.paper, { marginTop: 10 * s }]}>
-          <Image source={paper} style={styles.fill} resizeMode="stretch" />
-          <View style={{ padding: 16 * s }}>
-            <Text style={[styles.section, titleFont ? { fontFamily: titleFont } : null]}>Traits</Text>
-            <View style={styles.sectionRule} />
-            {traits.length === 0 ? (
-              <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>No traits yet.</Text>
-            ) : null}
-            {traits.map((item) => (
-              <Pressable key={item.id} onPress={() => (editing ? dropTrait(item.id) : undefined)}>
-                <Text style={[styles.line, bodyFont ? { fontFamily: bodyFont } : null]}>
-                  {item.name}
-                  {editing ? "  \u00d7" : ""}
-                </Text>
-              </Pressable>
-            ))}
-            {editing ? (
-              <View style={styles.addRow}>
+              ) : (
+                <Text style={styles.vitalValue}>{draft.ac}</Text>
+              )}
+            </View>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Speed</Text>
+              {editing ? (
                 <TextInput
-                  style={[styles.addInput, bodyFont ? { fontFamily: bodyFont } : null]}
-                  value={traitName}
-                  onChangeText={setTraitName}
-                  placeholder="Add a trait"
-                  placeholderTextColor="#8A8175"
+                  style={styles.vitalInput}
+                  keyboardType="number-pad"
+                  value={String(draft.speed)}
+                  onChangeText={(value) => setDraft((current) => ({ ...current, speed: clampRange(value, 0, 120, 30) }))}
                 />
-                <Pressable style={styles.addButton} onPress={addOneTrait}>
-                  <Text style={styles.addButtonText}>Add</Text>
-                </Pressable>
-              </View>
-            ) : null}
+              ) : (
+                <Text style={styles.vitalValue}>{draft.speed}</Text>
+              )}
+            </View>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Bonus</Text>
+              <Text style={styles.vitalValue}>+{proficiencyBonus(draft.level)}</Text>
+            </View>
           </View>
-        </View>
+
+          <Rule color={colors.ink} style={styles.rule} />
+
+          <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
+            {STATS.map(([key, label]) => (
+              <StatFrame key={key} label={label} width={boxW} labelSize={fs(15)}>
+                {editing ? (
+                  <TextInput
+                    style={[styles.statInput, { fontSize: fs(26) }]}
+                    keyboardType="number-pad"
+                    value={String(draft[key])}
+                    onChangeText={(value) => setStat(key, value)}
+                  />
+                ) : (
+                  <Text style={statValue}>{draft[key]}</Text>
+                )}
+              </StatFrame>
+            ))}
+          </View>
+        </ParchmentPanel>
+
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
+          <SectionTitle center size={fs(18)}>
+            Background
+          </SectionTitle>
+          {editing ? (
+            <TextInput
+              style={[styles.storyInput, { fontSize: fs(15), lineHeight: fs(22), minHeight: s(88) }]}
+              multiline
+              scrollEnabled={false}
+              value={draft.background}
+              onChangeText={(background) => setDraft((current) => ({ ...current, background }))}
+              placeholder="Background story"
+              placeholderTextColor={colors.placeholder}
+            />
+          ) : (
+            <Text style={[styles.story, { fontSize: fs(15), lineHeight: fs(22) }]}>
+              {draft.background || "No story yet."}
+            </Text>
+          )}
+        </ParchmentPanel>
+
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+          <SectionTitle size={fs(18)}>Skills</SectionTitle>
+          {editing ? (
+            <View style={[styles.chips, { gap: s(6) }]}>
+              {SKILLS.map((skill) => {
+                const on = draft.skills.includes(skill);
+                return (
+                  <Pressable key={skill} onPress={() => toggleSkill(skill)} style={[styles.chip, on && styles.chipOn]}>
+                    <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={[styles.story, { fontSize: fs(15), lineHeight: fs(22) }]}>
+              {draft.skills.length === 0 ? "None marked." : draft.skills.join(", ")}
+            </Text>
+          )}
+        </ParchmentPanel>
+
+        {textSection("Languages", draft.languages, "languages", "Common, Elvish", "None listed.")}
+        {textSection("Features", draft.features, "features", "Class features, fighting style, spells", "None yet.")}
+
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+          <SectionTitle size={fs(18)}>Equipment</SectionTitle>
+          {gear.length === 0 ? (
+            <Text style={[styles.listItem, styles.listEmpty, { fontSize: fs(16), lineHeight: fs(26) }]}>Nothing carried.</Text>
+          ) : null}
+          {gear.map((item) => listItem(item.name, () => dropGear(item.id), item.id))}
+          {editing ? addRow(gearName, setGearName, "Add equipment", addGear) : null}
+        </ParchmentPanel>
+
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+          <SectionTitle size={fs(18)}>Traits</SectionTitle>
+          {traits.length === 0 ? (
+            <Text style={[styles.listItem, styles.listEmpty, { fontSize: fs(16), lineHeight: fs(26) }]}>No traits yet.</Text>
+          ) : null}
+          {traits.map((item) => listItem(item.name, () => dropTrait(item.id), item.id))}
+          {editing ? addRow(traitName, setTraitName, "Add a trait", addOneTrait) : null}
+        </ParchmentPanel>
 
         {!partyId ? (
-          <Text style={[styles.note, bodyFont ? { fontFamily: bodyFont } : null]}>
+          <Text style={[styles.note, { fontSize: fs(13), marginTop: s(12) }]}>
             Not in a party yet.{" "}
             <Text style={styles.link} onPress={() => onOpen("create")}>
               Create
@@ -766,26 +759,18 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             </Text>
           </Text>
         ) : (
-          <Text style={[styles.note, bodyFont ? { fontFamily: bodyFont } : null]}>
+          <Text style={[styles.note, { fontSize: fs(13), marginTop: s(12) }]}>
             This sheet is only for {partyName}. A new party gets a new character.
           </Text>
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
 
         {editing ? (
-          <Pressable style={styles.save} onPress={persist} disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color="#FEFCEB" />
-            ) : (
-              <Text style={[styles.saveText, bodyFont ? { fontFamily: bodyFont } : null]}>Save sheet</Text>
-            )}
-          </Pressable>
-        ) : null}
-        {editing && row ? (
-          <Pressable style={styles.delete} onPress={removeSheet} disabled={busy}>
-            <Text style={[styles.deleteText, bodyFont ? { fontFamily: bodyFont } : null]}>Delete sheet</Text>
-          </Pressable>
+          <View style={[styles.actions, { marginTop: s(14), gap: s(10) }]}>
+            <ThemedButton label="Save sheet" onPress={persist} busy={busy} />
+            {row ? <ThemedButton label="Delete sheet" variant="outline" onPress={removeSheet} disabled={busy} /> : null}
+          </View>
         ) : null}
       </ScrollView>
     </View>
@@ -793,7 +778,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: colors.wash },
   parchment: {
     position: "absolute",
     top: 0,
@@ -804,189 +789,137 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
   fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
-  chevron: { position: "absolute", width: 18, height: 18, left: 13, top: 12 },
-  titleBox: { flex: 1, alignItems: "center" },
-  title: { color: "#1A1816", letterSpacing: 0.6 },
-  party: { color: "#5A5348", fontSize: 13, marginTop: 2 },
   scroll: { flex: 1 },
-  body: { gap: 4, alignItems: "stretch" },
-  card: { overflow: "hidden", borderRadius: 4, alignSelf: "stretch" },
   nameRow: { flexDirection: "row", alignItems: "center" },
-  name: { flex: 1, color: "#1A1816", textAlign: "center", letterSpacing: 0.4 },
+  name: { flex: 1, fontFamily: fonts.titleBold, textAlign: "center", letterSpacing: 0.4, ...inkText.heading },
   nameInput: {
     flex: 1,
-    color: "#1A1816",
-    fontSize: 18,
+    fontFamily: fonts.titleBold,
+    color: colors.ink,
     textAlign: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
+    borderBottomColor: colors.rule,
     paddingVertical: 4,
+    marginHorizontal: 6,
   },
-  portraitRing: {
-    alignSelf: "center",
-    marginTop: 12,
-    borderWidth: 3,
-    borderColor: "#1A1816",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  portraitWrap: { overflow: "hidden", backgroundColor: "#C8B48A" },
-  metaRow: { flexDirection: "row", marginTop: 14 },
-  meta: { flex: 1, color: "#1A1816", fontSize: 14 },
+  editOn: { opacity: 0.75 },
+  portraitBox: { alignSelf: "center", alignItems: "center", justifyContent: "center" },
+  portraitInk: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
+  portraitWrap: { overflow: "hidden", backgroundColor: colors.portrait },
+  metaRow: { flexDirection: "row" },
+  meta: { flex: 1, fontFamily: fonts.heading, color: colors.ink },
   metaRight: { textAlign: "right" },
   metaInput: {
     flex: 1,
-    color: "#1A1816",
-    fontSize: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
+    borderBottomColor: colors.rule,
     paddingVertical: 2,
   },
-  vitalRow: { flexDirection: "row", marginTop: 12, gap: 12 },
-  vital: { flex: 1, alignItems: "center" },
-  vitalLabel: { color: "#5A5348", fontSize: 12, letterSpacing: 0.6 },
-  vitalValue: { color: "#1A1816", fontSize: 18, marginTop: 2 },
+  // Level, HP, AC, Speed and Bonus keep the original 125ce45 boxes and sizes.
+  // Two rows, label over value, on one three-column grid: Level is centred over AC
+  // and HP over Bonus (the middle column of the first row is empty).
+  vitalRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 14 },
+  vital: { flex: 1, alignItems: "center", paddingHorizontal: 4 },
+  // HP may be wider than its column while editing (two boxes and a slash); it stays centred
+  // on the column and spills evenly into the empty space beside it.
+  vitalHp: { paddingHorizontal: 0 },
+  vitalLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, letterSpacing: 0.6 },
+  vitalValue: { fontFamily: fonts.body, color: colors.ink, fontSize: 18, marginTop: 4, fontVariant: ["tabular-nums"] },
   vitalInput: {
-    color: "#1A1816",
+    fontFamily: fonts.body,
+    color: colors.ink,
     fontSize: 18,
     textAlign: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
-    minWidth: 36,
+    borderBottomColor: colors.ink,
+    minWidth: 48,
     paddingVertical: 2,
+    paddingHorizontal: 4,
   },
-  hpEdit: { flexDirection: "row", alignItems: "center", gap: 4 },
-  hpInput: { minWidth: 42 },
-  hpSlash: { color: "#1A1816", fontSize: 18 },
+  hpEdit: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hpInput: { minWidth: 44 },
+  hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
+  rule: { marginTop: 10, marginBottom: 12 },
+  stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
+  statHead: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statLabel: { fontFamily: fonts.heading, color: colors.statLabel, textAlign: "center", letterSpacing: 0.6 },
+  statValueBox: { flex: 1, marginTop: "31%", alignItems: "center", justifyContent: "center" },
+  statValue: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
+  statInput: {
+    fontFamily: fonts.stat,
+    color: colors.ink,
+    textAlign: "center",
+    padding: 0,
+    minWidth: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
+  },
   picker: {
-    marginTop: 10,
     borderWidth: 1,
-    borderColor: "#1A1816",
-    borderRadius: 6,
+    borderColor: colors.cardStroke,
+    borderRadius: 5,
     backgroundColor: "rgba(254,252,235,0.96)",
     overflow: "hidden",
   },
   pickerLabel: {
-    color: "#1A1816",
-    fontSize: 14,
+    fontFamily: fonts.headingBold,
+    color: colors.ink,
     textAlign: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
+    borderBottomColor: colors.cardStroke,
     backgroundColor: "rgba(189,127,2,0.12)",
   },
   option: { paddingVertical: 9, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: "rgba(26,24,22,0.12)" },
   optionOn: { backgroundColor: "rgba(196,69,54,0.12)" },
-  optionText: { color: "#1A1816", fontSize: 15 },
-  optionTextOn: { color: "#C44536" },
+  optionText: { fontFamily: fonts.heading, color: colors.ink },
+  optionTextOn: { color: colors.primary },
   customInput: {
+    fontFamily: fonts.body,
     margin: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
-    color: "#1A1816",
-    fontSize: 15,
+    borderBottomColor: colors.rule,
+    color: colors.ink,
     paddingVertical: 6,
   },
-  rule: { height: 1, backgroundColor: "#1A1816", marginTop: 10, marginBottom: 12 },
-  stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  statHead: { position: "absolute", top: 0, left: 0, width: "100%" },
-  statLabel: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    color: "#FEFCEB",
-    textAlign: "center",
-    textAlignVertical: "center",
-    fontSize: 13,
-  },
-  statValue: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 6,
-    color: "#1A1816",
-    textAlign: "center",
-  },
-  statInput: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    bottom: 8,
-    color: "#1A1816",
-    textAlign: "center",
-    fontSize: 22,
-    padding: 0,
-  },
-  panel: { alignSelf: "stretch", overflow: "hidden", borderRadius: 4, minHeight: 120 },
-  paper: { alignSelf: "stretch", overflow: "hidden", borderRadius: 4, minHeight: 96 },
-  panelInner: { alignItems: "stretch" },
-  section: { color: "#1A1816", fontSize: 18, textAlign: "center", alignSelf: "center" },
-  sectionRule: { alignSelf: "center", width: 126, height: 1, backgroundColor: "#1A1816", marginTop: 4, marginBottom: 8 },
-  story: { color: "#1A1816", fontSize: 15, lineHeight: 22, textAlign: "left" },
-  storyInput: {
-    minHeight: 88,
-    color: "#1A1816",
-    fontSize: 15,
-    lineHeight: 22,
-    textAlignVertical: "top",
-  },
-  chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6 },
+  sectionTitle: { marginBottom: 8 },
+  sectionCenter: { alignSelf: "center" },
+  sectionLeft: { alignSelf: "flex-start" },
+  section: { fontFamily: fonts.headingBold, ...inkText.heading },
+  sectionRule: { marginTop: 2 },
+  story: { fontFamily: fonts.body, color: colors.ink, textAlign: "left" },
+  storyInput: { fontFamily: fonts.body, color: colors.ink, textAlignVertical: "top" },
+  chips: { flexDirection: "row", flexWrap: "wrap" },
   chip: {
     borderWidth: 1,
-    borderColor: "#1A1816",
+    borderColor: colors.cardStroke,
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 5,
     backgroundColor: "rgba(254,252,235,0.7)",
   },
-  chipOn: { backgroundColor: "#1A1816" },
-  chipText: { color: "#1A1816", fontSize: 13 },
-  chipTextOn: { color: "#FEFCEB" },
-  line: { color: "#1A1816", fontSize: 16, lineHeight: 26, textAlign: "center" },
-  addRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontFamily: fonts.heading, color: colors.ink },
+  chipTextOn: { color: colors.cream },
+  listItem: { fontFamily: fonts.heading, color: colors.ink, textAlign: "left" },
+  listEmpty: { color: colors.muted },
+  remove: { color: colors.wordmark },
+  addRow: { flexDirection: "row", alignItems: "center" },
   addInput: {
     flex: 1,
+    fontFamily: fonts.body,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A1816",
-    color: "#1A1816",
-    fontSize: 16,
+    borderBottomColor: colors.rule,
+    color: colors.ink,
     paddingVertical: 6,
   },
-  addButton: {
-    backgroundColor: "#C44536",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-  },
-  addButtonText: { color: "#FEFCEB", fontSize: 14 },
-  note: { color: "#5A5348", fontSize: 13, textAlign: "center", marginTop: 10 },
-  link: { color: "#A33A3A" },
-  error: { color: "#A33A3A", fontSize: 14, marginTop: 8, textAlign: "center" },
-  save: {
-    marginTop: 12,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#C44536",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveText: { color: "#FEFCEB", fontSize: 16 },
-  delete: {
-    marginTop: 8,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#A33A3A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteText: { color: "#A33A3A", fontSize: 15 },
+  note: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
+  link: { color: colors.wordmark },
+  error: { fontFamily: fonts.body, color: colors.wordmark, marginTop: 8, textAlign: "center" },
+  actions: { alignSelf: "stretch" },
 });

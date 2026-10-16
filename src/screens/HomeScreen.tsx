@@ -8,47 +8,47 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useFonts } from "expo-font";
-import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
-import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
 
 import type { AppScreen } from "../navigation/screens";
+import Rule from "../components/Rule";
+import { colors, DESIGN_HEIGHT, DESIGN_WIDTH, fonts, inkText, useAppFonts, useScale } from "../theme";
 import Witch from "../../assets/Icons/icons8-witch-hat.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Settings from "../../assets/Icons/icons8-settings.svg";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
-const skull = require("../../assets/Splash Screen/Ark3 3.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
-const sealArt = require("../../assets/DasbBoard/OIP 2.png");
-const ring1 = require("../../assets/DasbBoard/ring1.png");
-const ring2 = require("../../assets/DasbBoard/ring2.png");
-const dieArt = require("../../assets/DasbBoard/Group 5964.png");
-const gemRed = require("../../assets/DasbBoard/Group 5931.png");
-const gemGreen = require("../../assets/DasbBoard/Group 5929.png");
-const gemBlue = require("../../assets/DasbBoard/Group 5930.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
+// 3x transparent exports from the Figma dashboard frame 2320:2434.
+const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2132:51
+const sealArt = require("../../assets/images/dashboard/seal-parchment.png"); // OIP 2, 2072:543
+const ring1 = require("../../assets/images/dashboard/ring-outer.png"); // Ellipse 21, 2069:522
+const ring2 = require("../../assets/images/dashboard/ring-inner.png"); // Ellipse 31, 2072:571
+const dieArt = require("../../assets/images/dashboard/die-d20.png"); // Group 5964, 2201:181
+const gemRed = require("../../assets/images/dashboard/gem-red.png"); // Group 5931
+const gemGreen = require("../../assets/images/dashboard/gem-green.png"); // Group 5929
+const gemBlue = require("../../assets/images/dashboard/gem-blue.png"); // Group 5930
 
-const INK = "#1A1816";
-const SPLASH = "#A33A3A";
+// The old 221 x 3 underline PNG (#2E2E2E, soft edges) is now a crisp 1 dp rule.
+const UNDERLINE = "rgba(46,46,46,0.8)"; // colors.rule at 80%
 const STEP = 120;
 
-const DW = 360;
-const DH = 780;
 const CX = 180;
 const CY = 538;
 const SEAL = 115;
 const SEAL_R = 111.9;
-const GEM = 23;
+// Gems were 23 (old 26x29 art left the gem about 18 wide); the new square art at 24 shows it about 22 wide.
+const GEM = 24;
+// Seal icon and label, slightly larger than before (icon 0.38 -> 0.44 of the seal, label 14 -> 15.4).
+const ICON = 0.44;
+const LABEL = 15.4;
 
 type SealId = "sage" | "tome" | "codex";
 
 const SEALS: { id: SealId; label: string; deg: number; screen: AppScreen }[] = [
-  { id: "sage", label: "Sage Scribe", deg: 210, screen: "sage" },
-  { id: "tome", label: "Tome", deg: 330, screen: "settings" },
+  { id: "sage", label: "SAGE SCRIBE", deg: 210, screen: "sage" },
+  { id: "tome", label: "TOME", deg: 330, screen: "settings" },
   { id: "codex", label: "CODEX", deg: 90, screen: "codex" },
 ];
 
@@ -68,25 +68,22 @@ function wrapDelta(delta: number) {
 }
 
 export default function HomeScreen({ onOpen }: Props) {
-  const { width, height } = useWindowDimensions();
+  // fit = min(width / 360, height / 780), the same stage scale as before.
+  const { fit: s } = useScale();
   const rot = useRef(new Animated.Value(0)).current;
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
   openRef.current = onOpen;
 
-  const [fontsLoaded] = useFonts({
-    CinzelDecorative_400Regular,
-    Asul_400Regular,
-  });
+  const fontsLoaded = useAppFonts();
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
     NavigationBar.setPositionAsync("relative").catch(() => undefined);
   }, []);
 
-  const s = Math.min(width / DW, height / DH);
-  const stageW = DW * s;
-  const stageH = DH * s;
+  const stageW = DESIGN_WIDTH * s;
+  const stageH = DESIGN_HEIGHT * s;
   const seal = SEAL * s;
   const orbit = SEAL_R * s;
   const gem = GEM * s;
@@ -195,13 +192,13 @@ export default function HomeScreen({ onOpen }: Props) {
           style={{ position: "absolute", left: 14.3 * s, top: 50 * s, width: 331.4 * s, height: 360 * s }}
         />
 
-        <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s, fontSize: 36 * s, color: SPLASH, opacity: 0.82 }]}>
+        <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s, fontSize: 36 * s, color: colors.wordmark, opacity: 0.82 }]}>
           Arkane Aid
         </Text>
-        <Image
-          source={underline}
-          resizeMode="contain"
-          style={{ position: "absolute", left: 71 * s, top: 385 * s, width: 219 * s, height: 8 * s }}
+        <Rule
+          width={219 * s}
+          color={UNDERLINE}
+          style={{ position: "absolute", left: 71 * s, top: 388.5 * s - 0.5 }}
         />
 
         <Image
@@ -263,12 +260,12 @@ export default function HomeScreen({ onOpen }: Props) {
                 >
                   <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
                   <View style={styles.sealBody}>
-                    <SealIcon id={item.id} size={seal * 0.38} />
+                    <SealIcon id={item.id} size={seal * ICON} />
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
-                      style={[styles.sealLabel, { fontSize: 14 * s, marginTop: 2 * s }]}
+                      style={[styles.sealLabel, { fontSize: LABEL * s, marginTop: 2 * s }]}
                     >
                       {item.label}
                     </Text>
@@ -291,12 +288,12 @@ const SEAL_ICONS = {
 
 function SealIcon({ id, size }: { id: SealId; size: number }) {
   const Icon = SEAL_ICONS[id];
-  return <Icon width={size} height={size} color={INK} />;
+  return <Icon width={size} height={size} color={colors.ink} />;
 }
 
 const styles = StyleSheet.create({
-  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
-  root: { flex: 1, backgroundColor: "#E8D7B8", alignItems: "center" },
+  fallback: { flex: 1, backgroundColor: colors.wash },
+  root: { flex: 1, backgroundColor: colors.wash, alignItems: "center" },
   parchment: {
     position: "absolute",
     top: 0,
@@ -310,8 +307,9 @@ const styles = StyleSheet.create({
   stage: { position: "relative" },
   wordmark: {
     position: "absolute",
-    fontFamily: "CinzelDecorative_400Regular",
+    fontFamily: fonts.title,
     textAlign: "center",
+    ...inkText.red,
   },
   layer: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   sealFill: { position: "absolute", width: "100%", height: "100%" },
@@ -323,8 +321,8 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   sealLabel: {
-    fontFamily: "Asul_400Regular",
-    color: INK,
+    fontFamily: fonts.heading,
+    color: colors.ink,
     textAlign: "center",
     width: "94%",
   },

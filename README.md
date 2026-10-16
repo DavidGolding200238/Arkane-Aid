@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
 
 ### Scribe
 
@@ -63,9 +63,9 @@ The player sheet. Name, race, class, level, hit points, armour class, speed, pro
 
 Answers are meant to stay inside a short local extract in `src/data/rules.json`, drawn from the official Dungeons and Dragons System Reference Document 5.2.1 (CC-BY-4.0). A question outside that extract is refused and sent to the dungeon master. That refusal is the design, not a bug.
 
-### Settings
+### Settings (Tome)
 
-Account, sign out, create party, join party, and switch the active party.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage voice (Wizard or Plain; Bard is coming soon). The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
 
 ---
 
@@ -147,13 +147,13 @@ Already applied on the Supabase project. Re-run only on a fresh project, in orde
 
 | Screen | Purpose |
 |--------|---------|
-| Splash | Title and load |
+| Splash | Title, and real loading: fonts, the main screens' art, the Sage's fire, code and orb model, with the percentage driven by finished tasks (never longer than 15 s) |
 | Login and Sign up | Email authentication |
 | Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
-| Sage | Ask a ruling or note the table. Plain or Wizard voice |
+| Sage | Ask a ruling or note the table. Voice (Plain or Wizard) comes from the Tome |
 | Codex | Session book. Notes and items. Ledger tab opens the sheet |
 | Ledger | Player sheet for the current party |
-| Settings | Account, parties, sign out |
+| Tome (Settings) | Account and parties, guidance, voice personality |
 | Create and Join | Party code |
 
 Figma is the source of truth for layout. File: ARKANE-AID-DEV.
@@ -166,18 +166,31 @@ Figma is the source of truth for layout. File: ARKANE-AID-DEV.
 App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
-  components/           TabBar, SageAvatar, ScreenFrame
-  context/              AuthContext, PartyContext
-  lib/                  supabase, parties, character, codex, sage
+  components/           TabBar, SageAvatar, SageOrb (+ flames/: FireLoop, FlameGlow, Embers, useFlameMotion), SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
+                        ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule (inked underline), PageFade, icons
+  theme/                colors, spacing, typography (fonts, heading ink), scale (360-wide sizing)
+  context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
+  lib/                  supabase, parties, character, codex, sage, preload (what the splash loads)
   data/
     rules.json          SRD 5.2.1 extract
     sage-personalities.json
 assets/
-  Splash Screen/        title art
+  Splash Screen/        Dragon Logo (Login skull, still 1x)
   Icons/                tab and seal icons
-  Codex/                session book art
-  Ledger/               sheet art
-  Fire/                 orb flame frames
+  images/
+    backgrounds/        parchment.png
+    splash/             die-d20-glow (4x PNG), loader-ring (3x PNG), both transparent; the skull is dashboard/skull-dragon
+    decor/              ink-underline + ink-underline-end (the splash heading's inked rule, 3x, tintable; Rule uses them for every heading and divider)
+    buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
+    icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
+                        tab-home/logbook/hat/gear.svg (tab bar, currentColor),
+                        icon-mic.svg, icon-hand-quill.svg (Sage and Scribe mode buttons, currentColor)
+    tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
+    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-codex-cream and panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) are the ones in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger are the script sources
+    dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
+    sage/               fire-red-loop.webp, fire-blue-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1..8 and fire-blue-1..8 (the Figma keyframes they are built from, on one shared canvas, 3x PNG; frame 1 is the Reduce Motion still)
+    tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
+    ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   Sage/                 orb model
 supabase/
   001_auth_and_parties.sql
