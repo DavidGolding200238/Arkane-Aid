@@ -51,8 +51,11 @@ const statBody = require("../../assets/images/ledger/stat-body.png");
 // shadow) and the red textured header (2167:658) laid over its top edge.
 // Art sizes are 3x pixels; the paper itself is 279 x 276 of the 292 x 296 body
 // export, the rest is the torn edge overhang and the shadow.
+// The header's red texture comes from Figma; its torn, ink-rimmed edge is a
+// mask built to match the paper's edge (the Figma layer itself is square).
+// It overhangs the paper by about 1.5 dp so it covers the paper's top stroke.
 const BODY = { w: 292, h: 296, paperX: 7, paperY: 1, paperW: 279, paperH: 276 };
-const HEAD = { w: 272, h: 85 };
+const HEAD = { w: 272, h: 85, overhang: 0.016 };
 
 function StatFrame({
   label,
@@ -67,7 +70,9 @@ function StatFrame({
 }) {
   const k = width / BODY.paperW;
   const height = BODY.paperH * k;
-  const headH = width * (HEAD.h / HEAD.w);
+  const over = width * HEAD.overhang;
+  const headW = width + over * 2;
+  const headH = headW * (HEAD.h / HEAD.w);
   return (
     <View style={{ width, height }}>
       <Image
@@ -81,7 +86,7 @@ function StatFrame({
         }}
         resizeMode="stretch"
       />
-      <View style={[styles.statHead, { height: headH }]}>
+      <View style={[styles.statHead, { top: -over, left: -over, width: headW, height: headH }]}>
         <Image source={statHead} style={styles.fill} resizeMode="stretch" />
         <Text style={[styles.statLabel, { fontSize: labelSize }]} numberOfLines={1}>
           {label}
@@ -832,9 +837,6 @@ const styles = StyleSheet.create({
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   statHead: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     alignItems: "center",
     justifyContent: "center",
   },
