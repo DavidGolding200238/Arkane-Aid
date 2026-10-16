@@ -50,10 +50,10 @@ const DASHBOARD = [
   require("../../assets/images/dashboard/die-d20.png"),
 ];
 const PAGES = [
-  require("../../assets/images/panels/panel-ledger-frame.png"),
-  require("../../assets/images/panels/panel-ledger-fill.jpg"),
-  require("../../assets/images/panels/panel-codex-frame.png"),
-  require("../../assets/images/panels/panel-codex-fill.jpg"),
+  require("../../assets/images/panels/panel-ledger-cream-frame.png"),
+  require("../../assets/images/panels/panel-ledger-cream-fill.jpg"),
+  require("../../assets/images/panels/panel-codex-cream-frame.png"),
+  require("../../assets/images/panels/panel-codex-cream-fill.jpg"),
   require("../../assets/images/panels/card-codex-frame.png"),
   require("../../assets/images/panels/card-codex-fill.jpg"),
   require("../../assets/images/ledger/stat-header.png"),
@@ -68,8 +68,6 @@ const PAGES = [
   require("../../assets/images/tome/arrow-right.png"),
 ];
 const SAGE_ART = [
-  require("../../assets/images/sage/panel-input-cream-frame.png"),
-  require("../../assets/images/sage/panel-input-cream-fill.jpg"),
   require("../../assets/images/sage/fire-red-1.png"),
   require("../../assets/images/sage/fire-blue-1.png"),
 ];

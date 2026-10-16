@@ -20,36 +20,35 @@ import {
 // Width/height are the art size in dp (pixels / 3).
 type Art = { frame: ImageSourcePropType; fill: ImageSourcePropType; width: number; height: number };
 
+// Panels that sit straight on the screen paper use the cream art (the paper blended toward
+// #FFF6E2 by scripts/build-cream-panels.py; outline, torn edge and alpha untouched) so they lift
+// off the background. The tan originals stay in assets/images/panels as the script's source.
+const LEDGER_CREAM = {
+  frame: require("../../assets/images/panels/panel-ledger-cream-frame.png"),
+  fill: require("../../assets/images/panels/panel-ledger-cream-fill.jpg"),
+  width: 1010 / 3,
+  height: 1555 / 3,
+};
+
 const ART = {
-  // Codex book, Figma 2242:596
+  // Codex book, Figma 2242:596 (cream)
   codex: {
-    frame: require("../../assets/images/panels/panel-codex-frame.png"),
-    fill: require("../../assets/images/panels/panel-codex-fill.jpg"),
+    frame: require("../../assets/images/panels/panel-codex-cream-frame.png"),
+    fill: require("../../assets/images/panels/panel-codex-cream-fill.jpg"),
     width: 963 / 3,
     height: 1818 / 3,
   },
-  // Codex note card, Figma 2242:605
+  // Codex note card, Figma 2242:605. Sits on the book, so it keeps its own paper.
   card: {
     frame: require("../../assets/images/panels/card-codex-frame.png"),
     fill: require("../../assets/images/panels/card-codex-fill.jpg"),
     width: 898 / 3,
     height: 427 / 3,
   },
-  // Ledger sheet and section panels, Figma 2167:598
-  ledger: {
-    frame: require("../../assets/images/panels/panel-ledger-frame.png"),
-    fill: require("../../assets/images/panels/panel-ledger-fill.jpg"),
-    width: 1010 / 3,
-    height: 1555 / 3,
-  },
-  // Sage typing box: the Ledger art with its paper lightened to cream (#FFF6E2 family).
-  // The #764f00 outline, torn edge and alpha are pixel-for-pixel the Ledger ones.
-  input: {
-    frame: require("../../assets/images/sage/panel-input-cream-frame.png"),
-    fill: require("../../assets/images/sage/panel-input-cream-fill.jpg"),
-    width: 1010 / 3,
-    height: 1555 / 3,
-  },
+  // Ledger sheet and section panels, and the Tome sections, Figma 2167:598 (cream)
+  ledger: LEDGER_CREAM,
+  // Sage typing box: the same cream Ledger art.
+  input: LEDGER_CREAM,
 } satisfies Record<string, Art>;
 
 // Top and bottom bands (in art dp) drawn at their true proportions. Only the
