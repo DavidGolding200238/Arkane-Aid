@@ -17,6 +17,8 @@ export type Scale = {
   width: number;
   height: number;
   ratio: number;
+  /** Unclamped min(width / 360, height / 780), so a whole Figma frame fits on screen. The Dashboard stage uses it. */
+  fit: number;
   /** Scale a layout size (width, height, padding, radius) from Figma units. */
   s: (size: number) => number;
   /** Scale a font size from Figma units, more gently than layout. */
@@ -30,6 +32,7 @@ export function makeScale(width: number, height: number): Scale {
     width,
     height,
     ratio,
+    fit: Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT),
     s: (size) => PixelRatio.roundToNearestPixel(size * ratio),
     fs: (size) => PixelRatio.roundToNearestPixel(size * fontRatio),
   };
