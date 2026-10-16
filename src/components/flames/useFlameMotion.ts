@@ -4,19 +4,19 @@ import { AccessibilityInfo, Animated, Easing } from "react-native";
 export type FlameMood = "idle" | "listening" | "thinking" | "speaking";
 export type FlameColour = "red" | "blue";
 
-// How each mood moves. frameMs = time per fire frame (lower = faster flames).
-// flare = opacity of the larger flare copy of the fire drawn over the base fire, flareScale its
-// size from the orb centre. The base fire never scales, so the orb edge stays covered exactly as
-// before; the flare only adds flame on the outside. glow = strength of the heat glow (0..1).
-export const MOODS: Record<FlameMood, { frameMs: number; flare: number; flareScale: number; glowLow: number; glowHigh: number; pulseMs: number; emberGapMs: [number, number] }> = {
-  // Slow, calm and low: no flare, a faint glow breathing slowly, few embers.
-  idle: { frameMs: 165, flare: 0, flareScale: 1.0, glowLow: 0.28, glowHigh: 0.42, pulseMs: 2600, emberGapMs: [900, 2600] },
+// How each mood moves. frameMs = time per fire frame (each frame crossfades into the next over
+// this whole time, so higher = slower and calmer). glow = heat glow strength (0..1), breathing
+// between glowLow and glowHigh every pulseMs. The fire itself never scales or fades, so the orb
+// edge stays covered exactly as aligned. Ember timings are unchanged from the first version.
+export const MOODS: Record<FlameMood, { frameMs: number; glowLow: number; glowHigh: number; pulseMs: number; emberGapMs: [number, number] }> = {
+  // Slow and calm, a faint glow breathing slowly, few embers.
+  idle: { frameMs: 320, glowLow: 0.28, glowHigh: 0.42, pulseMs: 3000, emberGapMs: [900, 2600] },
   // Ready for the dev build's voice input: a little livelier than idle.
-  listening: { frameMs: 120, flare: 0.35, flareScale: 1.03, glowLow: 0.45, glowHigh: 0.6, pulseMs: 1600, emberGapMs: [500, 1600] },
-  // Thinking: faster flames and a steady flare, glow pulsing quicker, more embers.
-  thinking: { frameMs: 85, flare: 0.75, flareScale: 1.05, glowLow: 0.6, glowHigh: 0.88, pulseMs: 900, emberGapMs: [200, 900] },
-  // Speaking: the flare and glow flicker at random (no audio level in Expo Go, so it's a pseudo flicker).
-  speaking: { frameMs: 105, flare: 0.55, flareScale: 1.04, glowLow: 0.5, glowHigh: 0.9, pulseMs: 0, emberGapMs: [300, 1100] },
+  listening: { frameMs: 260, glowLow: 0.4, glowHigh: 0.58, pulseMs: 2000, emberGapMs: [500, 1600] },
+  // Thinking: moderately faster flames, a brighter glow pulsing quicker, more embers.
+  thinking: { frameMs: 200, glowLow: 0.55, glowHigh: 0.82, pulseMs: 1400, emberGapMs: [200, 900] },
+  // Speaking: a gentle, steady glow pulse (no random flicker).
+  speaking: { frameMs: 240, glowLow: 0.5, glowHigh: 0.78, pulseMs: 1100, emberGapMs: [300, 1100] },
 };
 
 const FRAMES = 8;
@@ -40,45 +40,46 @@ export function useReduceMotion() {
   return reduce;
 }
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
-
 /**
  * All the flame motion as native-driven Animated values, so nothing re-renders per frame.
  * phase: 0..8 frame position for FireStack. blue: 0 = red fire, 1 = blue fire.
- * flare / flareScale: the flare copy. glow: heat glow strength.
+ * glow: heat glow strength.
  */
 export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boolean) {
   const phase = useRef(new Animated.Value(0)).current;
   const blue = useRef(new Animated.Value(colour === "blue" ? 1 : 0)).current;
-  const flare = useRef(new Animated.Value(0)).current;
-  const flareScale = useRef(new Animated.Value(1)).current;
   const glow = useRef(new Animated.Value(MOODS.idle.glowLow)).current;
-  const frameMs = useRef(MOODS.idle.frameMs);
-  const alive = useRef(true);
 
   const settings = reduce ? MOODS.idle : MOODS[mood];
 
-  // Fire frames: one long linear run from the current position to the end, then wrap to 0.
-  // Changing speed restarts the run from wherever it is, so the flames never jump.
+  // Fire frames: one native loop 0 -> 8, repeated on the UI thread with no trip back to JS
+  // (the orb's 3D render keeps the JS thread busy, so anything JS-timed would stutter).
+  // When the mood changes speed, finish the current pass at the new speed, then loop again.
   useEffect(() => {
-    alive.current = true;
-    frameMs.current = settings.frameMs;
-    const run = (from: number) => {
-      if (!alive.current) return;
-      Animated.timing(phase, {
-        toValue: FRAMES,
-        duration: Math.max(1, (FRAMES - from) * frameMs.current),
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished || !alive.current) return;
-        phase.setValue(0);
-        run(0);
-      });
+    let live = true;
+    let loop: Animated.CompositeAnimation | undefined;
+    const ms = settings.frameMs;
+    const startLoop = () => {
+      if (!live) return;
+      phase.setValue(0);
+      loop = Animated.loop(
+        Animated.timing(phase, { toValue: FRAMES, duration: FRAMES * ms, easing: Easing.linear, useNativeDriver: true }),
+      );
+      loop.start();
     };
-    phase.stopAnimation((value) => run(typeof value === "number" ? value % FRAMES : 0));
+    phase.stopAnimation((value) => {
+      const from = typeof value === "number" ? value % FRAMES : 0;
+      if (from < 0.01) {
+        startLoop();
+        return;
+      }
+      Animated.timing(phase, { toValue: FRAMES, duration: (FRAMES - from) * ms, easing: Easing.linear, useNativeDriver: true }).start(
+        ({ finished }) => finished && startLoop(),
+      );
+    });
     return () => {
-      alive.current = false;
+      live = false;
+      loop?.stop();
       phase.stopAnimation();
     };
   }, [phase, settings.frameMs]);
@@ -93,46 +94,24 @@ export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boo
     }).start();
   }, [blue, colour, reduce]);
 
-  // Mood: blend flare and glow to the new level, then breathe (idle/thinking) or flicker (speaking).
+  // Mood: blend the glow to the new level, then breathe gently. Native-driven loop, no JS timers.
   useEffect(() => {
     let live = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     let loop: Animated.CompositeAnimation | undefined;
     const s = settings;
-    const to = (value: Animated.Value, toValue: number, duration: number) =>
-      Animated.timing(value, { toValue, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
-
-    Animated.parallel([to(flare, s.flare, BLEND_MS), to(flareScale, s.flareScale, BLEND_MS), to(glow, s.glowLow, BLEND_MS)]).start(
-      ({ finished }) => {
-        if (!finished || !live || reduce) return;
-        if (mood === "speaking") {
-          // Pseudo-random flicker: a new brightness and flare size every 90-220 ms.
-          const flicker = () => {
-            if (!live) return;
-            const ms = rand(90, 220);
-            Animated.parallel([
-              to(glow, rand(s.glowLow, s.glowHigh), ms),
-              to(flare, rand(s.flare * 0.5, Math.min(1, s.flare * 1.4)), ms),
-              to(flareScale, rand(1.02, s.flareScale + 0.01), ms),
-            ]).start();
-            timer = setTimeout(flicker, ms);
-          };
-          flicker();
-        } else {
-          loop = Animated.loop(Animated.sequence([to(glow, s.glowHigh, s.pulseMs), to(glow, s.glowLow, s.pulseMs)]));
-          loop.start();
-        }
-      },
-    );
+    const to = (toValue: number, duration: number) =>
+      Animated.timing(glow, { toValue, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
+    to(s.glowLow, BLEND_MS).start(({ finished }) => {
+      if (!finished || !live || reduce) return;
+      loop = Animated.loop(Animated.sequence([to(s.glowHigh, s.pulseMs), to(s.glowLow, s.pulseMs)]));
+      loop.start();
+    });
     return () => {
       live = false;
-      if (timer) clearTimeout(timer);
       loop?.stop();
-      flare.stopAnimation();
-      flareScale.stopAnimation();
       glow.stopAnimation();
     };
-  }, [mood, reduce, settings, flare, flareScale, glow]);
+  }, [reduce, settings, glow]);
 
-  return { phase, blue, flare, flareScale, glow, emberGapMs: settings.emberGapMs };
+  return { phase, blue, glow, emberGapMs: settings.emberGapMs };
 }
