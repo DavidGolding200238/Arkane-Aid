@@ -268,7 +268,7 @@ export default function SageScreen({ onBack }: Props) {
           if (follow.current && reply) scroll.current?.scrollToEnd({ animated: true });
         }}
       >
-        <SageOrb size={s(250)} flame={fancy ? "red" : "blue"} />
+        <SageOrb size={s(250)} flame={fancy ? "red" : "blue"} mood={busy ? "thinking" : speaking ? "speaking" : "idle"} />
 
         <Animated.Text
           style={[styles.status, { fontSize: fs(16), lineHeight: fs(22), marginTop: s(spacing.md), opacity: glow }]}
