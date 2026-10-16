@@ -40,6 +40,14 @@ const ART = {
     width: 1010 / 3,
     height: 1555 / 3,
   },
+  // Sage typing box: the Ledger art with its paper lightened to cream (#FFF6E2 family).
+  // The #764f00 outline, torn edge and alpha are pixel-for-pixel the Ledger ones.
+  input: {
+    frame: require("../../assets/images/sage/panel-input-cream-frame.png"),
+    fill: require("../../assets/images/sage/panel-input-cream-fill.jpg"),
+    width: 1010 / 3,
+    height: 1555 / 3,
+  },
 } satisfies Record<string, Art>;
 
 // Top and bottom bands (in art dp) drawn at their true proportions. Only the
@@ -88,7 +96,7 @@ function Slices({ source, art, size }: { source: ImageSourcePropType; art: Art; 
 }
 
 type Props = {
-  /** codex = Codex book, card = Codex note card, ledger = Ledger sheet and sections. */
+  /** codex = Codex book, card = Codex note card, ledger = Ledger sheet and sections, input = Sage typing box (cream). */
   variant?: keyof typeof ART;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
