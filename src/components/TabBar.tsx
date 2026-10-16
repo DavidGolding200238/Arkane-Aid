@@ -1,4 +1,5 @@
-import { Image, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import HomeIcon from "../../assets/images/icons/tab-home.svg";
 import LogbookIcon from "../../assets/images/icons/tab-logbook.svg";
 import HatIcon from "../../assets/images/icons/tab-hat.svg";
@@ -50,8 +51,10 @@ export default function TabBar({
   onOpen: (screen: AppScreen) => void;
 }) {
   const { s } = useScale();
+  const insets = useSafeAreaInsets();
   const active = tabFor(current);
-  const bottom = Platform.OS === "android" ? 48 : 20;
+  // Sit above the system navigation bar (gesture pill or 3-button bar).
+  const bottom = Math.max(insets.bottom, s(4));
 
   return (
     <View style={[styles.bar, { paddingBottom: bottom, paddingHorizontal: s(SIDE) }]} accessibilityRole="tablist">
