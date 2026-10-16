@@ -180,7 +180,9 @@ assets/
   images/
     backgrounds/        parchment.png
     buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
-    icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg
+    icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
+                        tab-home/logbook/hat/gear.svg (tab bar, currentColor)
+    tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
     tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
