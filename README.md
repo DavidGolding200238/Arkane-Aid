@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome; the Sage screen shows it under the title (tap it to change it) and colours the orb fire to match: red for Wizard, blue for Plain. The leather band toggle switches between Sage (microphone) and Scribe (quill). Speech in is a placeholder until a development build.
 
 ### Scribe
 
@@ -65,7 +65,7 @@ Answers are meant to stay inside a short local extract in `src/data/rules.json`,
 
 ### Settings (Tome)
 
-The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage voice (Wizard or Plain; Bard is coming soon). The choice is saved on the device in `VoiceContext`. Sage will read it in a later step.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage voice (Wizard or Plain; Bard is coming soon). The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
 
 ---
 
@@ -150,7 +150,7 @@ Already applied on the Supabase project. Re-run only on a fresh project, in orde
 | Splash | Title and load |
 | Login and Sign up | Email authentication |
 | Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
-| Sage | Ask a ruling or note the table. Plain or Wizard voice |
+| Sage | Ask a ruling or note the table. Voice (Plain or Wizard) comes from the Tome |
 | Codex | Session book. Notes and items. Ledger tab opens the sheet |
 | Ledger | Player sheet for the current party |
 | Tome (Settings) | Account and parties, guidance, voice personality |
@@ -181,13 +181,15 @@ assets/
     backgrounds/        parchment.png
     buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
-                        tab-home/logbook/hat/gear.svg (tab bar, currentColor)
+                        tab-home/logbook/hat/gear.svg (tab bar, currentColor),
+                        sage-mic.svg, sage-pen.svg (Sage mode toggle, currentColor)
     tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
+    sage/               fire-red-1..8 and fire-blue-1..8 (orb flame frames), toggle-track, toggle-knob
+                        (3x PNG, transparent), leather-band@3x.jpg
     tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
-  Fire/                 orb flame frames
   Sage/                 orb model
 supabase/
   001_auth_and_parties.sql
