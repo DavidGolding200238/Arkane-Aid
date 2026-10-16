@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
+import { VoiceProvider } from "./src/context/VoiceContext";
 import SplashScreen from "./src/screens/SplashScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -82,7 +83,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Gate />
+        <VoiceProvider>
+          <Gate />
+        </VoiceProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
