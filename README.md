@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain. The leather band toggle switches between Sage (microphone) and Scribe (quill). The Ask the Sage / Tell the Scribe button opens a parchment pop-up for typing, which sits above the keyboard. Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain. Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in the parchment field below them, which stays above the keyboard. Speech in is a placeholder until a development build.
 
 ### Scribe
 
@@ -166,7 +166,7 @@ Figma is the source of truth for layout. File: ARKANE-AID-DEV.
 App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
-  components/           TabBar, SageAvatar, SageOrb, SageAskSheet, ScreenFrame, PageHeader, CircleButton,
+  components/           TabBar, SageAvatar, SageOrb, SageModeButtons, ScreenFrame, PageHeader, CircleButton,
                         ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
   theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
@@ -186,8 +186,7 @@ assets/
     tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
-    sage/               fire-red-1..8 and fire-blue-1..8 (orb flame frames), toggle-track, toggle-knob
-                        (3x PNG, transparent), leather-band@3x.jpg
+    sage/               fire-red-1..8 and fire-blue-1..8 (orb flame frames on one shared canvas, 3x PNG, transparent)
     tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   Sage/                 orb model
