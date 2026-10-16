@@ -5,6 +5,8 @@ import Rule from "./Rule";
 import { ChevronLeftIcon } from "./icons";
 import { colors, fonts, useScale } from "../theme";
 
+const LETTER_SPACING = 0.6;
+
 type Props = {
   title: string;
   onBack: () => void;
@@ -14,6 +16,8 @@ type Props = {
 };
 
 // Back button, Cinzel title with a drawn underline, and an optional caption.
+// The title is centred on the screen: the back button on the left is balanced by an
+// equal-width spacer on the right.
 // Used by Codex, Ledger, Tome and Sage.
 export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props) {
   const { s, fs } = useScale();
@@ -36,7 +40,14 @@ export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props
         <ChevronLeftIcon circleSize={circle} />
       </CircleButton>
       <View style={styles.titleBox}>
-        <Text style={[styles.title, { fontSize: fs(30) }]} numberOfLines={1} adjustsFontSizeToFit>
+        {/* textAlign center matters: when adjustsFontSizeToFit shrinks a long title, the Text keeps the
+            full box width and would otherwise draw the smaller text from the left. paddingLeft cancels the
+            trailing letterSpacing after the last letter so the ink itself is centred. */}
+        <Text
+          style={[styles.title, { fontSize: fs(30), paddingLeft: LETTER_SPACING }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {title}
         </Text>
         <Rule width={ruleWidth ?? s(156)} color={colors.ink} />
@@ -54,6 +65,13 @@ export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   titleBox: { flex: 1, alignItems: "center" },
-  title: { fontFamily: fonts.title, color: colors.ink, letterSpacing: 0.6, includeFontPadding: false },
+  title: {
+    alignSelf: "stretch",
+    textAlign: "center",
+    fontFamily: fonts.title,
+    color: colors.ink,
+    letterSpacing: LETTER_SPACING,
+    includeFontPadding: false,
+  },
   subtitle: { fontFamily: fonts.body, color: colors.muted },
 });
