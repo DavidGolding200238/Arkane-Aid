@@ -55,14 +55,14 @@ export function useAppFonts() {
 export const ink = {
   heading: {
     color: "#1A1816",
-    textShadowColor: "rgba(26, 24, 22, 0.38)",
-    textShadowOffset: { width: 0, height: 0.6 },
-    textShadowRadius: 1.6,
+    textShadowColor: "rgba(26, 24, 22, 0.34)",
+    textShadowOffset: { width: 0, height: 0.3 },
+    textShadowRadius: 1.4,
   },
   // Red ink for the wordmark and red labels, bleeding in its own colour.
   red: {
-    textShadowColor: "rgba(163, 58, 58, 0.34)",
-    textShadowOffset: { width: 0, height: 0.6 },
-    textShadowRadius: 1.6,
+    textShadowColor: "rgba(163, 58, 58, 0.3)",
+    textShadowOffset: { width: 0, height: 0.3 },
+    textShadowRadius: 1.4,
   },
 } as const;
