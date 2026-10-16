@@ -1,23 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "../components/PageHeader";
-import ParchmentPanel from "../components/ParchmentPanel";
-import Rule from "../components/Rule";
-import CircleButton from "../components/CircleButton";
-import ThemedButton from "../components/ThemedButton";
+import ScreenVignette from "../components/ScreenVignette";
+import SageInputBar from "../components/SageInputBar";
+import SageReplyCard from "../components/SageReplyCard";
 import SageOrb from "../components/SageOrb";
 import SageModeButtons from "../components/SageModeButtons";
 import { useParty } from "../context/PartyContext";
@@ -72,46 +60,32 @@ async function loadWizardVoice() {
   }
 }
 
-function speakReply(text: string, fancy: boolean, onEnd: () => void) {
+const speechRate = (fancy: boolean) => (fancy ? 0.86 : 0.92);
+
+// onEnd runs however the speech stops; onDone only when it reached the end on its own.
+function speakReply(text: string, fancy: boolean, onEnd: () => void, onDone?: () => void) {
   Speech.stop();
   Speech.speak(text, {
     language: "en",
-    rate: fancy ? 0.86 : 0.92,
+    rate: speechRate(fancy),
     pitch: 1,
     voice: fancy && wizardVoice ? wizardVoice : undefined,
-    onDone: onEnd,
+    onDone: () => {
+      onEnd();
+      onDone?.();
+    },
     onStopped: onEnd,
     onError: onEnd,
   });
 }
 
-// Play triangle for the red circle, drawn with borders so it needs no extra art.
-function PlayGlyph({ size }: { size: number }) {
-  const h = size * 0.38;
-  return (
-    <View
-      style={{
-        width: 0,
-        height: 0,
-        marginLeft: h * 0.18,
-        borderTopWidth: h / 2,
-        borderBottomWidth: h / 2,
-        borderLeftWidth: h * 0.86,
-        borderTopColor: "transparent",
-        borderBottomColor: "transparent",
-        borderLeftColor: colors.cream,
-      }}
-    />
-  );
-}
-
-function PauseGlyph({ size, bar }: { size: number; bar: number }) {
-  return (
-    <View style={[styles.pauseBars, { gap: size * 0.2 }]}>
-      <View style={[styles.pauseBar, { width: bar, height: size * 0.42 }]} />
-      <View style={[styles.pauseBar, { width: bar, height: size * 0.42 }]} />
-    </View>
-  );
+// How fast the quill writes, in characters per second, so it roughly keeps pace with the
+// speech: device voices read about 2.9 words a second at rate 1. Clamped so short replies
+// don't crawl and long ones don't race. When the speech finishes, the card completes anyway.
+function writingSpeed(text: string, fancy: boolean) {
+  const words = text.split(/\s+/).filter(Boolean).length || 1;
+  const seconds = words / (2.9 * speechRate(fancy));
+  return Math.min(60, Math.max(20, text.length / seconds));
 }
 
 // One immersive line under the orb. It never changes height, so nothing below it moves.
@@ -144,10 +118,11 @@ export default function SageScreen({ onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const fontsLoaded = useAppFonts();
+  const [replyDone, setReplyDone] = useState(false);
+  const [writing, setWriting] = useState(false);
   const scroll = useRef<ScrollView>(null);
-  const inputY = useRef(0);
-  const replyY = useRef(0);
-  const fade = useRef(new Animated.Value(0)).current;
+  // Follow the quill down the page until the user scrolls by hand.
+  const follow = useRef(false);
   const glow = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -157,19 +132,17 @@ export default function SageScreen({ onBack }: Props) {
     };
   }, []);
 
-  // Gentle fade and lift whenever a new reply lands, then scroll down to it.
-  // The reply sits below everything else, so the orb above never moves.
+  // A new reply: follow the writing down the page. The card sits below everything else,
+  // so the orb above never moves; the page only scrolls.
   useEffect(() => {
-    if (!reply) return;
-    fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    const id = setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, replyY.current - s(spacing.xl)), animated: true }), 160);
-    return () => clearTimeout(id);
-  }, [reply, fade, s]);
+    if (reply) follow.current = true;
+  }, [reply]);
+
+  const onWritingChange = useCallback((next: boolean) => setWriting(next), []);
 
   // The status line breathes softly while the Sage is thinking or speaking.
   useEffect(() => {
-    if (!busy && !speaking) {
+    if (!busy && !speaking && !writing) {
       glow.stopAnimation();
       glow.setValue(1);
       return;
@@ -182,7 +155,7 @@ export default function SageScreen({ onBack }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [busy, speaking, glow]);
+  }, [busy, speaking, writing, glow]);
 
   const changeMode = (next: SagePersona) => {
     setPersona(next);
@@ -199,6 +172,7 @@ export default function SageScreen({ onBack }: Props) {
     setSpeaking(false);
     setError("");
     setReply("");
+    setReplyDone(false);
     setNoted("");
     setSheetLine("");
     Keyboard.dismiss();
@@ -240,7 +214,12 @@ export default function SageScreen({ onBack }: Props) {
         }
       }
       setSpeaking(true);
-      speakReply(text, fancy, () => setSpeaking(false));
+      speakReply(
+        text,
+        fancy,
+        () => setSpeaking(false),
+        () => setReplyDone(true),
+      );
     } catch (err) {
       setError(errorText(err));
       // Keep what they typed so they can try again.
@@ -264,109 +243,80 @@ export default function SageScreen({ onBack }: Props) {
   if (!fontsLoaded) return <View style={styles.root} />;
 
   const sage = persona === "sage";
-  const playSize = s(36);
   const replyLabel = sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
   const footNote = [sheetLine, noted].filter(Boolean).join(" ");
-  const status = statusLine(persona, busy, speaking, fancy);
+  const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(persona, busy, speaking, fancy);
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior="padding">
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
+      <ScreenVignette />
 
       <PageHeader title="Sage Scribe" onBack={onBack} ruleWidth={s(219)} />
 
       <ScrollView
         ref={scroll}
         style={styles.flex}
-        contentContainerStyle={[styles.body, { paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.xs), paddingBottom: s(spacing.xxl) }]}
+        contentContainerStyle={[styles.body, { paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.xs), paddingBottom: s(spacing.xl) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => {
+          follow.current = false;
+        }}
+        onContentSizeChange={() => {
+          if (follow.current && reply) scroll.current?.scrollToEnd({ animated: true });
+        }}
       >
         <SageOrb size={s(250)} flame={fancy ? "red" : "blue"} />
 
         <Animated.Text
-          style={[styles.status, { fontSize: fs(16), lineHeight: fs(22), marginTop: s(spacing.sm), opacity: glow }]}
+          style={[styles.status, { fontSize: fs(16), lineHeight: fs(22), marginTop: s(spacing.md), opacity: glow }]}
           numberOfLines={1}
           accessibilityLiveRegion="polite"
         >
           {status}
         </Animated.Text>
 
-        <View style={{ marginTop: s(spacing.xl) }}>
+        <View style={{ marginTop: s(spacing.xxl) }}>
           <SageModeButtons persona={persona} onChange={changeMode} />
         </View>
 
-        <View
-          style={[styles.full, { marginTop: s(spacing.xl) }]}
-          onLayout={(event) => {
-            inputY.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <ParchmentPanel
-            variant="ledger"
-            contentStyle={{ paddingHorizontal: s(18), paddingTop: s(14), paddingBottom: s(12), gap: s(spacing.sm) }}
-          >
-            <TextInput
-              style={[styles.input, { fontSize: fs(16), lineHeight: fs(22), minHeight: s(66), maxHeight: s(140) }]}
-              multiline
-              placeholder={sage ? "Ask a ruling..." : "What just happened at the table?"}
-              placeholderTextColor={colors.placeholder}
-              value={question}
-              onChangeText={(text) => {
-                setQuestion(text);
-                if (error) setError("");
-              }}
-              onFocus={() => {
-                // Bring the field up to just under the orb's status, so it clears the keyboard.
-                setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, inputY.current - s(spacing.xl)), animated: true }), 250);
-              }}
-              accessibilityLabel={sage ? "Question for the Sage" : "Note for the Scribe"}
+        {reply ? (
+          <View style={[styles.full, { marginTop: s(spacing.xxl) }]}>
+            <SageReplyCard
+              text={reply}
+              label={replyLabel}
+              asked={asked}
+              footNote={footNote}
+              cps={writingSpeed(reply, fancy)}
+              finished={replyDone}
+              speaking={speaking}
+              onToggleSpeech={toggleSpeech}
+              onWritingChange={onWritingChange}
             />
-            <View style={styles.inputFoot}>
-              <ThemedButton label={sage ? "Ask" : "Note"} onPress={ask} busy={busy} size="small" style={{ minWidth: s(84) }} />
-            </View>
-          </ParchmentPanel>
-        </View>
+          </View>
+        ) : null}
+      </ScrollView>
 
+      {/* Docked typing bar, always just above the keyboard or the tab bar. */}
+      <View style={{ paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.sm), paddingBottom: s(spacing.md) }}>
         {error ? (
-          <Text style={[styles.error, { fontSize: fs(14), marginTop: s(spacing.sm) }]} accessibilityLiveRegion="polite">
+          <Text style={[styles.error, { fontSize: fs(13), marginBottom: s(spacing.sm) }]} accessibilityLiveRegion="polite">
             {error}
           </Text>
         ) : null}
-
-        {reply ? (
-          <Animated.View
-            onLayout={(event) => {
-              replyY.current = event.nativeEvent.layout.y;
-            }}
-            style={[
-              styles.full,
-              { marginTop: s(spacing.lg) },
-              { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [s(10), 0] }) }] },
-            ]}
-          >
-            <ParchmentPanel variant="card" contentStyle={{ paddingHorizontal: s(20), paddingVertical: s(16), gap: s(spacing.sm) }}>
-              <View style={[styles.replyHead, { gap: s(spacing.sm) }]}>
-                <Text style={[styles.replyLabel, { fontSize: fs(14) }]}>{replyLabel.toUpperCase()}</Text>
-                <Rule color={colors.rule} style={styles.flex} />
-                <CircleButton size={playSize} onPress={toggleSpeech} accessibilityLabel={speaking ? "Stop the reply" : "Play the reply"}>
-                  {speaking ? <PauseGlyph size={playSize} bar={s(3)} /> : <PlayGlyph size={playSize} />}
-                </CircleButton>
-              </View>
-              {asked ? (
-                <Text style={[styles.asked, { fontSize: fs(14), lineHeight: fs(19) }]} numberOfLines={2}>
-                  {asked}
-                </Text>
-              ) : null}
-              <Text style={[styles.replyBody, { fontSize: fs(17), lineHeight: fs(25) }]} selectable>
-                {reply}
-              </Text>
-              {footNote ? <Text style={[styles.noted, { fontSize: fs(12) }]}>{footNote}</Text> : null}
-            </ParchmentPanel>
-          </Animated.View>
-        ) : null}
-      </ScrollView>
+        <SageInputBar
+          persona={persona}
+          value={question}
+          onChangeText={(text) => {
+            setQuestion(text);
+            if (error) setError("");
+          }}
+          onSend={ask}
+          busy={busy}
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -387,19 +337,6 @@ const styles = StyleSheet.create({
   // Top-aligned on purpose: the orb stays put when the reply card appears below.
   body: { flexGrow: 1, alignItems: "center" },
   full: { width: "100%" },
-
   status: { fontFamily: fonts.bodyItalic, color: colors.muted, letterSpacing: 0.4, textAlign: "center", includeFontPadding: false },
-
-  input: { fontFamily: fonts.body, color: colors.ink, textAlignVertical: "top", padding: 0 },
-  inputFoot: { flexDirection: "row", justifyContent: "flex-end" },
-  error: { fontFamily: fonts.body, color: colors.wordmark, alignSelf: "stretch", textAlign: "center" },
-
-  pauseBars: { flexDirection: "row", alignItems: "center" },
-  pauseBar: { borderRadius: 2, backgroundColor: colors.cream },
-
-  replyHead: { flexDirection: "row", alignItems: "center" },
-  replyLabel: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 1.2 },
-  asked: { fontFamily: fonts.bodyItalic, color: colors.muted },
-  replyBody: { fontFamily: fonts.body, color: colors.ink },
-  noted: { fontFamily: fonts.bodyItalic, color: colors.panelStroke, textAlign: "right" },
+  error: { fontFamily: fonts.body, color: colors.wordmark, textAlign: "center" },
 });
