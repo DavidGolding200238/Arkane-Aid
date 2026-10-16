@@ -1,35 +1,13 @@
 import { memo } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import SageAvatar from "./SageAvatar";
-import FireStack from "./flames/FireStack";
+import FireLoop from "./flames/FireLoop";
 import FlameGlow from "./flames/FlameGlow";
 import Embers from "./flames/Embers";
 import { useFlameMotion, useReduceMotion, type FlameColour, type FlameMood } from "./flames/useFlameMotion";
 
-// Orb fire (Figma component set 2189:64). All 16 frames share one 870 x 472 px
-// canvas at 3x, so every frame lines up with the next. Red for the Wizard voice,
-// teal/blue (Figma 2320:1208) for Plain.
-const FIRE_RED = [
-  require("../../assets/images/sage/fire-red-1.png"),
-  require("../../assets/images/sage/fire-red-2.png"),
-  require("../../assets/images/sage/fire-red-3.png"),
-  require("../../assets/images/sage/fire-red-4.png"),
-  require("../../assets/images/sage/fire-red-5.png"),
-  require("../../assets/images/sage/fire-red-6.png"),
-  require("../../assets/images/sage/fire-red-7.png"),
-  require("../../assets/images/sage/fire-red-8.png"),
-];
-const FIRE_BLUE = [
-  require("../../assets/images/sage/fire-blue-1.png"),
-  require("../../assets/images/sage/fire-blue-2.png"),
-  require("../../assets/images/sage/fire-blue-3.png"),
-  require("../../assets/images/sage/fire-blue-4.png"),
-  require("../../assets/images/sage/fire-blue-5.png"),
-  require("../../assets/images/sage/fire-blue-6.png"),
-  require("../../assets/images/sage/fire-blue-7.png"),
-  require("../../assets/images/sage/fire-blue-8.png"),
-];
-
+// Orb fire (Figma component set 2189:64, teal 2320:1208), played as a smooth animated loop
+// (see flames/FireLoop). The loops share the original 870 x 472 px (3x) canvas.
 // Where the orb sits inside the fire art, measured on the 870 x 472 px canvas:
 // a circle of radius 378 px centred at (443, 10) runs through the solid part of
 // the flames in every frame, so its lower edge never peeks out.
@@ -51,7 +29,7 @@ type Props = {
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
 function SageOrb({ size, flame, mood = "idle" }: Props) {
   const reduce = useReduceMotion();
-  const { phase, blue, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
+  const { blue, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
   const fireW = ART_W * k;
   const fireH = ART_H * k;
@@ -63,21 +41,6 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
   const orbCx = ORB_CX * k;
   const orbCy = orbTop + size / 2;
 
-  // Colour fade: the blue fire fades in and out on top while the red stays solid underneath,
-  // so the flames never go see-through mid-fade. Red only switches off once blue is fully on.
-  const redOpacity = blue.interpolate({ inputRange: [0, 0.999, 1], outputRange: [1, 1, 0], extrapolate: "clamp" });
-
-  const fire = (
-    <>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: redOpacity }]}>
-        <FireStack frames={FIRE_RED} phase={phase} width={fireW} height={fireH} />
-      </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: blue }]}>
-        <FireStack frames={FIRE_BLUE} phase={phase} width={fireW} height={fireH} />
-      </Animated.View>
-    </>
-  );
-
   return (
     <View style={{ width: fireW, height: stageH }}>
       <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} blue={blue} />
@@ -86,7 +49,7 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
       </View>
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
         {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
-        {fire}
+        <FireLoop width={fireW} height={fireH} blue={blue} still={reduce} />
       </View>
       {reduce ? null : (
         <View pointerEvents="none" style={styles.embers}>
