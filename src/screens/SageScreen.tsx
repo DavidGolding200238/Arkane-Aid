@@ -1,30 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "../components/PageHeader";
 import ParchmentPanel from "../components/ParchmentPanel";
 import Rule from "../components/Rule";
 import CircleButton from "../components/CircleButton";
-import ThemedButton from "../components/ThemedButton";
-import SageAvatar from "../components/SageAvatar";
+import TornButton from "../components/TornButton";
+import SageOrb from "../components/SageOrb";
+import SageAskSheet from "../components/SageAskSheet";
 import MicSvg from "../../assets/images/icons/sage-mic.svg";
 import PenSvg from "../../assets/images/icons/sage-pen.svg";
 import { useParty } from "../context/PartyContext";
-import { useVoice, VOICES } from "../context/VoiceContext";
+import { useVoice } from "../context/VoiceContext";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SagePersona } from "../lib/sage";
@@ -39,37 +27,6 @@ const leather = require("../../assets/images/sage/leather-band.jpg");
 // 403 x 170, knob 142 x 139 inside 166 x 169, both offset 12 px from the top-left.
 const track = require("../../assets/images/sage/toggle-track.png");
 const knob = require("../../assets/images/sage/toggle-knob.png");
-
-// Orb fire (Figma component set 2189:64), 916 x 521 px at 3x with real transparency.
-// Red for the Wizard voice, blue (Figma 2320:1208) for Plain.
-const FIRE_RED = [
-  require("../../assets/images/sage/fire-red-1.png"),
-  require("../../assets/images/sage/fire-red-2.png"),
-  require("../../assets/images/sage/fire-red-3.png"),
-  require("../../assets/images/sage/fire-red-4.png"),
-  require("../../assets/images/sage/fire-red-5.png"),
-  require("../../assets/images/sage/fire-red-6.png"),
-  require("../../assets/images/sage/fire-red-7.png"),
-  require("../../assets/images/sage/fire-red-8.png"),
-];
-const FIRE_BLUE = [
-  require("../../assets/images/sage/fire-blue-1.png"),
-  require("../../assets/images/sage/fire-blue-2.png"),
-  require("../../assets/images/sage/fire-blue-3.png"),
-  require("../../assets/images/sage/fire-blue-4.png"),
-  require("../../assets/images/sage/fire-blue-5.png"),
-  require("../../assets/images/sage/fire-blue-6.png"),
-  require("../../assets/images/sage/fire-blue-7.png"),
-  require("../../assets/images/sage/fire-blue-8.png"),
-];
-const FIRE_RATIO = 916 / 521;
-
-// The 3D orb keeps its fixed size; everything around it scales.
-const ORB = 260;
-const RING = ORB + 14; // padding 6 + 1 dp gold ring on each side
-const STAGE_H = ORB + 56;
-// Dot colours for the voice indicator, matching the flame of each voice.
-const DOT = { red: "#C44536", blue: "#3E8C7E", green: "#5E8C3E" } as const;
 
 type Props = { onBack: () => void; onOpenTome?: () => void };
 
@@ -126,43 +83,17 @@ function speakReply(text: string, fancy: boolean, onEnd: () => void) {
   });
 }
 
-// All frames stay mounted and only the current one is shown, so switching
-// frames never waits on an image decode (no flicker on the first loop).
-function OrbFire({ frames, width }: { frames: number[]; width: number }) {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setFrame((current) => (current + 1) % frames.length);
-    }, 120);
-    return () => clearInterval(id);
-  }, [frames.length]);
-
-  const height = width / FIRE_RATIO;
-  return (
-    <View pointerEvents="none" style={[styles.fire, { width, height, marginLeft: -width / 2 }]}>
-      {frames.map((source, index) => (
-        <Image
-          key={index}
-          source={source}
-          resizeMode="contain"
-          style={[styles.fireFrame, { width, height, opacity: index === frame ? 1 : 0 }]}
-        />
-      ))}
-    </View>
-  );
-}
-
-type Mode = { id: SagePersona; label: string; Icon: typeof MicSvg; hint: string };
+type Mode = { id: SagePersona; label: string; Icon: typeof MicSvg };
 const MODES: [Mode, Mode] = [
-  { id: "sage", label: "Sage", Icon: MicSvg, hint: "Ask a ruling" },
-  { id: "scribe", label: "Scribe", Icon: PenSvg, hint: "Note the table" },
+  { id: "sage", label: "Sage, ask a ruling", Icon: MicSvg },
+  { id: "scribe", label: "Scribe, note the table", Icon: PenSvg },
 ];
 
 // Cream pill toggle on the leather band (Figma 2541:1133): Microphone = Sage, Hand With Pen = Scribe.
-// The red knob slides under the chosen icon.
+// The red knob slides under the chosen icon. No labels, like the Figma: the icons and the
+// action button under the orb already say which side is on.
 function ModeToggle({ persona, onChange }: { persona: SagePersona; onChange: (next: SagePersona) => void }) {
-  const { s, fs } = useScale();
+  const { s } = useScale();
   const W = s(126);
   const H = s(46);
   const KNOB = s(47);
@@ -183,73 +114,74 @@ function ModeToggle({ persona, onChange }: { persona: SagePersona; onChange: (ne
   const knobK = KNOB / (142 / 3);
 
   return (
-    <View style={styles.bandRow}>
-      {MODES.map((mode, index) => {
-        const on = persona === mode.id;
-        const label = (
+    <View style={{ width: W, height: H }} accessibilityRole="radiogroup">
+      <Image
+        source={track}
+        style={{ position: "absolute", left: -4 * trackK, top: -4 * trackK, width: (403 / 3) * trackK, height: (170 / 3) * trackK }}
+        resizeMode="stretch"
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: KNOB,
+          height: H,
+          transform: [{ translateX: pos.interpolate({ inputRange: [0, 1], outputRange: [0, travel] }) }],
+        }}
+      >
+        <Image
+          source={knob}
+          style={{ position: "absolute", left: -4 * knobK, top: -4 * knobK, width: (166 / 3) * knobK, height: (169 / 3) * knobK }}
+          resizeMode="stretch"
+        />
+      </Animated.View>
+      {MODES.map((item, i) => {
+        const active = persona === item.id;
+        return (
           <Pressable
-            key={mode.id}
-            onPress={() => onChange(mode.id)}
+            key={item.id}
+            onPress={() => onChange(item.id)}
             hitSlop={8}
             accessibilityRole="radio"
-            accessibilityState={{ checked: on }}
-            accessibilityLabel={`${mode.label}: ${mode.hint}`}
-            style={({ pressed }) => [styles.bandLabel, index === 0 ? styles.bandLabelLeft : styles.bandLabelRight, pressed && styles.pressed]}
+            accessibilityState={{ checked: active }}
+            accessibilityLabel={item.label}
+            style={({ pressed }) => [styles.toggleHit, { width: KNOB, left: i === 0 ? 0 : travel }, pressed && styles.pressed]}
           >
-            <Text style={[styles.bandTitle, { fontSize: fs(15) }, on ? null : styles.bandIdle]}>{mode.label.toUpperCase()}</Text>
-            <Text style={[styles.bandHint, { fontSize: fs(11) }, on ? null : styles.bandIdle]}>{mode.hint}</Text>
+            <item.Icon width={ICON} height={ICON} color={active ? colors.cream : colors.muted} />
           </Pressable>
         );
-        if (index === 0) return label;
-        return [
-          <View key="toggle" style={{ width: W, height: H }}>
-            <Image
-              source={track}
-              style={{ position: "absolute", left: -4 * trackK, top: -4 * trackK, width: (403 / 3) * trackK, height: (170 / 3) * trackK }}
-              resizeMode="stretch"
-            />
-            <Animated.View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                width: KNOB,
-                height: H,
-                transform: [{ translateX: pos.interpolate({ inputRange: [0, 1], outputRange: [0, travel] }) }],
-              }}
-            >
-              <Image
-                source={knob}
-                style={{ position: "absolute", left: -4 * knobK, top: -4 * knobK, width: (166 / 3) * knobK, height: (169 / 3) * knobK }}
-                resizeMode="stretch"
-              />
-            </Animated.View>
-            <View style={StyleSheet.absoluteFill}>
-              {MODES.map((item, i) => {
-                const active = persona === item.id;
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => onChange(item.id)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: active }}
-                    accessibilityLabel={item.label}
-                    style={({ pressed }) => [
-                      styles.toggleHit,
-                      { width: KNOB, left: i === 0 ? 0 : travel },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <item.Icon width={ICON} height={ICON} color={active ? colors.cream : colors.muted} />
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>,
-          label,
-        ];
       })}
+    </View>
+  );
+}
+
+// Play triangle for the red circle, drawn with borders so it needs no extra art.
+function PlayGlyph({ size }: { size: number }) {
+  const h = size * 0.38;
+  return (
+    <View
+      style={{
+        width: 0,
+        height: 0,
+        marginLeft: h * 0.18,
+        borderTopWidth: h / 2,
+        borderBottomWidth: h / 2,
+        borderLeftWidth: h * 0.86,
+        borderTopColor: "transparent",
+        borderBottomColor: "transparent",
+        borderLeftColor: colors.cream,
+      }}
+    />
+  );
+}
+
+function PauseGlyph({ size, bar }: { size: number; bar: number }) {
+  return (
+    <View style={[styles.pauseBars, { gap: size * 0.2 }]}>
+      <View style={[styles.pauseBar, { width: bar, height: size * 0.42 }]} />
+      <View style={[styles.pauseBar, { width: bar, height: size * 0.42 }]} />
     </View>
   );
 }
@@ -259,25 +191,26 @@ function noteTitle(text: string) {
   return line.length > 48 ? `${line.slice(0, 45)}...` : line;
 }
 
-export default function SageScreen({ onBack, onOpenTome }: Props) {
+export default function SageScreen({ onBack }: Props) {
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
+  // The voice is picked on the Tome. Wizard = ornate persona and red fire, anything else = plain Sage and blue fire.
   const { voice } = useVoice();
-  const { s, fs, width } = useScale();
-  const [persona, setPersona] = useState<SagePersona>("sage");
-  // The voice is picked on the Tome. Wizard = the ornate "wizard" persona, anything else = plain Sage.
   const fancy = voice === "wizard";
-  const voiceOption = VOICES.find((option) => option.id === voice) ?? VOICES[0];
+  const { s, fs } = useScale();
+  const [persona, setPersona] = useState<SagePersona>("sage");
   const [question, setQuestion] = useState("");
+  const [asked, setAsked] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState("");
   const [noted, setNoted] = useState("");
   const [sheetLine, setSheetLine] = useState("");
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetError, setSheetError] = useState("");
   const fontsLoaded = useAppFonts();
   const scroll = useRef<ScrollView>(null);
-  const workY = useRef(0);
   const fade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -287,25 +220,37 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
     };
   }, []);
 
-  // Gentle fade and lift whenever a new reply lands.
+  // Gentle fade and lift whenever a new reply lands, then bring it into view.
   useEffect(() => {
     if (!reply) return;
     fade.setValue(0);
     Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    const id = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 120);
+    return () => clearTimeout(id);
   }, [reply, fade]);
+
+  const openSheet = () => {
+    setSheetError("");
+    setSheetOpen(true);
+  };
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   const ask = async () => {
     const trimmed = question.trim();
+    if (trimmed.length < 3) {
+      setSheetError("Three characters at least.");
+      return;
+    }
     Speech.stop();
     setSpeaking(false);
     setError("");
     setReply("");
     setNoted("");
     setSheetLine("");
-    if (trimmed.length < 3) {
-      setError("Ask a real question. Three characters at least.");
-      return;
-    }
+    setSheetError("");
+    setSheetOpen(false);
+    setAsked(trimmed);
+    setQuestion("");
     setBusy(true);
     try {
       let brief = "";
@@ -319,13 +264,13 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
       const style = fancy
         ? "Speak as an old court mage. Warm, ornate, short enough to read aloud. Plain text, no markdown.\n\n"
         : "";
-      const asked = brief ? `${style}Sheet: ${brief}\nQ: ${trimmed}` : `${style}${trimmed}`;
+      const prompt = brief ? `${style}Sheet: ${brief}\nQ: ${trimmed}` : `${style}${trimmed}`;
       let data;
       try {
-        data = await askSage(asked, fancy && persona === "sage" ? "wizard" : persona, brief);
+        data = await askSage(prompt, fancy && persona === "sage" ? "wizard" : persona, brief);
       } catch (err) {
         if (!String(errorText(err)).toLowerCase().includes("unknown persona")) throw err;
-        data = await askSage(asked, persona, brief);
+        data = await askSage(prompt, persona, brief);
       }
       const text = cleanReply(String(data?.reply ?? ""));
       if (!text) {
@@ -345,6 +290,8 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
       speakReply(text, fancy, () => setSpeaking(false));
     } catch (err) {
       setError(errorText(err));
+      // Keep what they typed so they can try again from the pop-up.
+      setQuestion(trimmed);
     } finally {
       setBusy(false);
     }
@@ -361,19 +308,15 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
     speakReply(reply, fancy, () => setSpeaking(false));
   };
 
-  const status = speaking ? "Speaking..." : busy ? "Thinking..." : reply ? "Reply ready" : "Ready";
-  const canPlay = !!reply || speaking;
-
   if (!fontsLoaded) return <View style={styles.root} />;
 
-  const fireW = s(262);
-  const stageW = Math.max(fireW, RING);
-  const pauseSize = s(48);
-  const statusSize = fs(21);
-  const replyLabel = persona === "sage" ? (fancy ? "Wizard" : "Sage") : "Scribe";
+  const sage = persona === "sage";
+  const playSize = s(46);
+  const replyLabel = sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
+  const footNote = [sheetLine, noted].filter(Boolean).join(" ");
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior="padding">
+    <View style={styles.root}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
@@ -381,131 +324,46 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
 
       <ScrollView
         ref={scroll}
-        style={styles.scroll}
-        contentContainerStyle={[styles.body, { paddingHorizontal: s(spacing.lg), paddingBottom: s(spacing.xxl) }]}
-        keyboardShouldPersistTaps="handled"
-        removeClippedSubviews={false}
+        style={styles.flex}
+        contentContainerStyle={[styles.body, { paddingHorizontal: s(spacing.lg), paddingTop: s(spacing.lg), paddingBottom: s(spacing.xl) }]}
+        showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={onOpenTome}
-          disabled={!onOpenTome}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Voice: ${voiceOption.label}`}
-          accessibilityHint="Opens the Tome to change the Sage's voice"
-          style={({ pressed }) => [styles.voiceRow, { gap: s(6), marginTop: s(2) }, pressed && styles.pressed]}
-        >
-          <View style={[styles.dot, { width: s(8), height: s(8), borderRadius: s(4), backgroundColor: DOT[voiceOption.colour] }]} />
-          <Text style={[styles.voiceText, { fontSize: fs(13) }]}>Voice: {voiceOption.label}</Text>
-        </Pressable>
+        <SageOrb size={s(250)} flame={fancy ? "red" : "blue"} />
 
-        <View style={[styles.orbStage, { width: stageW, height: STAGE_H }]}>
-          <View style={styles.orbRing}>
-            <SageAvatar />
-          </View>
-          <OrbFire key={fancy ? "red" : "blue"} frames={fancy ? FIRE_RED : FIRE_BLUE} width={fireW} />
+        <View style={[styles.actions, { marginTop: s(spacing.xl), gap: s(spacing.md) }]}>
+          <TornButton
+            label={sage ? "Ask the Sage" : "Tell the Scribe"}
+            onPress={openSheet}
+            width={170}
+            accessibilityHint={sage ? "Opens a box to type your question" : "Opens a box to write what happened"}
+          />
+          {reply ? (
+            <CircleButton size={playSize} onPress={toggleSpeech} accessibilityLabel={speaking ? "Stop the reply" : "Play the reply"}>
+              {speaking ? <PauseGlyph size={playSize} bar={s(3.5)} /> : <PlayGlyph size={playSize} />}
+            </CircleButton>
+          ) : null}
         </View>
-
-        <Text
-          style={[styles.status, { fontSize: statusSize, letterSpacing: statusSize * 0.15, marginTop: s(spacing.xs) }]}
-          accessibilityLiveRegion="polite"
-        >
-          {status}
-        </Text>
-
-        <View style={[styles.pauseRow, { marginTop: s(spacing.sm), gap: s(spacing.xs) }]}>
-          <CircleButton
-            size={pauseSize}
-            onPress={toggleSpeech}
-            disabled={!canPlay}
-            accessibilityLabel={speaking ? "Stop the reply" : "Play the reply"}
-            style={!canPlay && styles.dim}
-          >
-            <View style={[styles.pauseBars, { gap: pauseSize * 0.2 }]}>
-              <View style={[styles.pauseBar, { width: s(3.5), height: pauseSize * 0.46 }]} />
-              <View style={[styles.pauseBar, { width: s(3.5), height: pauseSize * 0.46 }]} />
-            </View>
-          </CircleButton>
-          <Text style={[styles.hint, { fontSize: fs(13) }]}>
-            {speaking ? "Tap to stop the reply" : reply ? "Tap to hear the reply" : "The reply plays here"}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.band,
-            { width, height: s(58), marginTop: s(spacing.lg), borderRadius: s(5), paddingHorizontal: s(spacing.md) },
-          ]}
-        >
-          <Image source={leather} style={styles.bandTexture} resizeMode="cover" />
-          <ModeToggle persona={persona} onChange={setPersona} />
-        </View>
-
-        <View
-          style={[styles.full, { marginTop: s(spacing.lg) }]}
-          onLayout={(event) => {
-            workY.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <ParchmentPanel
-            variant="ledger"
-            contentStyle={{ paddingHorizontal: s(18), paddingTop: s(14), paddingBottom: s(14), gap: s(spacing.sm) }}
-          >
-            <Text style={[styles.workLabel, { fontSize: fs(14) }]}>
-              {persona === "sage" ? "QUESTION" : "WHAT JUST HAPPENED"}
-            </Text>
-            <Rule color={colors.rule} style={styles.ruleLeft} width="100%" />
-            <TextInput
-              style={[styles.input, { fontSize: fs(16), lineHeight: fs(22), minHeight: s(92) }]}
-              multiline
-              placeholder={persona === "sage" ? "Ask a ruling." : "Say what just happened at the table."}
-              placeholderTextColor={colors.placeholder}
-              value={question}
-              onChangeText={setQuestion}
-              onFocus={() => {
-                setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, workY.current - s(spacing.md)), animated: true }), 250);
-              }}
-              accessibilityLabel={persona === "sage" ? "Question for the Sage" : "Note for the Scribe"}
-            />
-            <View style={[styles.workFoot, { gap: s(spacing.sm) }]}>
-              <View style={styles.flex}>
-                {sheetLine ? <Text style={[styles.noted, { fontSize: fs(13) }]}>{sheetLine}</Text> : null}
-                {noted ? <Text style={[styles.noted, { fontSize: fs(13) }]}>{noted}</Text> : null}
-              </View>
-              <ThemedButton
-                label={persona === "sage" ? "Ask" : "Note"}
-                onPress={ask}
-                busy={busy}
-                style={{ minWidth: s(104) }}
-              />
-            </View>
-          </ParchmentPanel>
-        </View>
-
-        {error ? (
-          <Text style={[styles.error, { fontSize: fs(15), marginTop: s(spacing.sm) }]} accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
 
         {busy ? (
-          <ParchmentPanel
-            variant="card"
-            style={[styles.full, { marginTop: s(spacing.md) }]}
-            contentStyle={[styles.loading, { padding: s(18), gap: s(spacing.sm) }]}
-          >
-            <ActivityIndicator color={colors.wordmark} />
-            <Text style={[styles.loadingText, { fontSize: fs(15) }]}>
-              {persona === "sage" ? "The Sage is leafing through the tomes..." : "The Scribe is writing it down..."}
+          <View style={[styles.busy, { marginTop: s(spacing.lg), gap: s(spacing.sm) }]} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={colors.wordmark} />
+            <Text style={[styles.busyText, { fontSize: fs(14) }]}>
+              {sage ? "Leafing through the tomes..." : "Writing it down..."}
             </Text>
-          </ParchmentPanel>
+          </View>
+        ) : null}
+
+        {error ? (
+          <Text style={[styles.error, { fontSize: fs(14), marginTop: s(spacing.md) }]} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
         ) : null}
 
         {reply ? (
           <Animated.View
             style={[
               styles.full,
-              { marginTop: s(spacing.md) },
+              { marginTop: s(spacing.xl) },
               { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [s(10), 0] }) }] },
             ]}
           >
@@ -514,14 +372,36 @@ export default function SageScreen({ onBack, onOpenTome }: Props) {
                 <Text style={[styles.replyLabel, { fontSize: fs(14) }]}>{replyLabel.toUpperCase()}</Text>
                 <Rule color={colors.rule} style={styles.flex} />
               </View>
+              {asked ? (
+                <Text style={[styles.asked, { fontSize: fs(14), lineHeight: fs(19) }]} numberOfLines={2}>
+                  {asked}
+                </Text>
+              ) : null}
               <Text style={[styles.replyBody, { fontSize: fs(17), lineHeight: fs(25) }]} selectable>
                 {reply}
               </Text>
+              {footNote ? <Text style={[styles.noted, { fontSize: fs(12) }]}>{footNote}</Text> : null}
             </ParchmentPanel>
           </Animated.View>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+
+      {/* Full-bleed leather band, edge to edge like the Figma (no radius, no side padding). */}
+      <View style={[styles.band, { height: s(60) }]}>
+        <Image source={leather} style={styles.bandTexture} resizeMode="cover" />
+        <ModeToggle persona={persona} onChange={setPersona} />
+      </View>
+
+      <SageAskSheet
+        visible={sheetOpen}
+        persona={persona}
+        value={question}
+        onChangeText={setQuestion}
+        onSend={ask}
+        onClose={closeSheet}
+        error={sheetError}
+      />
+    </View>
   );
 }
 
@@ -537,70 +417,37 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  scroll: { flex: 1 },
-  body: { alignItems: "center" },
-  full: { width: "100%" },
   flex: { flex: 1 },
+  // flexGrow + center: with no reply the orb and button sit balanced between the title and the band;
+  // once a reply lands the content grows past the screen and scrolls normally.
+  body: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
+  full: { width: "100%" },
   pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
-  dim: { opacity: 0.4 },
 
-  voiceRow: { flexDirection: "row", alignItems: "center", alignSelf: "center" },
-  dot: { borderWidth: 1, borderColor: colors.cardStroke },
-  voiceText: { fontFamily: fonts.heading, color: colors.muted, letterSpacing: 0.4 },
-
-  orbStage: { alignItems: "center", overflow: "visible" },
-  orbRing: {
-    marginTop: 8,
-    padding: 6,
-    borderRadius: RING / 2,
-    borderWidth: 1,
-    borderColor: colors.gold,
-  },
-  fire: { position: "absolute", left: "50%", bottom: 22, zIndex: 2 },
-  fireFrame: { position: "absolute", top: 0, left: 0 },
-
-  status: { fontFamily: fonts.bodyItalic, color: colors.muted, includeFontPadding: false },
-  pauseRow: { alignItems: "center" },
+  actions: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
   pauseBars: { flexDirection: "row", alignItems: "center" },
   pauseBar: { borderRadius: 2, backgroundColor: colors.cream },
-  hint: { fontFamily: fonts.body, color: colors.muted },
 
-  band: {
-    overflow: "hidden",
-    justifyContent: "center",
-    backgroundColor: colors.ink,
-    elevation: 4,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  bandTexture: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0.92 },
-  bandRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  bandLabel: { flex: 1, justifyContent: "center", minHeight: 44 },
-  bandLabelLeft: { alignItems: "flex-end", paddingRight: 14 },
-  bandLabelRight: { alignItems: "flex-start", paddingLeft: 14 },
-  bandTitle: { fontFamily: fonts.headingBold, color: colors.cream, letterSpacing: 1.2, includeFontPadding: false },
-  bandHint: { fontFamily: fonts.body, color: colors.cream, marginTop: 1, includeFontPadding: false },
-  bandIdle: { opacity: 0.55 },
-  toggleHit: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-
-  workLabel: { fontFamily: fonts.headingBold, color: colors.ink, letterSpacing: 1 },
-  ruleLeft: { alignSelf: "stretch", opacity: 0.6 },
-  input: {
-    fontFamily: fonts.body,
-    color: colors.ink,
-    textAlignVertical: "top",
-    padding: 0,
-  },
-  workFoot: { flexDirection: "row", alignItems: "center" },
-  noted: { fontFamily: fonts.bodyItalic, color: colors.panelStroke },
+  busy: { flexDirection: "row", alignItems: "center" },
+  busyText: { fontFamily: fonts.bodyItalic, color: colors.muted },
   error: { fontFamily: fonts.body, color: colors.wordmark, alignSelf: "stretch", textAlign: "center" },
 
-  loading: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  loadingText: { fontFamily: fonts.bodyItalic, color: colors.muted },
+  band: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    backgroundColor: "#4A3F2E",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "rgba(26,24,22,0.55)",
+  },
+  bandTexture: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
+  toggleHit: { position: "absolute", top: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
 
   replyHead: { flexDirection: "row", alignItems: "center" },
   replyLabel: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 1.2 },
+  asked: { fontFamily: fonts.bodyItalic, color: colors.muted },
   replyBody: { fontFamily: fonts.body, color: colors.ink },
+  noted: { fontFamily: fonts.bodyItalic, color: colors.panelStroke, textAlign: "right" },
 });
