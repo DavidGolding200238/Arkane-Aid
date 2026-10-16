@@ -8,6 +8,29 @@ import * as THREE from "three";
 
 const model = require("../../assets/Sage/ux_ai_avatar.glb");
 
+// @react-three/fiber 9.8 builds a THREE.Clock inside every Canvas it creates (one per visit to the
+// Sage), and three r183+ warns that Clock is deprecated each time. That code is inside R3F, not
+// ours (we use useFrame's delta and never construct a Clock), so drop exactly that one message
+// through three's own logging hook. Every other three.js log, warning and error is passed on
+// unchanged.
+const CLOCK_DEPRECATED = "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.";
+THREE.setConsoleFunction((type: "log" | "warn" | "error", message: string, ...params: unknown[]) => {
+  if (type === "warn" && message === CLOCK_DEPRECATED) return;
+  console[type](message, ...params);
+});
+
+// R3F calls renderer.forceContextLoss() when the Canvas unmounts. three then asks for the
+// WEBGL_lose_context extension, which expo-gl doesn't have, and warns. expo-gl frees the GL
+// context itself when its view unmounts, so when the extension is missing we make that call a
+// no-op instead of letting three probe for it. (Checked with the raw GL call, which doesn't warn.)
+function createRenderer(defaults: THREE.WebGLRendererParameters) {
+  const renderer = new THREE.WebGLRenderer(defaults);
+  if (!renderer.getContext().getExtension("WEBGL_lose_context")) {
+    renderer.forceContextLoss = () => {};
+  }
+  return renderer;
+}
+
 const kept = new Set(["Sphere", "Core", "Ellipse", "Ellipse 2"]);
 
 function materialFor(name: string) {
@@ -150,7 +173,7 @@ export default function SageAvatar({ size = 260 }: { size?: number }) {
 
   return (
     <View style={[styles.slot, { width: size, height: size, borderRadius: size / 2 }]} collapsable={false}>
-      <Canvas style={{ width: size, height: size }} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
+      <Canvas gl={createRenderer} style={{ width: size, height: size }} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
         <color attach="background" args={["#1A0A0A"]} />
         <ambientLight intensity={1.1} />
         <directionalLight position={[2.2, 3, 2.4]} intensity={1.6} />
