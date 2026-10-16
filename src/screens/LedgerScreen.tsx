@@ -603,7 +603,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 <Text style={styles.vitalValue}>{draft.level}</Text>
               )}
             </View>
-            <View style={styles.vital}>
+            <View style={[styles.vital, styles.vitalWide]}>
               <Text style={styles.vitalLabel}>HP</Text>
               {editing ? (
                 <View style={styles.hpEdit}>
@@ -814,10 +814,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   // Level, HP, AC, Speed and Bonus keep the original 125ce45 layout and sizes.
-  vitalRow: { flexDirection: "row", marginTop: 12, gap: 12 },
-  vital: { flex: 1, alignItems: "center" },
+  // Same structure as 125ce45 (two rows, label over value). Both rows sit on one
+  // three-column grid: Level lines up with AC, and HP takes the other two
+  // columns so long values like 120/120 have room, centred over Speed/Bonus.
+  vitalRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 14 },
+  vital: { flex: 1, alignItems: "center", paddingHorizontal: 4 },
+  vitalWide: { flex: 2 },
   vitalLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, letterSpacing: 0.6 },
-  vitalValue: { fontFamily: fonts.body, color: colors.ink, fontSize: 18, marginTop: 2 },
+  vitalValue: { fontFamily: fonts.body, color: colors.ink, fontSize: 18, marginTop: 4, fontVariant: ["tabular-nums"] },
   vitalInput: {
     fontFamily: fonts.body,
     color: colors.ink,
@@ -825,11 +829,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     borderBottomWidth: 1,
     borderBottomColor: colors.ink,
-    minWidth: 36,
+    minWidth: 48,
     paddingVertical: 2,
+    paddingHorizontal: 4,
   },
-  hpEdit: { flexDirection: "row", alignItems: "center", gap: 4 },
-  hpInput: { minWidth: 42 },
+  hpEdit: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hpInput: { minWidth: 56 },
   hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
   rule: { height: 1, backgroundColor: colors.ink, marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
