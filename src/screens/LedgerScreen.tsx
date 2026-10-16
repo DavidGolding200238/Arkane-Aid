@@ -40,10 +40,15 @@ import CircleButton from "../components/CircleButton";
 import ThemedButton from "../components/ThemedButton";
 import Rule from "../components/Rule";
 import { QuillIcon } from "../components/icons";
-import { colors, fonts, stroke, useAppFonts, useScale } from "../theme";
+import { colors, fonts, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
-const portraitArt = require("../../assets/images/ledger/portrait-placeholder.png");
+const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
+// Hand-inked outline from Figma's portrait frame (2167:647), transparent everywhere else.
+const portraitInk = require("../../assets/images/ledger/portrait-ink.png");
+// The photo is clipped to this share of the outline's size so its edge sits
+// under the wobbly ink line (the ink runs from about 97% to 101% of the art).
+const PORTRAIT_PHOTO = 0.99;
 const statHead = require("../../assets/images/ledger/stat-header.png");
 const statBody = require("../../assets/images/ledger/stat-body.png");
 
@@ -540,12 +545,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             </CircleButton>
           </View>
 
-          <View
-            style={[
-              styles.portraitRing,
-              { width: portrait, height: portrait, borderRadius: portrait / 2, marginTop: s(12) },
-            ]}
-          >
+          <View style={[styles.portraitBox, { width: portrait, height: portrait, marginTop: s(12) }]}>
             <Pressable
               onPress={pickPortrait}
               accessibilityRole="imagebutton"
@@ -553,9 +553,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               style={[
                 styles.portraitWrap,
                 {
-                  width: portrait - stroke.portrait * 2,
-                  height: portrait - stroke.portrait * 2,
-                  borderRadius: portrait / 2,
+                  width: portrait * PORTRAIT_PHOTO,
+                  height: portrait * PORTRAIT_PHOTO,
+                  borderRadius: (portrait * PORTRAIT_PHOTO) / 2,
                 },
               ]}
             >
@@ -565,6 +565,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
               )}
             </Pressable>
+            <View style={styles.portraitInk} pointerEvents="none">
+              <Image source={portraitInk} style={styles.fill} resizeMode="stretch" />
+            </View>
           </View>
 
           <View style={[styles.metaRow, { marginTop: s(14), gap: s(12) }]}>
@@ -798,13 +801,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   editOn: { opacity: 0.75 },
-  portraitRing: {
-    alignSelf: "center",
-    borderWidth: stroke.portrait,
-    borderColor: colors.ink,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  portraitBox: { alignSelf: "center", alignItems: "center", justifyContent: "center" },
+  portraitInk: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   portraitWrap: { overflow: "hidden", backgroundColor: colors.portrait },
   metaRow: { flexDirection: "row" },
   meta: { flex: 1, fontFamily: fonts.heading, color: colors.ink },
