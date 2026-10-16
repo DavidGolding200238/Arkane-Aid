@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send arrow in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
 
 ### Scribe
 
@@ -147,7 +147,7 @@ Already applied on the Supabase project. Re-run only on a fresh project, in orde
 
 | Screen | Purpose |
 |--------|---------|
-| Splash | Title and load |
+| Splash | Title, and real loading: fonts, the main screens' art, the Sage's fire, code and orb model, with a progress ring driven by finished tasks (never longer than 15 s) |
 | Login and Sign up | Email authentication |
 | Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
 | Sage | Ask a ruling or note the table. Voice (Plain or Wizard) comes from the Tome |
@@ -167,18 +167,20 @@ App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
   components/           TabBar, SageAvatar, SageOrb (+ flames/: FireLoop, FlameGlow, Embers, useFlameMotion), SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
-                        ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
-  theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
+                        ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule (inked underline), PageFade, icons
+  theme/                colors, spacing, typography (fonts, heading ink), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
-  lib/                  supabase, parties, character, codex, sage
+  lib/                  supabase, parties, character, codex, sage, preload (what the splash loads)
   data/
     rules.json          SRD 5.2.1 extract
     sage-personalities.json
 assets/
-  Splash Screen/        title art
+  Splash Screen/        Dragon Logo (Login skull, still 1x)
   Icons/                tab and seal icons
   images/
     backgrounds/        parchment.png
+    splash/             die-d20-glow, loader-ring (3x PNG, transparent; the skull is dashboard/skull-dragon)
+    decor/              ink-underline + ink-underline-end (the splash heading's inked rule, 3x, tintable; Rule uses them for every heading and divider)
     buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
                         tab-home/logbook/hat/gear.svg (tab bar, currentColor),
