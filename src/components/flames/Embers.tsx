@@ -24,7 +24,7 @@ function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; r
   const y = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
   const sway = useRef(new Animated.Value(0)).current;
-  const size = useRef(rand(2.2, 3.8)).current;
+  const size = useRef(rand(2.6, 4.4)).current;
 
   useEffect(() => {
     let live = true;
@@ -58,19 +58,21 @@ function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; r
 
   return (
     <Animated.View style={[styles.ember, { width: size, height: size, opacity, transform: [{ translateX }, { translateY }, { scale }] }]}>
-      <Animated.View
-        style={[
-          styles.dot,
-          { borderRadius: size / 2, backgroundColor: RED[tone], opacity: blue.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-        ]}
-      />
-      <Animated.View style={[styles.dot, { borderRadius: size / 2, backgroundColor: BLUE[tone], opacity: blue }]} />
+      {/* Each colour is a bright core with a faint soft halo around it. */}
+      <Animated.View style={[styles.fill, { opacity: blue.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>
+        <View style={[styles.halo, { left: -size * 0.9, top: -size * 0.9, width: size * 2.8, height: size * 2.8, borderRadius: size * 1.4, backgroundColor: RED[tone] }]} />
+        <View style={[styles.fill, { borderRadius: size / 2, backgroundColor: RED[tone] }]} />
+      </Animated.View>
+      <Animated.View style={[styles.fill, { opacity: blue }]}>
+        <View style={[styles.halo, { left: -size * 0.9, top: -size * 0.9, width: size * 2.8, height: size * 2.8, borderRadius: size * 1.4, backgroundColor: BLUE[tone] }]} />
+        <View style={[styles.fill, { borderRadius: size / 2, backgroundColor: BLUE[tone] }]} />
+      </Animated.View>
     </Animated.View>
   );
 }
 
 // A handful of tiny embers drifting up from the flames and fading out. Each one is a pair of
-// stacked dots (red and blue) so the colour fade stays on the native driver. Every rise is a
+// stacked glowing dots (red and blue) so the colour fade stays on the native driver. Every rise is a
 // single native animation; JS only picks a new random start between rises.
 function Embers({ cx, cy, radius, blue, gapMs, count = 8 }: Props) {
   const gap = useRef(gapMs);
@@ -87,7 +89,8 @@ function Embers({ cx, cy, radius, blue, gapMs, count = 8 }: Props) {
 
 const styles = StyleSheet.create({
   ember: { position: "absolute", left: 0, top: 0 },
-  dot: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  halo: { position: "absolute", opacity: 0.28 },
 });
 
 export default memo(Embers);
