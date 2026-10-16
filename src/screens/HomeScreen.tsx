@@ -38,7 +38,11 @@ const CX = 180;
 const CY = 538;
 const SEAL = 115;
 const SEAL_R = 111.9;
-const GEM = 23;
+// Gems were 23 (old 26x29 art left the gem about 18 wide); the new square art at 24 shows it about 22 wide.
+const GEM = 24;
+// Seal icon and label, slightly larger than before (icon 0.38 -> 0.44 of the seal, label 14 -> 15.4).
+const ICON = 0.44;
+const LABEL = 15.4;
 
 type SealId = "sage" | "tome" | "codex";
 
@@ -256,12 +260,12 @@ export default function HomeScreen({ onOpen }: Props) {
                 >
                   <Image source={sealArt} style={styles.sealFill} resizeMode="stretch" />
                   <View style={styles.sealBody}>
-                    <SealIcon id={item.id} size={seal * 0.38} />
+                    <SealIcon id={item.id} size={seal * ICON} />
                     <Text
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
-                      style={[styles.sealLabel, { fontSize: 14 * s, marginTop: 2 * s }]}
+                      style={[styles.sealLabel, { fontSize: LABEL * s, marginTop: 2 * s }]}
                     >
                       {item.label}
                     </Text>
