@@ -23,10 +23,11 @@ import {
 } from "@expo-google-fonts/atkinson-hyperlegible";
 import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../context/AuthContext";
+import Rule from "../components/Rule";
+import { colors } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/Splash Screen/Dragon Logo.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const field = require("../../assets/Login Screen/Rectangle 30.png");
 
 type Mode = "in" | "up";
@@ -122,10 +123,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
           >
             Arkane Aid
           </Text>
-          <Image
-            source={underline}
-            style={[styles.rule, !signingUp && styles.ruleLogin, { width: signingUp ? Math.max(titleW, 120) : titleW }]}
-            resizeMode="contain"
+          <Rule
+            width={signingUp ? Math.max(titleW, 120) : titleW}
+            color={colors.rule}
+            style={signingUp ? styles.rule : styles.ruleLogin}
           />
           {signingUp ? <Text style={styles.step}>Create an account</Text> : null}
         </View>
@@ -285,8 +286,9 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     opacity: 0.82,
   },
-  rule: { height: 10, marginTop: 0 },
-  ruleLogin: { height: 8, marginTop: 2 },
+  // Same footprint as the old 10 / 8 dp underline image boxes, with the ink line centred in them.
+  rule: { marginTop: 4.5, marginBottom: 4.5 },
+  ruleLogin: { marginTop: 5.5, marginBottom: 1.5 },
   step: {
     marginTop: 10,
     fontFamily: "AtkinsonHyperlegible_400Regular",

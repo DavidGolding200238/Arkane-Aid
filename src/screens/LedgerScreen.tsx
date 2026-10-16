@@ -662,7 +662,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             </View>
           </View>
 
-          <View style={styles.rule} />
+          <Rule color={colors.ink} style={styles.rule} />
 
           <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
             {STATS.map(([key, label]) => (
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
   hpEdit: { flexDirection: "row", alignItems: "center", gap: 6 },
   hpInput: { minWidth: 56 },
   hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
-  rule: { height: 1, backgroundColor: colors.ink, marginTop: 10, marginBottom: 12 },
+  rule: { marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   statHead: {
     position: "absolute",
