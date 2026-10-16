@@ -5,8 +5,8 @@ import { colors } from "../theme";
 // by a fractal-noise displacement), extended so its wobble keeps the same rhythm at any width.
 // Two slices: a long body (420 dp, starting with the left cap) clipped to the width, plus the
 // rounded right end. Both are a single ink colour with alpha, so tintColor recolours them.
-const BODY = require("../../assets/images/decor/ink-underline@3x.png"); // 1260 x 7 px
-const END = require("../../assets/images/decor/ink-underline-end@3x.png"); // 30 x 7 px
+const BODY = require("../../assets/images/decor/ink-underline.png"); // 1260 x 7 px
+const END = require("../../assets/images/decor/ink-underline-end.png"); // 30 x 7 px
 const BODY_W = 1260 / 3;
 const END_W = 30 / 3;
 const ART_H = 7 / 3; // the ink itself is about 1 dp thick inside this box
