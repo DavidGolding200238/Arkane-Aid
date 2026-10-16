@@ -80,7 +80,7 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
 
   return (
     <View style={{ width: fireW, height: stageH }}>
-      <FlameGlow cx={orbCx} cy={orbCy} radius={size * 0.72} glow={glow} blue={blue} />
+      <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} blue={blue} />
       <View style={[styles.halo, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}>
         <SageAvatar size={size} />
       </View>

@@ -10,13 +10,13 @@ export type FlameColour = "red" | "blue";
 // edge stays covered exactly as aligned. Ember timings are unchanged from the first version.
 export const MOODS: Record<FlameMood, { frameMs: number; glowLow: number; glowHigh: number; pulseMs: number; emberGapMs: [number, number] }> = {
   // Slow and calm, a faint glow breathing slowly, few embers.
-  idle: { frameMs: 320, glowLow: 0.28, glowHigh: 0.42, pulseMs: 3000, emberGapMs: [900, 2600] },
+  idle: { frameMs: 320, glowLow: 0.3, glowHigh: 0.45, pulseMs: 3000, emberGapMs: [900, 2600] },
   // Ready for the dev build's voice input: a little livelier than idle.
-  listening: { frameMs: 260, glowLow: 0.4, glowHigh: 0.58, pulseMs: 2000, emberGapMs: [500, 1600] },
+  listening: { frameMs: 260, glowLow: 0.4, glowHigh: 0.55, pulseMs: 2000, emberGapMs: [500, 1600] },
   // Thinking: moderately faster flames, a brighter glow pulsing quicker, more embers.
-  thinking: { frameMs: 200, glowLow: 0.55, glowHigh: 0.82, pulseMs: 1400, emberGapMs: [200, 900] },
+  thinking: { frameMs: 200, glowLow: 0.5, glowHigh: 0.7, pulseMs: 1400, emberGapMs: [200, 900] },
   // Speaking: a gentle, steady glow pulse (no random flicker).
-  speaking: { frameMs: 240, glowLow: 0.5, glowHigh: 0.78, pulseMs: 1100, emberGapMs: [300, 1100] },
+  speaking: { frameMs: 240, glowLow: 0.45, glowHigh: 0.65, pulseMs: 1100, emberGapMs: [300, 1100] },
 };
 
 const FRAMES = 8;
