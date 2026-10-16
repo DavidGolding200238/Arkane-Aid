@@ -6,21 +6,23 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
+import Rule from "../components/Rule";
+import { inkText, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
-const skull = require("../../assets/Splash Screen/Ark3 3.png");
-const d20 = require("../../assets/Splash Screen/Group 5947.png");
-const loaderArt = require("../../assets/Splash Screen/Loader.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
+// 3x art from Figma (Splash 2312:378). The dragon skull is the same Figma bitmap as the Dashboard's.
+const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2124:39
+const d20 = require("../../assets/images/splash/die-d20-glow.png"); // Group 5948, 2132:28
+const loaderArt = require("../../assets/images/splash/loader-ring.png"); // Loader, 2314:645
 
 export default function SplashScreen() {
-  const { width, height } = useWindowDimensions();
+  // Same Figma-unit scaling as every other screen (360 wide design, see theme/scale).
+  const { s, fs, height } = useScale();
   const spin = useRef(new Animated.Value(0)).current;
   const [percent, setPercent] = useState(0);
   const [titleW, setTitleW] = useState(220);
@@ -61,9 +63,9 @@ export default function SplashScreen() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const skullW = width * 0.94;
-  const skullH = skullW * 1;
-  const loaderSize = Math.min(width * 0.62, 240);
+  const skullW = s(338);
+  const skullH = skullW;
+  const loaderSize = s(223);
   const dieW = skullW * 0.4;
   const dieH = dieW * 0.9;
 
@@ -76,8 +78,8 @@ export default function SplashScreen() {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, 44) }]}>
-        <View style={{ width: skullW, height: skullH, marginTop: 60 }}>
+      <View style={[styles.column, { paddingBottom: Math.max(height * 0.06, s(44)) }]}>
+        <View style={{ width: skullW, height: skullH, marginTop: s(60) }}>
           <Image
             source={skull}
             style={{ width: skullW, height: skullH }}
@@ -97,16 +99,13 @@ export default function SplashScreen() {
         </View>
 
         <Text
-          style={styles.wordmark}
+          style={[styles.wordmark, { fontSize: fs(42), marginTop: -s(40) }]}
           onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
         >
           Arkane Aid
         </Text>
-        <Image
-          source={underline}
-          style={[styles.rule, { width: titleW }]}
-          resizeMode="contain"
-        />
+        {/* The inked underline (Figma Rectangle 4901), centred in the old 10 dp slot. */}
+        <Rule width={titleW} color="#2E2E2E" style={{ marginTop: s(4) + s(4.5), marginBottom: s(8) + s(4.5) }} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -114,10 +113,10 @@ export default function SplashScreen() {
             style={[styles.loader, { transform: [{ rotate }] }]}
             resizeMode="contain"
           />
-          <Text style={styles.percent}>{percent}%</Text>
+          <Text style={[styles.percent, { fontSize: fs(30) }]}>{percent}%</Text>
         </View>
 
-        <Text style={styles.caption}>
+        <Text style={[styles.caption, { fontSize: fs(15), lineHeight: fs(22), marginTop: s(14) }]}>
           Just a moment{"\u2026"}
           {"\n"}
           the barbarian is stuck in a doorway.
@@ -148,15 +147,9 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#A33A3A",
-    fontSize: 42,
     textAlign: "center",
-    marginTop: -40,
     opacity: 0.82,
-  },
-  rule: {
-    height: 10,
-    marginTop: 4,
-    marginBottom: 8,
+    ...inkText.red,
   },
   loaderWrap: {
     alignItems: "center",
@@ -170,19 +163,15 @@ const styles = StyleSheet.create({
   percent: {
     fontFamily: "CinzelDecorative_400Regular",
     color: "#2A2218",
-    fontSize: 30,
     letterSpacing: 1.5,
     textAlign: "center",
     opacity: 0.72,
   },
   caption: {
-    marginTop: 14,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: "#5A5348",
-    fontSize: 15,
     letterSpacing: 1.4,
     textAlign: "center",
-    lineHeight: 22,
     opacity: 0.78,
   },
 });
