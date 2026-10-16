@@ -147,7 +147,7 @@ Already applied on the Supabase project. Re-run only on a fresh project, in orde
 
 | Screen | Purpose |
 |--------|---------|
-| Splash | Title, and real loading: fonts, the main screens' art, the Sage's fire, code and orb model, with a progress ring driven by finished tasks (never longer than 15 s) |
+| Splash | Title, and real loading: fonts, the main screens' art, the Sage's fire, code and orb model, with the percentage driven by finished tasks (never longer than 15 s) |
 | Login and Sign up | Email authentication |
 | Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
 | Sage | Ask a ruling or note the table. Voice (Plain or Wizard) comes from the Tome |
