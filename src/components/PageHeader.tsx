@@ -9,11 +9,13 @@ type Props = {
   title: string;
   onBack: () => void;
   subtitle?: string;
+  /** Underline width in dp (already scaled). Defaults to the Codex/Ledger 156. */
+  ruleWidth?: number;
 };
 
 // Back button, Cinzel title with a drawn underline, and an optional caption.
-// Used by Codex and Ledger.
-export default function PageHeader({ title, onBack, subtitle }: Props) {
+// Used by Codex, Ledger, Tome and Sage.
+export default function PageHeader({ title, onBack, subtitle, ruleWidth }: Props) {
   const { s, fs } = useScale();
   const insets = useSafeAreaInsets();
   const circle = s(44);
@@ -37,7 +39,7 @@ export default function PageHeader({ title, onBack, subtitle }: Props) {
         <Text style={[styles.title, { fontSize: fs(30) }]} numberOfLines={1} adjustsFontSizeToFit>
           {title}
         </Text>
-        <Rule width={s(156)} color={colors.ink} />
+        <Rule width={ruleWidth ?? s(156)} color={colors.ink} />
         {subtitle ? (
           <Text style={[styles.subtitle, { fontSize: fs(13), marginTop: s(4) }]} numberOfLines={1}>
             {subtitle}
