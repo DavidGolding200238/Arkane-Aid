@@ -10,7 +10,6 @@ import {
   View,
   type StyleProp,
   type TextStyle,
-  type ViewStyle,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { StatusBar } from "expo-status-bar";
@@ -44,39 +43,51 @@ import { QuillIcon } from "../components/icons";
 import { colors, fonts, stroke, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
-const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
+const portraitArt = require("../../assets/images/ledger/portrait-placeholder.png");
 const statHead = require("../../assets/images/ledger/stat-header.png");
-const statBody = require("../../assets/images/ledger/stat-body.jpg");
+const statBody = require("../../assets/images/ledger/stat-body.png");
 
-// Red textured header over a framed paper body, used for ability scores and
-// for the six ability scores.
+// Figma ability box (Group 873): torn paper body (2167:686, with its drop
+// shadow) and the red textured header (2167:658) laid over its top edge.
+// Art sizes are 3x pixels; the paper itself is 279 x 276 of the 292 x 296 body
+// export, the rest is the torn edge overhang and the shadow.
+const BODY = { w: 292, h: 296, paperX: 7, paperY: 1, paperW: 279, paperH: 276 };
+const HEAD = { w: 272, h: 85 };
+
 function StatFrame({
   label,
   children,
-  headHeight,
-  bodyHeight,
+  width,
   labelSize,
-  style,
 }: {
   label: string;
   children: ReactNode;
-  headHeight: number;
-  bodyHeight: number;
+  width: number;
   labelSize: number;
-  style?: StyleProp<ViewStyle>;
 }) {
+  const k = width / BODY.paperW;
+  const height = BODY.paperH * k;
+  const headH = width * (HEAD.h / HEAD.w);
   return (
-    <View style={[styles.statFrame, style]}>
-      <View style={[styles.statHead, { height: headHeight }]}>
+    <View style={{ width, height }}>
+      <Image
+        source={statBody}
+        style={{
+          position: "absolute",
+          left: -BODY.paperX * k,
+          top: -BODY.paperY * k,
+          width: BODY.w * k,
+          height: BODY.h * k,
+        }}
+        resizeMode="stretch"
+      />
+      <View style={[styles.statHead, { height: headH }]}>
         <Image source={statHead} style={styles.fill} resizeMode="stretch" />
         <Text style={[styles.statLabel, { fontSize: labelSize }]} numberOfLines={1}>
           {label}
         </Text>
       </View>
-      <View style={[styles.statBody, { height: bodyHeight }]}>
-        <Image source={statBody} style={styles.fill} resizeMode="stretch" />
-        {children}
-      </View>
+      <View style={styles.statValueBox}>{children}</View>
     </View>
   );
 }
@@ -397,8 +408,6 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const sheetPad = s(16);
   const statGap = s(14);
   const boxW = Math.floor((width - pagePad * 2 - sheetPad * 2 - 2 - statGap * 2) / 3);
-  const headH = Math.round(boxW * (28 / 91));
-  const bodyH = Math.round(boxW * (62 / 91));
   const edit = s(44);
   const portrait = s(152);
 
@@ -467,7 +476,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     placeholder: string,
     empty: string,
   ) => (
-    <ParchmentPanel variant="card" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+    <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
       <SectionTitle size={fs(18)}>{title}</SectionTitle>
       {editing ? (
         <TextInput
@@ -497,7 +506,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         contentContainerStyle={{ paddingHorizontal: pagePad, paddingTop: s(4), paddingBottom: s(24) }}
         keyboardShouldPersistTaps="handled"
       >
-        <ParchmentPanel contentStyle={{ paddingHorizontal: sheetPad, paddingTop: s(12), paddingBottom: s(14) }}>
+        <ParchmentPanel variant="ledger" contentStyle={{ paddingHorizontal: sheetPad, paddingTop: s(12), paddingBottom: s(14) }}>
           <View style={styles.nameRow}>
             <View style={{ width: edit }} />
             {editing ? (
@@ -649,14 +658,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
           <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
             {STATS.map(([key, label]) => (
-              <StatFrame
-                key={key}
-                label={label}
-                headHeight={headH}
-                bodyHeight={bodyH}
-                labelSize={fs(15)}
-                style={{ width: boxW }}
-              >
+              <StatFrame key={key} label={label} width={boxW} labelSize={fs(15)}>
                 {editing ? (
                   <TextInput
                     style={[styles.statInput, { fontSize: fs(26) }]}
@@ -672,7 +674,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           </View>
         </ParchmentPanel>
 
-        <ParchmentPanel style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
           <SectionTitle center size={fs(18)}>
             Background
           </SectionTitle>
@@ -693,7 +695,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           )}
         </ParchmentPanel>
 
-        <ParchmentPanel variant="card" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
           <SectionTitle size={fs(18)}>Skills</SectionTitle>
           {editing ? (
             <View style={[styles.chips, { gap: s(6) }]}>
@@ -716,7 +718,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         {textSection("Languages", draft.languages, "languages", "Common, Elvish", "None listed.")}
         {textSection("Features", draft.features, "features", "Class features, fighting style, spells", "None yet.")}
 
-        <ParchmentPanel variant="card" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
           <SectionTitle size={fs(18)}>Equipment</SectionTitle>
           {gear.length === 0 ? (
             <Text style={[styles.listItem, styles.listEmpty, { fontSize: fs(16), lineHeight: fs(26) }]}>Nothing carried.</Text>
@@ -725,7 +727,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           {editing ? addRow(gearName, setGearName, "Add equipment", addGear) : null}
         </ParchmentPanel>
 
-        <ParchmentPanel variant="card" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
           <SectionTitle size={fs(18)}>Traits</SectionTitle>
           {traits.length === 0 ? (
             <Text style={[styles.listItem, styles.listEmpty, { fontSize: fs(16), lineHeight: fs(26) }]}>No traits yet.</Text>
@@ -828,30 +830,16 @@ const styles = StyleSheet.create({
   hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
   rule: { height: 1, backgroundColor: colors.ink, marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
-  statFrame: {
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 2 },
-  },
   statHead: {
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
-    overflow: "hidden",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     alignItems: "center",
     justifyContent: "center",
   },
   statLabel: { fontFamily: fonts.heading, color: colors.statLabel, textAlign: "center", letterSpacing: 0.6 },
-  statBody: {
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: colors.statStroke,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 2,
-    backgroundColor: "#F2ECE3",
-  },
+  statValueBox: { flex: 1, marginTop: "31%", alignItems: "center", justifyContent: "center" },
   statValue: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
   statInput: {
     fontFamily: fonts.stat,

@@ -181,8 +181,8 @@ assets/
     backgrounds/        parchment.png
     buttons/            btn-circle-red@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg
-    panels/             panel-parchment@3x.jpg, card-paper@3x.jpg
-    ledger/             stat-header, stat-body, portrait-placeholder (3x)
+    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
+    ledger/             stat-header, stat-body, portrait-placeholder (3x PNG, transparent)
   Fire/                 orb flame frames
   Sage/                 orb model
 supabase/

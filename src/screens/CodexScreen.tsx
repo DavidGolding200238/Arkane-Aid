@@ -223,7 +223,6 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
             >
               <ParchmentPanel
                 variant="card"
-                style={styles.cardShadow}
                 contentStyle={[styles.card, { minHeight: s(132), padding: s(12), paddingBottom: s(10) }]}
               >
                 <View style={[styles.cardTop, { gap: s(8) }]}>
@@ -288,13 +287,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   empty: { fontFamily: fonts.body, color: colors.muted, textAlign: "center", marginTop: 18 },
   link: { color: colors.wordmark },
-  cardShadow: {
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
   cardPressed: { opacity: 0.85 },
   card: { justifyContent: "space-between" },
   cardTop: { flexDirection: "row", alignItems: "flex-start" },
