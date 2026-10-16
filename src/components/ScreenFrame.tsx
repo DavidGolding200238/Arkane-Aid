@@ -1,60 +1,75 @@
 import type { ReactNode } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useFonts } from "expo-font";
-import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
-import { AtkinsonHyperlegible_400Regular } from "@expo-google-fonts/atkinson-hyperlegible";
+import PageHeader from "./PageHeader";
+import ParchmentPanel from "./ParchmentPanel";
+import { colors, fonts, radius, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
+const d20 = require("../../assets/images/tome/d20-badge.png");
 
 type Props = {
   title: string;
   onBack: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  subtitle?: string;
 };
 
-export default function ScreenFrame({ title, onBack, children, footer }: Props) {
-  const [fontsLoaded] = useFonts({
-    CinzelDecorative_400Regular,
-    AtkinsonHyperlegible_400Regular,
-  });
+// Small Tome-styled page: back button and Cinzel title, the glowing d20, and
+// the content on a torn parchment sheet. Used by Create party and Join party.
+export default function ScreenFrame({ title, onBack, children, footer, subtitle = "Tome" }: Props) {
+  const fontsLoaded = useAppFonts();
+  const { s } = useScale();
 
-  if (!fontsLoaded) return <View style={styles.fallback} />;
+  if (!fontsLoaded) return <View style={styles.root} />;
 
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
-      <View style={styles.bar}>
-        <Pressable onPress={onBack} hitSlop={12}>
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.spacer} />
-      </View>
+      <PageHeader title={title} subtitle={subtitle} onBack={onBack} />
       <ScrollView
-        contentContainerStyle={styles.body}
+        style={styles.scroll}
+        contentContainerStyle={{ paddingHorizontal: s(20), paddingTop: s(4), paddingBottom: s(28) }}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
-        {children}
+        <Image source={d20} style={[styles.badge, { width: s(64), height: s(64), marginBottom: s(6) }]} resizeMode="contain" />
+        <ParchmentPanel
+          variant="ledger"
+          contentStyle={{ paddingHorizontal: s(18), paddingTop: s(18), paddingBottom: s(20), gap: s(14) }}
+        >
+          {children}
+        </ParchmentPanel>
       </ScrollView>
       {footer}
     </View>
   );
 }
 
+// Text field that matches the Tome look: label above, inked outline on cream.
+export function FrameInput({ label, style, ...props }: TextInputProps & { label: string }) {
+  const { s, fs } = useScale();
+  return (
+    <View style={{ gap: s(4) }}>
+      <Text style={[styles.label, { fontSize: fs(13) }]}>{label}</Text>
+      <TextInput
+        placeholderTextColor={colors.placeholder}
+        accessibilityLabel={label}
+        style={[
+          styles.input,
+          { minHeight: s(44), paddingHorizontal: s(12), borderRadius: s(radius.panel), fontSize: fs(16) },
+          style,
+        ]}
+        {...props}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: colors.wash },
   parchment: {
     position: "absolute",
     top: 0,
@@ -65,25 +80,14 @@ const styles = StyleSheet.create({
     height: "100%",
     opacity: 0.28,
   },
-  bar: {
-    paddingTop: 52,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  scroll: { flex: 1 },
+  badge: { alignSelf: "center" },
+  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4 },
+  input: {
+    fontFamily: fonts.body,
+    color: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.cardStroke,
+    backgroundColor: "rgba(254,252,235,0.7)",
   },
-  back: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#A33A3A",
-    fontSize: 16,
-    width: 56,
-  },
-  title: {
-    fontFamily: "CinzelDecorative_400Regular",
-    color: "#1A1816",
-    fontSize: 22,
-  },
-  spacer: { width: 56 },
-  body: { paddingHorizontal: 20, paddingBottom: 96, gap: 12 },
 });
