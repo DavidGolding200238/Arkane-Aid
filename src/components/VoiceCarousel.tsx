@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Rule from "./Rule";
 import { useVoice, VOICES, type VoiceId } from "../context/VoiceContext";
-import { colors, fonts, useScale } from "../theme";
+import { colors, fonts, inkText, useScale } from "../theme";
 
 // Orb art: the Figma Sage colour variants (Red 2231:52, Blue 2320:1208,
 // Green 2320:1458), orb plus flames, laid out like carousel 2280:286.
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   orb: { position: "absolute", top: 0, left: 0 },
   pressed: { opacity: 0.6 },
   nameBox: { alignItems: "center" },
-  name: { fontFamily: fonts.heading, color: colors.ink, includeFontPadding: false },
+  name: { fontFamily: fonts.heading, includeFontPadding: false, ...inkText.heading },
   nameSoon: { color: colors.muted },
   caption: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
 });

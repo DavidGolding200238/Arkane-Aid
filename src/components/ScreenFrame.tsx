@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TextInput, View, type TextInputPro
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "./PageHeader";
 import ParchmentPanel from "./ParchmentPanel";
-import { colors, fonts, radius, useAppFonts, useScale } from "../theme";
+import { colors, fonts, inkText, radius, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const d20 = require("../../assets/images/tome/d20-badge.png");
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   badge: { alignSelf: "center" },
-  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4 },
+  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
   input: {
     fontFamily: fonts.body,
     color: colors.ink,

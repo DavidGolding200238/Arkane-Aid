@@ -40,7 +40,7 @@ import CircleButton from "../components/CircleButton";
 import ThemedButton from "../components/ThemedButton";
 import Rule from "../components/Rule";
 import { QuillIcon } from "../components/icons";
-import { colors, fonts, useAppFonts, useScale } from "../theme";
+import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
   fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%" },
   scroll: { flex: 1 },
   nameRow: { flexDirection: "row", alignItems: "center" },
-  name: { flex: 1, fontFamily: fonts.titleBold, color: colors.ink, textAlign: "center", letterSpacing: 0.4 },
+  name: { flex: 1, fontFamily: fonts.titleBold, textAlign: "center", letterSpacing: 0.4, ...inkText.heading },
   nameInput: {
     flex: 1,
     fontFamily: fonts.titleBold,
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
   sectionTitle: { marginBottom: 8 },
   sectionCenter: { alignSelf: "center" },
   sectionLeft: { alignSelf: "flex-start" },
-  section: { fontFamily: fonts.headingBold, color: colors.ink },
+  section: { fontFamily: fonts.headingBold, ...inkText.heading },
   sectionRule: { marginTop: 2 },
   story: { fontFamily: fonts.body, color: colors.ink, textAlign: "left" },
   storyInput: { fontFamily: fonts.body, color: colors.ink, textAlignVertical: "top" },

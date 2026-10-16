@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CircleButton from "./CircleButton";
 import Rule from "./Rule";
 import { ChevronLeftIcon } from "./icons";
-import { colors, fonts, useScale } from "../theme";
+import { colors, fonts, inkText, useScale } from "../theme";
 
 const LETTER_SPACING = 0.6;
 
@@ -76,9 +76,9 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     textAlign: "center",
     fontFamily: fonts.title,
-    color: colors.ink,
     letterSpacing: LETTER_SPACING,
     includeFontPadding: false,
+    ...inkText.heading,
   },
   subtitle: { fontFamily: fonts.body, color: colors.muted },
 });

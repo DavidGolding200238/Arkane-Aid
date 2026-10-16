@@ -11,7 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
 import { errorText, myProfile, partySeats, type Profile, type Seat } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
-import { colors, fonts, useAppFonts, useScale } from "../theme";
+import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // Glowing d20 badge, Figma 2280:302. 280 x 281 px at 3x, glow included.
@@ -243,8 +243,8 @@ const styles = StyleSheet.create({
   boundText: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
   row: { flexDirection: "row", alignItems: "flex-start" },
   flex: { flex: 1 },
-  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4 },
-  heading: { fontFamily: fonts.headingBold, color: colors.ink },
+  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
+  heading: { fontFamily: fonts.headingBold, ...inkText.heading },
   body: { fontFamily: fonts.body, color: colors.ink },
   meta: { fontFamily: fonts.body, color: colors.muted, marginTop: 2 },
   seat: { fontFamily: fonts.body, color: colors.ink },
@@ -253,11 +253,11 @@ const styles = StyleSheet.create({
   cardIdle: { opacity: 0.82 },
   pressed: { opacity: 0.7 },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  cardTitle: { flex: 1, fontFamily: fonts.headingBold, color: colors.ink },
+  cardTitle: { flex: 1, fontFamily: fonts.headingBold, ...inkText.heading },
   cardTitleOn: { color: colors.activeTab },
   tag: { backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.cardStroke },
   tagText: { fontFamily: fonts.headingBold, color: colors.cream, letterSpacing: 0.8 },
   tipNumber: { fontFamily: fonts.stat, color: colors.wordmark, textAlign: "center" },
-  tipTitle: { fontFamily: fonts.headingBold, color: colors.ink },
-  voiceHeading: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center" },
+  tipTitle: { fontFamily: fonts.headingBold, ...inkText.heading },
+  voiceHeading: { fontFamily: fonts.headingBold, textAlign: "center", ...inkText.heading },
 });

@@ -24,7 +24,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../context/AuthContext";
 import Rule from "../components/Rule";
-import { colors } from "../theme";
+import { colors, inkText } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/Splash Screen/Dragon Logo.png");
@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 44,
     textAlign: "center",
+    ...inkText.red,
   },
   wordmarkLogin: {
     fontSize: 34,

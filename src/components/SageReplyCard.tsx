@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 import CircleButton from "./CircleButton";
 import ParchmentPanel from "./ParchmentPanel";
 import Rule from "./Rule";
-import { colors, fonts, spacing, useScale } from "../theme";
+import { colors, fonts, inkText, spacing, useScale } from "../theme";
 
 type Props = {
   text: string;
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   // It has no background of its own, so it casts no second shadow.
   above: { elevation: 7 },
   head: { flexDirection: "row", alignItems: "center" },
-  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 1.2 },
+  label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 1.2, ...inkText.red },
   asked: { fontFamily: fonts.bodyItalic, color: colors.muted },
   body: { fontFamily: fonts.body, color: colors.ink },
   caret: { color: colors.wordmark, fontFamily: fonts.headingBold },

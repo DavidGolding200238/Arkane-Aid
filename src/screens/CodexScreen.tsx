@@ -17,7 +17,7 @@ import CircleButton from "../components/CircleButton";
 import ThemedButton from "../components/ThemedButton";
 import Rule from "../components/Rule";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
-import { colors, fonts, useAppFonts, useScale } from "../theme";
+import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   book: { flex: 1 },
   bookInner: { flex: 1 },
   sessionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  session: { fontFamily: fonts.headingBold, color: colors.ink },
+  session: { fontFamily: fonts.headingBold, ...inkText.heading },
   tabs: { flexDirection: "row" },
   tab: { flex: 1, alignItems: "center" },
   tabLabel: { fontFamily: fonts.headingBold, color: colors.ink },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   cardPressed: { opacity: 0.85 },
   card: { justifyContent: "space-between" },
   cardTop: { flexDirection: "row", alignItems: "flex-start" },
-  cardTitle: { flex: 1, fontFamily: fonts.headingBold, color: colors.ink },
+  cardTitle: { flex: 1, fontFamily: fonts.headingBold, ...inkText.heading },
   cardBody: { flexGrow: 1, fontFamily: fonts.body, color: colors.ink, letterSpacing: 1 },
   date: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "right" },
   error: { fontFamily: fonts.body, color: colors.wordmark, marginTop: 8 },

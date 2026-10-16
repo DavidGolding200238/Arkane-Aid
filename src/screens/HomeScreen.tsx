@@ -14,7 +14,7 @@ import * as NavigationBar from "expo-navigation-bar";
 
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
-import { colors, DESIGN_HEIGHT, DESIGN_WIDTH, fonts, useAppFonts, useScale } from "../theme";
+import { colors, DESIGN_HEIGHT, DESIGN_WIDTH, fonts, inkText, useAppFonts, useScale } from "../theme";
 import Witch from "../../assets/Icons/icons8-witch-hat.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Settings from "../../assets/Icons/icons8-settings.svg";
@@ -309,6 +309,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     fontFamily: fonts.title,
     textAlign: "center",
+    ...inkText.red,
   },
   layer: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   sealFill: { position: "absolute", width: "100%", height: "100%" },
