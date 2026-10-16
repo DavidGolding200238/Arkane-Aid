@@ -20,7 +20,7 @@ type Props = {
 
 // Two separate mode buttons: Sage (microphone) on the left, Scribe (quill) on the right.
 // The chosen one is the textured red circle used across the app with a cream icon;
-// the other is a quiet inked ring on the parchment with a muted icon. One small word under each.
+// it sits on a soft drop shadow so it lifts off the page. The other is a quiet inked ring on the parchment with a muted icon. One small word under each.
 export default function SageModeButtons({ persona, onChange, gap = 96 }: Props) {
   const { s, fs } = useScale();
   const size = s(54);
@@ -42,9 +42,11 @@ export default function SageModeButtons({ persona, onChange, gap = 96 }: Props) 
             style={({ pressed }) => [styles.item, pressed && styles.pressed]}
           >
             {on ? (
-              <CircleButton size={size}>
-                <Icon width={icon} height={icon} color={colors.cream} />
-              </CircleButton>
+              <View style={[styles.lift, { width: size, height: size, borderRadius: size / 2 }]}>
+                <CircleButton size={size}>
+                  <Icon width={icon} height={icon} color={colors.cream} />
+                </CircleButton>
+              </View>
             ) : (
               <View style={[styles.idle, { width: size, height: size, borderRadius: size / 2 }]}>
                 <Icon width={icon} height={icon} color={colors.muted} />
@@ -64,6 +66,16 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center", alignItems: "flex-start" },
   item: { alignItems: "center" },
   pressed: { opacity: 0.8, transform: [{ scale: 0.96 }] },
+  // Soft drop shadow under the chosen button. The dark fill matches the circle art's inked
+  // rim, so nothing shows around it; it only gives Android's elevation a round shape to cast.
+  lift: {
+    backgroundColor: colors.cardStroke,
+    elevation: 6,
+    shadowColor: "#2A1C0A",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
   // Quiet state: a thin ink ring, no fill block, so the parchment shows through.
   idle: {
     alignItems: "center",
