@@ -7,7 +7,7 @@ const quill = require("../../assets/images/icons/icon-quill.png");
 
 // Figma Polygon 21 is 20 x 23 inside a 44 wide circle.
 // Size it from the circle so it scales with the button.
-export function ChevronLeftIcon({ circleSize, color = "#FFFFFF" }: { circleSize: number; color?: string }) {
+export function ChevronLeftIcon({ circleSize, color = colors.ink }: { circleSize: number; color?: string }) {
   const width = circleSize * (18 / 44);
   const height = width * (23 / 20);
   // The arrow's weight sits on its left point, so nudge it right to look centred.
@@ -26,7 +26,7 @@ export function ChevronDownIcon({ width, color = colors.chevron }: { width: numb
   return <ChevronDownSvg width={width} height={width * (37 / 43)} color={color} />;
 }
 
-// Figma "Quill With Ink" (22 x 22 inside a 44 circle).
+// Figma "Quill With Ink" (22 x 22 inside a 44 circle), recoloured to ink black on a transparent background.
 export function QuillIcon({ circleSize }: { circleSize: number }) {
   const size = circleSize * 0.5;
   return <Image source={quill} style={{ width: size, height: size }} resizeMode="contain" />;
