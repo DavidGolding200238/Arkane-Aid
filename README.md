@@ -166,7 +166,7 @@ Figma is the source of truth for layout. File: ARKANE-AID-DEV.
 App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
-  components/           TabBar, SageAvatar, SageOrb, SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
+  components/           TabBar, SageAvatar, SageOrb (+ flames/: FireStack, FlameGlow, Embers, useFlameMotion), SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
                         ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
   theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
