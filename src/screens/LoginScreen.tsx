@@ -24,7 +24,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../context/AuthContext";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/Splash Screen/Dragon Logo.png");
 const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const field = require("../../assets/Login Screen/Rectangle 30.png");

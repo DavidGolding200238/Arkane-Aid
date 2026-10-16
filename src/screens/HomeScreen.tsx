@@ -21,7 +21,7 @@ import Witch from "../../assets/Icons/icons8-witch-hat.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Settings from "../../assets/Icons/icons8-settings.svg";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/Splash Screen/Ark3 3.png");
 const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const sealArt = require("../../assets/DasbBoard/OIP 2.png");

@@ -38,7 +38,7 @@ import {
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
 const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
 const backCircle = require("../../assets/Codex/Rectangle 26.png");
 const backChevron = require("../../assets/Codex/Polygon 21.png");

@@ -21,7 +21,7 @@ import { addCodexEntry } from "../lib/codex";
 import { askSage, type SagePersona } from "../lib/sage";
 import { errorText } from "../lib/parties";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
 
 const FIRE = [
   require("../../assets/Fire/Property 1=Variant2.png"),
