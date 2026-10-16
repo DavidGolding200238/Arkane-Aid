@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { memo } from "react";
+import { Animated, StyleSheet, View } from "react-native";
 import SageAvatar from "./SageAvatar";
+import FireStack from "./flames/FireStack";
+import FlameGlow from "./flames/FlameGlow";
+import Embers from "./flames/Embers";
+import { useFlameMotion, useReduceMotion, type FlameColour, type FlameMood } from "./flames/useFlameMotion";
 
 // Orb fire (Figma component set 2189:64). All 16 frames share one 870 x 472 px
 // canvas at 3x, so every frame lines up with the next. Red for the Wizard voice,
@@ -38,37 +42,16 @@ const ORB_CY = 10;
 type Props = {
   /** Orb diameter in dp (already scaled). */
   size: number;
-  /** "red" for the Wizard voice, "blue" for Plain. */
-  flame: "red" | "blue";
+  /** "red" for the Wizard voice, "blue" for Plain. Changing it fades between the two. */
+  flame: FlameColour;
+  /** What the Sage is doing; sets the flames' pace, flare, glow and embers. */
+  mood?: FlameMood;
 };
 
-// All frames stay mounted and only the current one is shown, so switching
-// frames never waits on an image decode (no flicker on the first loop).
-function Fire({ frames, width, left, top }: { frames: number[]; width: number; left: number; top: number }) {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setFrame((current) => (current + 1) % frames.length), 120);
-    return () => clearInterval(id);
-  }, [frames.length]);
-
-  const height = (width * ART_H) / ART_W;
-  return (
-    <View pointerEvents="none" style={[styles.fire, { width, height, left, top }]}>
-      {frames.map((source, index) => (
-        <Image
-          key={index}
-          source={source}
-          resizeMode="stretch"
-          style={[styles.frame, { width, height, opacity: index === frame ? 1 : 0 }]}
-        />
-      ))}
-    </View>
-  );
-}
-
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
-export default function SageOrb({ size, flame }: Props) {
+function SageOrb({ size, flame, mood = "idle" }: Props) {
+  const reduce = useReduceMotion();
+  const { phase, blue, flare, flareScale, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
   const fireW = ART_W * k;
   const fireH = ART_H * k;
@@ -77,16 +60,61 @@ export default function SageOrb({ size, flame }: Props) {
   const orbTop = 0;
   const fireTop = orbTop + size / 2 - ORB_CY * k;
   const stageH = Math.max(orbTop + size, fireTop + fireH);
+  const orbCx = ORB_CX * k;
+  const orbCy = orbTop + size / 2;
+
+  // The flare copy grows from the orb centre, not from the middle of the fire box.
+  const dx = ORB_CX * k - fireW / 2;
+  const dy = ORB_CY * k - fireH / 2;
+  // Colour fade: the blue fire fades in and out on top while the red stays solid underneath,
+  // so the flames never go see-through mid-fade. Red only switches off once blue is fully on.
+  const redOpacity = blue.interpolate({ inputRange: [0, 0.999, 1], outputRange: [1, 1, 0], extrapolate: "clamp" });
+
+  const stacks = (
+    <>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: redOpacity }]}>
+        <FireStack frames={FIRE_RED} phase={phase} width={fireW} height={fireH} />
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: blue }]}>
+        <FireStack frames={FIRE_BLUE} phase={phase} width={fireW} height={fireH} />
+      </Animated.View>
+    </>
+  );
 
   return (
     <View style={{ width: fireW, height: stageH }}>
+      <FlameGlow cx={orbCx} cy={orbCy} radius={size * 0.72} glow={glow} blue={blue} />
       <View style={[styles.halo, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}>
         <SageAvatar size={size} />
       </View>
-      <Fire key={flame} frames={flame === "red" ? FIRE_RED : FIRE_BLUE} width={fireW} left={0} top={fireTop} />
+      <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
+        {/* Base fire: never scaled, so the orb edge stays covered exactly as before. */}
+        {stacks}
+        {/* Flare: a slightly larger copy over the base, shown while thinking or speaking. */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              opacity: flare,
+              transform: [{ translateX: dx }, { translateY: dy }, { scale: flareScale }, { translateX: -dx }, { translateY: -dy }],
+            },
+          ]}
+        >
+          {stacks}
+        </Animated.View>
+      </View>
+      {reduce ? null : (
+        <View pointerEvents="none" style={styles.embers}>
+          <Embers cx={orbCx} cy={orbCy} radius={size / 2} blue={blue} gapMs={emberGapMs} />
+        </View>
+      )}
     </View>
   );
 }
+
+// Memoised: the screen re-renders on every keystroke, the flames only need to when
+// the size, colour or mood changes.
+export default memo(SageOrb);
 
 const styles = StyleSheet.create({
   // Soft dark glow around the orb, like the Figma drop shadow.
@@ -102,5 +130,6 @@ const styles = StyleSheet.create({
   // Elevation as well as zIndex: on Android a higher elevation always draws on top,
   // so the fire must out-rank the orb halo. It has no background, so it casts no shadow.
   fire: { position: "absolute", zIndex: 2, elevation: 16 },
-  frame: { position: "absolute", top: 0, left: 0 },
+  // Embers float over the fire and the orb; no background, so no shadow either.
+  embers: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 3, elevation: 17 },
 });
