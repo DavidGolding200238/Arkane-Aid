@@ -17,23 +17,26 @@ import { Asul_400Regular } from "@expo-google-fonts/asul";
 import * as NavigationBar from "expo-navigation-bar";
 
 import type { AppScreen } from "../navigation/screens";
+import Rule from "../components/Rule";
 import Witch from "../../assets/Icons/icons8-witch-hat.svg";
 import Book from "../../assets/Icons/icons8-book.svg";
 import Settings from "../../assets/Icons/icons8-settings.svg";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
-const skull = require("../../assets/Splash Screen/Ark3 3.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
-const sealArt = require("../../assets/DasbBoard/OIP 2.png");
-const ring1 = require("../../assets/DasbBoard/ring1.png");
-const ring2 = require("../../assets/DasbBoard/ring2.png");
-const dieArt = require("../../assets/DasbBoard/Group 5964.png");
-const gemRed = require("../../assets/DasbBoard/Group 5931.png");
-const gemGreen = require("../../assets/DasbBoard/Group 5929.png");
-const gemBlue = require("../../assets/DasbBoard/Group 5930.png");
+// 3x transparent exports from the Figma dashboard frame 2320:2434.
+const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2132:51
+const sealArt = require("../../assets/images/dashboard/seal-parchment.png"); // OIP 2, 2072:543
+const ring1 = require("../../assets/images/dashboard/ring-outer.png"); // Ellipse 21, 2069:522
+const ring2 = require("../../assets/images/dashboard/ring-inner.png"); // Ellipse 31, 2072:571
+const dieArt = require("../../assets/images/dashboard/die-d20.png"); // Group 5964, 2201:181
+const gemRed = require("../../assets/images/dashboard/gem-red.png"); // Group 5931
+const gemGreen = require("../../assets/images/dashboard/gem-green.png"); // Group 5929
+const gemBlue = require("../../assets/images/dashboard/gem-blue.png"); // Group 5930
 
 const INK = "#1A1816";
 const SPLASH = "#A33A3A";
+// The old 221 x 3 underline PNG (#2E2E2E, soft edges) is now a crisp 1 dp rule.
+const UNDERLINE = "rgba(46,46,46,0.8)";
 const STEP = 120;
 
 const DW = 360;
@@ -198,10 +201,10 @@ export default function HomeScreen({ onOpen }: Props) {
         <Text style={[styles.wordmark, { left: 20 * s, top: 348 * s, width: 320 * s, fontSize: 36 * s, color: SPLASH, opacity: 0.82 }]}>
           Arkane Aid
         </Text>
-        <Image
-          source={underline}
-          resizeMode="contain"
-          style={{ position: "absolute", left: 71 * s, top: 385 * s, width: 219 * s, height: 8 * s }}
+        <Rule
+          width={219 * s}
+          color={UNDERLINE}
+          style={{ position: "absolute", left: 71 * s, top: 388.5 * s - 0.5 }}
         />
 
         <Image
