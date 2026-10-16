@@ -52,6 +52,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const [rows, setRows] = useState<CodexEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Where the scrolling list sits inside the book, for its soft top and bottom fades.
+  const [listBox, setListBox] = useState({ y: 0, h: 0 });
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -123,6 +125,17 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   if (!fontsLoaded) return <View style={styles.root} />;
 
   const badge = s(38);
+  // Soft ends for the list: about one line of fade at the bottom (fading up from the chevron)
+  // and a shorter one under the tabs, both made of the book's own paper.
+  const bottomFade = fs(22);
+  const topFade = s(12);
+  const fades =
+    listBox.h > 0
+      ? [
+          { top: listBox.y, height: topFade, direction: "down" as const },
+          { top: listBox.y + listBox.h - bottomFade, height: bottomFade, direction: "up" as const },
+        ]
+      : undefined;
 
   return (
     <View style={styles.root}>
@@ -134,6 +147,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
       <ParchmentPanel
         style={[styles.book, { marginHorizontal: s(19), marginTop: s(6), marginBottom: s(12) }]}
         contentStyle={styles.bookInner}
+        fades={fades}
       >
         <View style={{ paddingHorizontal: s(12), paddingTop: s(12), paddingBottom: s(8) }}>
           <View style={styles.sessionRow}>
@@ -196,8 +210,12 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: s(10), paddingTop: s(4), paddingBottom: s(16), gap: s(12) }}
+          contentContainerStyle={{ paddingHorizontal: s(10), paddingTop: s(4) + topFade, paddingBottom: s(16) + bottomFade, gap: s(12) }}
           keyboardShouldPersistTaps="handled"
+          onLayout={(e) => {
+            const { y, height } = e.nativeEvent.layout;
+            setListBox((box) => (Math.abs(box.y - y) > 0.5 || Math.abs(box.h - height) > 0.5 ? { y, h: height } : box));
+          }}
         >
           {!partyId ? (
             <Text style={[styles.empty, { fontSize: fs(14) }]}>
