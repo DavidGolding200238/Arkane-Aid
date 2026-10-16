@@ -49,7 +49,7 @@ const statHead = require("../../assets/images/ledger/stat-header.png");
 const statBody = require("../../assets/images/ledger/stat-body.jpg");
 
 // Red textured header over a framed paper body, used for ability scores and
-// for the Level / HP / AC / Speed / Bonus badges so they all match.
+// for the six ability scores.
 function StatFrame({
   label,
   children,
@@ -399,14 +399,10 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const boxW = Math.floor((width - pagePad * 2 - sheetPad * 2 - 2 - statGap * 2) / 3);
   const headH = Math.round(boxW * (28 / 91));
   const bodyH = Math.round(boxW * (62 / 91));
-  const badgeHead = s(22);
-  const badgeBody = s(44);
   const edit = s(44);
   const portrait = s(152);
 
   const statValue: StyleProp<TextStyle> = [styles.statValue, { fontSize: fs(30) }];
-  const badgeValue: StyleProp<TextStyle> = [styles.statValue, { fontSize: fs(22) }];
-  const badgeInput: StyleProp<TextStyle> = [styles.statInput, { fontSize: fs(20) }];
 
   const renderPicker = (field: "race" | "class", options: string[]) => {
     if (picker !== field) return null;
@@ -576,77 +572,82 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           {renderPicker("race", RACES)}
           {renderPicker("class", CLASSES)}
 
-          <Rule width="92%" style={{ marginTop: s(10), marginBottom: s(14) }} />
-
-          <View style={[styles.badgeRow, { gap: s(10) }]}>
-            <StatFrame label="Level" headHeight={badgeHead} bodyHeight={badgeBody} labelSize={fs(13)} style={styles.badge}>
+          <View style={styles.vitalRow}>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Level</Text>
               {editing ? (
                 <TextInput
-                  style={badgeInput}
+                  style={styles.vitalInput}
                   keyboardType="number-pad"
                   value={String(draft.level)}
                   onChangeText={(value) => setDraft((current) => ({ ...current, level: clampLevel(value) }))}
                 />
               ) : (
-                <Text style={badgeValue}>{draft.level}</Text>
+                <Text style={styles.vitalValue}>{draft.level}</Text>
               )}
-            </StatFrame>
-            <StatFrame label="HP" headHeight={badgeHead} bodyHeight={badgeBody} labelSize={fs(13)} style={styles.badgeWide}>
+            </View>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>HP</Text>
               {editing ? (
                 <View style={styles.hpEdit}>
                   <TextInput
-                    style={[badgeInput, styles.hpInput]}
+                    style={[styles.vitalInput, styles.hpInput]}
                     keyboardType="number-pad"
                     value={String(draft.hp_current)}
                     onChangeText={(value) => setDraft((current) => ({ ...current, hp_current: clampHp(value, 0) }))}
                   />
-                  <Text style={badgeValue}>/</Text>
+                  <Text style={styles.hpSlash}>/</Text>
                   <TextInput
-                    style={[badgeInput, styles.hpInput]}
+                    style={[styles.vitalInput, styles.hpInput]}
                     keyboardType="number-pad"
                     value={String(draft.hp_max)}
                     onChangeText={(value) => setDraft((current) => ({ ...current, hp_max: clampHp(value, 1) }))}
                   />
                 </View>
               ) : (
-                <Text style={badgeValue}>
+                <Text style={styles.vitalValue}>
                   {draft.hp_current}/{draft.hp_max}
                 </Text>
               )}
-            </StatFrame>
+            </View>
           </View>
 
-          <View style={[styles.badgeRow, { gap: s(10), marginTop: s(10) }]}>
-            <StatFrame label="AC" headHeight={badgeHead} bodyHeight={badgeBody} labelSize={fs(13)} style={styles.badge}>
+          <View style={styles.vitalRow}>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>AC</Text>
               {editing ? (
                 <TextInput
-                  style={badgeInput}
+                  style={styles.vitalInput}
                   keyboardType="number-pad"
                   value={String(draft.ac)}
                   onChangeText={(value) => setDraft((current) => ({ ...current, ac: clampRange(value, 0, 30, 10) }))}
                 />
               ) : (
-                <Text style={badgeValue}>{draft.ac}</Text>
+                <Text style={styles.vitalValue}>{draft.ac}</Text>
               )}
-            </StatFrame>
-            <StatFrame label="Speed" headHeight={badgeHead} bodyHeight={badgeBody} labelSize={fs(13)} style={styles.badge}>
+            </View>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Speed</Text>
               {editing ? (
                 <TextInput
-                  style={badgeInput}
+                  style={styles.vitalInput}
                   keyboardType="number-pad"
                   value={String(draft.speed)}
                   onChangeText={(value) => setDraft((current) => ({ ...current, speed: clampRange(value, 0, 120, 30) }))}
                 />
               ) : (
-                <Text style={badgeValue}>{draft.speed}</Text>
+                <Text style={styles.vitalValue}>{draft.speed}</Text>
               )}
-            </StatFrame>
-            <StatFrame label="Bonus" headHeight={badgeHead} bodyHeight={badgeBody} labelSize={fs(13)} style={styles.badge}>
-              <Text style={badgeValue}>+{proficiencyBonus(draft.level)}</Text>
-            </StatFrame>
+            </View>
+            <View style={styles.vital}>
+              <Text style={styles.vitalLabel}>Bonus</Text>
+              <Text style={styles.vitalValue}>+{proficiencyBonus(draft.level)}</Text>
+            </View>
           </View>
 
-          <View style={[styles.stats, { columnGap: statGap, rowGap: s(14), marginTop: s(16) }]}>
+          <View style={styles.rule} />
+
+          <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
             {STATS.map(([key, label]) => (
               <StatFrame
                 key={key}
@@ -807,11 +808,25 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.rule,
     paddingVertical: 2,
   },
-  badgeRow: { flexDirection: "row" },
-  badge: { flex: 1 },
-  badgeWide: { flex: 2 },
+  // Level, HP, AC, Speed and Bonus keep the original 125ce45 layout and sizes.
+  vitalRow: { flexDirection: "row", marginTop: 12, gap: 12 },
+  vital: { flex: 1, alignItems: "center" },
+  vitalLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, letterSpacing: 0.6 },
+  vitalValue: { fontFamily: fonts.body, color: colors.ink, fontSize: 18, marginTop: 2 },
+  vitalInput: {
+    fontFamily: fonts.body,
+    color: colors.ink,
+    fontSize: 18,
+    textAlign: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ink,
+    minWidth: 36,
+    paddingVertical: 2,
+  },
   hpEdit: { flexDirection: "row", alignItems: "center", gap: 4 },
-  hpInput: { minWidth: 44 },
+  hpInput: { minWidth: 42 },
+  hpSlash: { fontFamily: fonts.body, color: colors.ink, fontSize: 18 },
+  rule: { height: 1, backgroundColor: colors.ink, marginTop: 10, marginBottom: 12 },
   stats: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   statFrame: {
     shadowColor: "#000",
