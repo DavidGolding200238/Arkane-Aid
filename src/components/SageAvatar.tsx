@@ -106,7 +106,8 @@ function Spinning({ object }: { object: THREE.Group }) {
   );
 }
 
-export default function SageAvatar() {
+/** size is the orb diameter in dp (already scaled). Defaults to the old fixed 260. */
+export default function SageAvatar({ size = 260 }: { size?: number }) {
   const [orb, setOrb] = useState<THREE.Group | null>(null);
   const [error, setError] = useState("");
 
@@ -125,8 +126,8 @@ export default function SageAvatar() {
   }, []);
 
   return (
-    <View style={styles.slot} collapsable={false}>
-      <Canvas style={styles.canvas} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
+    <View style={[styles.slot, { width: size, height: size, borderRadius: size / 2 }]} collapsable={false}>
+      <Canvas style={{ width: size, height: size }} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
         <color attach="background" args={["#1A0A0A"]} />
         <ambientLight intensity={1.1} />
         <directionalLight position={[2.2, 3, 2.4]} intensity={1.6} />
@@ -142,16 +143,9 @@ export default function SageAvatar() {
 
 const styles = StyleSheet.create({
   slot: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
     overflow: "hidden",
     backgroundColor: "#1A0A0A",
     alignSelf: "center",
-  },
-  canvas: {
-    width: 260,
-    height: 260,
   },
   note: {
     position: "absolute",
