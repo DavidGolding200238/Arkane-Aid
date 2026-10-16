@@ -44,14 +44,14 @@ type Props = {
   size: number;
   /** "red" for the Wizard voice, "blue" for Plain. Changing it fades between the two. */
   flame: FlameColour;
-  /** What the Sage is doing; sets the flames' pace, flare, glow and embers. */
+  /** What the Sage is doing; sets the flames' pace, glow and embers. */
   mood?: FlameMood;
 };
 
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
 function SageOrb({ size, flame, mood = "idle" }: Props) {
   const reduce = useReduceMotion();
-  const { phase, blue, flare, flareScale, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
+  const { phase, blue, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
   const fireW = ART_W * k;
   const fireH = ART_H * k;
@@ -63,14 +63,11 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
   const orbCx = ORB_CX * k;
   const orbCy = orbTop + size / 2;
 
-  // The flare copy grows from the orb centre, not from the middle of the fire box.
-  const dx = ORB_CX * k - fireW / 2;
-  const dy = ORB_CY * k - fireH / 2;
   // Colour fade: the blue fire fades in and out on top while the red stays solid underneath,
   // so the flames never go see-through mid-fade. Red only switches off once blue is fully on.
   const redOpacity = blue.interpolate({ inputRange: [0, 0.999, 1], outputRange: [1, 1, 0], extrapolate: "clamp" });
 
-  const stacks = (
+  const fire = (
     <>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: redOpacity }]}>
         <FireStack frames={FIRE_RED} phase={phase} width={fireW} height={fireH} />
@@ -88,20 +85,8 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
         <SageAvatar size={size} />
       </View>
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
-        {/* Base fire: never scaled, so the orb edge stays covered exactly as before. */}
-        {stacks}
-        {/* Flare: a slightly larger copy over the base, shown while thinking or speaking. */}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              opacity: flare,
-              transform: [{ translateX: dx }, { translateY: dy }, { scale: flareScale }, { translateX: -dx }, { translateY: -dy }],
-            },
-          ]}
-        >
-          {stacks}
-        </Animated.View>
+        {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
+        {fire}
       </View>
       {reduce ? null : (
         <View pointerEvents="none" style={styles.embers}>
