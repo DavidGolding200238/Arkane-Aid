@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire crossfades between its frames, glows softly behind the orb and sends up a few embers; it burns slowly while idle, a little faster with a brighter glow while the Sage thinks, and pulses gently while it speaks (Reduce Motion keeps it to a simple loop). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send arrow in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build.
+Ask a ruling. The reply is spoken with on-device text to speech. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send arrow in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build.
 
 ### Scribe
 
@@ -166,7 +166,7 @@ Figma is the source of truth for layout. File: ARKANE-AID-DEV.
 App.tsx                 screen gate and tab bar
 src/
   screens/              Splash, Login, Home, Sage, Codex, Ledger, Settings, Create, Join
-  components/           TabBar, SageAvatar, SageOrb (+ flames/: FireStack, FlameGlow, Embers, useFlameMotion), SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
+  components/           TabBar, SageAvatar, SageOrb (+ flames/: FireLoop, FlameGlow, Embers, useFlameMotion), SageModeButtons, SageInputBar, SageReplyCard, ScreenVignette, ScreenFrame, PageHeader, CircleButton,
                         ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule, icons
   theme/                colors, spacing, typography (fonts), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
@@ -186,7 +186,7 @@ assets/
     tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
-    sage/               fire-red-1..8 and fire-blue-1..8 (orb flame frames on one shared canvas, 3x PNG, transparent)
+    sage/               fire-red-loop.webp, fire-blue-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1..8 and fire-blue-1..8 (the Figma keyframes they are built from, on one shared canvas, 3x PNG; frame 1 is the Reduce Motion still)
     tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   Sage/                 orb model
