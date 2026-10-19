@@ -88,8 +88,11 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
   const skullW = s(338);
   const skullH = skullW;
   const loaderSize = s(223);
-  const dieW = skullW * 0.4;
-  const dieH = dieW * 0.9;
+  // The d20 sits inside the open jaws, framed by the fangs (Figma: die centre ~55% down
+  // the skull). Box keeps the art's own aspect (505x534 @4x), ~27% smaller than before.
+  const dieW = skullW * 0.25;
+  const dieH = (dieW * 534) / 505;
+  const dieCentreY = skullH * 0.55;
 
   if (!fontsLoaded) {
     return <View style={styles.fallback} />;
@@ -114,7 +117,7 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
               width: dieW,
               height: dieH,
               left: (skullW - dieW) / 2,
-              top: skullH * 0.35,
+              top: dieCentreY - dieH / 2,
             }}
             resizeMode="contain"
           />
