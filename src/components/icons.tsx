@@ -54,3 +54,15 @@ export function SendNibIcon({ circleSize, color = colors.cream }: { circleSize: 
     </Svg>
   );
 }
+
+// Reload mark for the Tome's parties list: a cream circular arrow (about 300 degrees of arc
+// with an arrow head), stroked SVG so it stays crisp and has no box behind it.
+export function RefreshIcon({ circleSize, color = colors.cream }: { circleSize: number; color?: string }) {
+  const size = circleSize * 0.56;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" stroke={color} strokeWidth={2.6} strokeLinecap="round" />
+      <Path d="M20.2 3.6v4.6h-4.6z" fill={color} stroke={color} strokeWidth={1.4} strokeLinejoin="round" />
+    </Svg>
+  );
+}
