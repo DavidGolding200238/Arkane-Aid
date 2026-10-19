@@ -60,8 +60,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const skullW = s(signingUp ? 248 : 280);
   const skullH = skullW * (1080 / 994);
   const fieldH = s(40);
-  // Modern auth height: ~46 dp (touchable, not the old full-bleed bars).
-  const btnH = Math.max(s(44), s(46));
+  // Compact auth: buttons hug their labels (~40 dp art, hit area padded to 44 by TornButton).
+  const btnH = s(40);
+  const pairW = s(128); // fits "SIGN UP"/"LOGIN" with modest padding; both equal
+  const socialW = Math.min(formW, s(284));
   const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
 
   const switchMode = (next: Mode) => {
@@ -247,7 +249,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
               <TornButton
                 label="Create account"
                 variant="red"
-                fullWidth={formW}
+                fullWidth={socialW}
                 height={btnH}
                 compact
                 onPress={submit}
@@ -266,34 +268,16 @@ export default function LoginScreen({ onOpenDash }: Props) {
             </View>
           ) : (
             <>
-              <View
-                style={{
-                  marginTop: s(8),
-                  flexDirection: "row",
-                  gap: s(10),
-                  width: formW,
-                }}
-              >
-                <TornButton
-                  label="Login"
-                  variant="red"
-                  fullWidth={(formW - s(10)) / 2}
-                  height={btnH}
-                  compact
-                  onPress={submit}
-                  busy={busy}
-                  disabled={busy}
-                  style={{ flex: 1 }}
-                />
+              <View style={{ marginTop: s(8), flexDirection: "row", justifyContent: "center", gap: s(12) }}>
+                <TornButton label="Login" variant="red" fullWidth={pairW} height={btnH} compact onPress={submit} busy={busy} disabled={busy} />
                 <TornButton
                   label="Sign up"
                   variant="parchment"
-                  fullWidth={(formW - s(10)) / 2}
+                  fullWidth={pairW}
                   height={btnH}
                   compact
                   onPress={() => switchMode("up")}
                   disabled={busy}
-                  style={{ flex: 1 }}
                 />
               </View>
 
@@ -303,11 +287,11 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 <View style={styles.orLine} />
               </View>
 
-              <View style={{ width: formW, gap: s(8) }}>
+              <View style={{ alignItems: "center", gap: s(8) }}>
                 <TornButton
                   label="Continue with Google"
                   variant="parchment"
-                  fullWidth={formW}
+                  fullWidth={socialW}
                   height={btnH}
                   compact
                   icon={googleIcon}
@@ -316,7 +300,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 <TornButton
                   label="Continue with Facebook"
                   variant="parchment"
-                  fullWidth={formW}
+                  fullWidth={socialW}
                   height={btnH}
                   compact
                   icon={facebookIcon}
