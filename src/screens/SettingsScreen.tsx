@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "../components/PageHeader";
+import CircleButton from "../components/CircleButton";
 import ParchmentPanel from "../components/ParchmentPanel";
+import { RefreshIcon } from "../components/icons";
 import Rule from "../components/Rule";
 import TornButton from "../components/TornButton";
 import VoiceCarousel from "../components/VoiceCarousel";
@@ -39,6 +41,22 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const [profileError, setProfileError] = useState("");
   const [seats, setSeats] = useState<Record<string, Seat[]>>({});
   const [open, setOpen] = useState<Section>(null);
+  const [boundW, setBoundW] = useState(0);
+  // The reload icon turns while the party list is loading.
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!loading) {
+      spin.stopAnimation();
+      spin.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [loading, spin]);
+  const turn = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   useEffect(() => {
     myProfile()
@@ -82,7 +100,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: pagePad, paddingBottom: s(48) }}
+        contentContainerStyle={{ paddingHorizontal: pagePad, paddingBottom: s(28) }}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
@@ -94,10 +112,14 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             accessibilityIgnoresInvertColors
           />
           <View style={[styles.bound, { marginTop: s(2) }]}>
-            <Text style={[styles.boundText, { fontSize: fs(16) }]} numberOfLines={1}>
+            <Text
+              style={[styles.boundText, { fontSize: fs(16) }]}
+              numberOfLines={1}
+              onLayout={(e) => setBoundW(Math.round(e.nativeEvent.layout.width))}
+            >
               Bound to : {boundTo}
             </Text>
-            <Rule thickness={1.5} color={colors.rule} style={{ marginTop: s(1) }} />
+            {boundW > 0 ? <Rule width={boundW} thickness={1.5} color={colors.rule} style={{ marginTop: s(1) }} /> : null}
           </View>
 
           <View style={{ marginTop: s(18), gap: s(17), alignItems: "center" }}>
@@ -135,16 +157,17 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
 
             <View style={styles.headingRow}>
               <Text style={[styles.heading, { fontSize: fs(18) }]}>Parties</Text>
-              <Pressable
+              <CircleButton
+                size={s(32)}
                 onPress={refresh}
                 disabled={loading}
-                hitSlop={10}
-                accessibilityRole="button"
                 accessibilityLabel="Reload parties"
-                style={({ pressed }) => [pressed && styles.pressed, loading && styles.dim]}
+                style={loading ? styles.dim : undefined}
               >
-                <Text style={[styles.link, { fontSize: fs(13) }]}>{loading ? "Reloading…" : "Reload"}</Text>
-              </Pressable>
+                <Animated.View style={{ transform: [{ rotate: turn }] }}>
+                  <RefreshIcon circleSize={s(32)} />
+                </Animated.View>
+              </CircleButton>
             </View>
             {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
             {memberships.length === 0 ? (
@@ -197,6 +220,17 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               <TornButton label="Create party" variant="red" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("create")} />
               <TornButton label="Join party" variant="parchment" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("join")} />
             </View>
+            <View style={[styles.center, { marginTop: s(6) }]}>
+              <TornButton
+                label="Sign out"
+                variant="parchment"
+                labelColor={colors.wordmark}
+                fullWidth={s(128)}
+                height={s(40)}
+                compact
+                onPress={() => signOut()}
+              />
+            </View>
           </ParchmentPanel>
         ) : null}
 
@@ -224,21 +258,6 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           Voice Personality
         </Text>
         <VoiceCarousel />
-
-        {/* Sign out lives at the very end of the Tome, away from the party tools. */}
-        <View style={[styles.center, { marginTop: s(32) }]}>
-          <Rule width={s(160)} color={colors.rule} />
-          <TornButton
-            label="Sign out"
-            variant="parchment"
-            labelColor={colors.wordmark}
-            width={140}
-            height={s(40)}
-            compact
-            onPress={() => signOut()}
-            style={{ marginTop: s(14) }}
-          />
-        </View>
       </ScrollView>
     </View>
   );
@@ -262,7 +281,6 @@ const styles = StyleSheet.create({
   boundText: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
   row: { flexDirection: "row", alignItems: "flex-start" },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  link: { fontFamily: fonts.body, color: colors.wordmark, textDecorationLine: "underline" },
   dim: { opacity: 0.6 },
   flex: { flex: 1 },
   label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
