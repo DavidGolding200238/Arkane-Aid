@@ -4,7 +4,6 @@ import { StatusBar } from "expo-status-bar";
 import PageHeader from "../components/PageHeader";
 import ParchmentPanel from "../components/ParchmentPanel";
 import Rule from "../components/Rule";
-import ThemedButton from "../components/ThemedButton";
 import TornButton from "../components/TornButton";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
@@ -33,7 +32,7 @@ const TIPS = [
 // (saved in VoiceContext; Sage starts reading it in a later step).
 export default function SettingsScreen({ onBack, onOpen }: Props) {
   const fontsLoaded = useAppFonts();
-  const { s, fs } = useScale();
+  const { s, fs, width } = useScale();
   const { user, signOut } = useAuth();
   const { memberships, selected, select, refresh, loading, error } = useParty();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -69,6 +68,10 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const boundTo = selected?.party.name ?? profile?.display_name ?? user?.email ?? "No one yet";
   const toggle = (section: Exclude<Section, null>) => setOpen((now) => (now === section ? null : section));
   const pagePad = s(20);
+  const panelPad = s(16);
+  // Create | Join share one row inside the parties panel, equal width.
+  const pairGap = s(10);
+  const pairW = Math.floor((width - pagePad * 2 - panelPad * 2 - pairGap) / 2) - s(2);
 
   return (
     <View style={styles.root}>
@@ -79,7 +82,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: pagePad, paddingBottom: s(28) }}
+        contentContainerStyle={{ paddingHorizontal: pagePad, paddingBottom: s(48) }}
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
@@ -117,7 +120,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           <ParchmentPanel
             variant="ledger"
             style={{ marginTop: s(18) }}
-            contentStyle={{ paddingHorizontal: s(16), paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
+            contentStyle={{ paddingHorizontal: panelPad, paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
           >
             <View>
               <Text style={[styles.label, { fontSize: fs(13) }]}>Signed in</Text>
@@ -130,7 +133,19 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
 
             <Rule />
 
-            <Text style={[styles.heading, { fontSize: fs(18) }]}>Parties</Text>
+            <View style={styles.headingRow}>
+              <Text style={[styles.heading, { fontSize: fs(18) }]}>Parties</Text>
+              <Pressable
+                onPress={refresh}
+                disabled={loading}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Reload parties"
+                style={({ pressed }) => [pressed && styles.pressed, loading && styles.dim]}
+              >
+                <Text style={[styles.link, { fontSize: fs(13) }]}>{loading ? "Reloading…" : "\u21BB Reload"}</Text>
+              </Pressable>
+            </View>
             {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
             {memberships.length === 0 ? (
               <Text style={[styles.meta, { fontSize: fs(14) }]}>None yet. Create one, or join with a code from your DM.</Text>
@@ -178,20 +193,9 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               );
             })}
 
-            <View style={[styles.row, { gap: s(10), marginTop: s(4) }]}>
-              <ThemedButton style={styles.flex} label="Create party" onPress={() => onOpen("create")} />
-              <ThemedButton style={styles.flex} variant="outline" label="Join party" onPress={() => onOpen("join")} />
-            </View>
-            <View style={[styles.row, { gap: s(10) }]}>
-              <ThemedButton
-                style={styles.flex}
-                size="small"
-                variant="outline"
-                label="Reload parties"
-                busy={loading}
-                onPress={refresh}
-              />
-              <ThemedButton style={styles.flex} size="small" variant="outline" label="Sign out" onPress={() => signOut()} />
+            <View style={[styles.row, { gap: pairGap, marginTop: s(4) }]}>
+              <TornButton label="Create party" variant="red" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("create")} />
+              <TornButton label="Join party" variant="parchment" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("join")} />
             </View>
           </ParchmentPanel>
         ) : null}
@@ -220,6 +224,21 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           Voice Personality
         </Text>
         <VoiceCarousel />
+
+        {/* Sign out lives at the very end of the Tome, away from the party tools. */}
+        <View style={[styles.center, { marginTop: s(32) }]}>
+          <Rule width={s(160)} color={colors.rule} />
+          <TornButton
+            label="Sign out"
+            variant="parchment"
+            labelColor={colors.wordmark}
+            width={140}
+            height={s(40)}
+            compact
+            onPress={() => signOut()}
+            style={{ marginTop: s(14) }}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -242,6 +261,9 @@ const styles = StyleSheet.create({
   bound: { alignSelf: "center", maxWidth: "100%" },
   boundText: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
   row: { flexDirection: "row", alignItems: "flex-start" },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  link: { fontFamily: fonts.body, color: colors.wordmark, textDecorationLine: "underline" },
+  dim: { opacity: 0.6 },
   flex: { flex: 1 },
   label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
   heading: { fontFamily: fonts.headingBold, ...inkText.heading },
