@@ -143,7 +143,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
                 accessibilityLabel="Reload parties"
                 style={({ pressed }) => [pressed && styles.pressed, loading && styles.dim]}
               >
-                <Text style={[styles.link, { fontSize: fs(13) }]}>{loading ? "Reloading…" : "\u21BB Reload"}</Text>
+                <Text style={[styles.link, { fontSize: fs(13) }]}>{loading ? "Reloading…" : "Reload"}</Text>
               </Pressable>
             </View>
             {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
