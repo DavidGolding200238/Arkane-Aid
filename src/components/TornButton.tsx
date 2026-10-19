@@ -33,6 +33,8 @@ type Props = {
   icon?: number;
   /** Slightly smaller label for compact auth rows. */
   compact?: boolean;
+  /** Override the label colour (e.g. red text on parchment for Sign out). */
+  labelColor?: string;
 };
 
 export default function TornButton({
@@ -49,13 +51,17 @@ export default function TornButton({
   style,
   icon,
   compact,
+  labelColor,
 }: Props) {
   const { s, fs } = useScale();
   const w = fullWidth ?? s(width);
   const naturalH = (w * ART_H) / ART_W;
   const h = heightProp ?? naturalH;
   const onRed = variant === "red";
-  const iconSize = s(compact ? 18 : 20);
+  const iconSize = s(21);
+  // Touch target: keep the visible art its own height (so the label stays centred on it)
+  // and extend the hit area with hitSlop up to ~44 dp instead of stretching the box.
+  const slop = Math.max(4, Math.ceil((s(44) - h) / 2));
   const labelSize = fs(compact ? 13 : 14);
 
   return (
@@ -66,16 +72,16 @@ export default function TornButton({
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={active === undefined ? undefined : { expanded: active }}
-      hitSlop={4}
+      hitSlop={{ top: slop, bottom: slop, left: 4, right: 4 }}
       style={({ pressed }) => [
-        { width: w, height: h, minHeight: s(44) },
+        { width: w, height: h },
         (disabled || busy) && styles.dim,
         pressed && styles.pressed,
         style,
       ]}
     >
       <Image source={ART[variant]} style={{ position: "absolute", width: w, height: h }} resizeMode="stretch" />
-      <View style={[styles.center, icon ? { flexDirection: "row", gap: s(compact ? 8 : 10) } : null]}>
+      <View style={[styles.center, icon ? { flexDirection: "row", gap: s(10) } : null]}>
         {busy ? (
           <ActivityIndicator color={onRed ? colors.cream : colors.ink} />
         ) : (
@@ -84,7 +90,11 @@ export default function TornButton({
             <Text
               style={[
                 styles.label,
-                { fontSize: labelSize, color: onRed ? colors.cream : active ? colors.activeTab : colors.ink },
+                {
+                  fontSize: labelSize,
+                  lineHeight: Math.round(labelSize * 1.2),
+                  color: labelColor ?? (onRed ? colors.cream : active ? colors.activeTab : colors.ink),
+                },
               ]}
               numberOfLines={1}
             >
@@ -99,7 +109,8 @@ export default function TornButton({
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  label: { fontFamily: fonts.headingBold, letterSpacing: 0.6, includeFontPadding: false },
+  // textAlignVertical + no font padding keep Asul's caps optically centred on Android.
+  label: { fontFamily: fonts.headingBold, letterSpacing: 0.6, includeFontPadding: false, textAlignVertical: "center", textAlign: "center" },
   dim: { opacity: 0.6 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
 });
