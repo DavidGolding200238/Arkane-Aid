@@ -37,7 +37,7 @@ Android first. The client runs in Expo Go for the milestone. A development build
 
 ### Authentication
 
-Email sign up and login through Supabase Auth. A profile row is created on first sign in. Logout from Settings.
+Email sign up and login through **Supabase Auth** only. The app never hashes passwords itself and never writes them to AsyncStorage, SQLite, or logs: the password goes to Supabase over HTTPS, and Supabase stores a bcrypt hash on the server. The Expo client keeps only the session tokens (access/refresh) via the SQLite `localStorage` polyfill that `@supabase/supabase-js` uses. Sign-up asks for the password twice and checks they match; both screens require at least 8 characters (also set **Minimum password length** to 8+ in the Supabase Auth settings). Auth error messages do not say whether an email is already registered. Google/Facebook buttons are on the Login screen but need the matching providers enabled in the Supabase dashboard before they do anything. A profile row is created on first sign in. Logout from Settings.
 
 ### Parties
 
@@ -175,11 +175,11 @@ src/
     rules.json          SRD 5.2.1 extract
     sage-personalities.json
 assets/
-  Splash Screen/        Dragon Logo (Login skull, still 1x)
   Icons/                tab and seal icons
   images/
     backgrounds/        parchment.png
-    splash/             die-d20-glow (4x PNG), loader-ring (3x PNG), both transparent; the skull is dashboard/skull-dragon
+    splash/             die-d20-ink-glow (4x PNG: inverted dashboard d20 with ink edges + glow), loader-ring (3x PNG); the skull is dashboard/skull-dragon
+    auth/               input-field, icon-google, icon-facebook (3x PNG, Login/Sign up)
     decor/              ink-underline + ink-underline-end (the splash heading's inked rule, 3x, tintable; Rule uses them for every heading and divider)
     buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
