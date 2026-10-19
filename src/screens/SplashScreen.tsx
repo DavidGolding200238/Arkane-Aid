@@ -17,7 +17,7 @@ import { inkText, useScale } from "../theme";
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // 3x art from Figma (Splash 2312:378). The dragon skull is the same Figma bitmap as the Dashboard's.
 const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2124:39
-const d20 = require("../../assets/images/splash/die-d20-glow.png"); // Group 5948, 2132:28
+const d20 = require("../../assets/images/splash/die-d20-ink-glow.png"); // inverted dashboard d20 + glow, ink edges on cream
 const loaderArt = require("../../assets/images/splash/loader-ring.png"); // Loader, 2314:645
 
 type Props = {
