@@ -38,7 +38,7 @@ const IMAGES = [
   require("../../assets/images/icons/icon-quill.png"),
   require("../../assets/images/tabbar/tab-bar-texture.jpg"),
   require("../../assets/images/tabbar/tab-active.png"),
-  require("../../assets/images/splash/die-d20-ink-glow.png"),
+  require("../../assets/images/splash/die-d20-ink.png"),
   require("../../assets/images/splash/loader-ring.png"),
   require("../../assets/images/auth/input-field.png"),
   require("../../assets/images/auth/icon-google.png"),

@@ -178,10 +178,10 @@ assets/
   Icons/                tab and seal icons
   images/
     backgrounds/        parchment.png
-    splash/             die-d20-ink-glow (4x PNG: inverted dashboard d20 with ink edges + glow), loader-ring (3x PNG); the skull is dashboard/skull-dragon
+    splash/             die-d20-ink (4x PNG: inverted dashboard d20 with ink edges, no glow), loader-ring (3x PNG); the skull is dashboard/skull-dragon
     auth/               input-field, icon-google, icon-facebook (3x PNG, Login/Sign up)
     decor/              ink-underline + ink-underline-end (the splash heading's inked rule, 3x, tintable; Rule uses them for every heading and divider)
-    buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png
+    buttons/            btn-circle-red@3x.png, btn-torn-parchment@3x.png, btn-torn-red@3x.png
     icons/              icon-quill@3x.png, icon-chevron-left.svg, icon-chevron-down.svg,
                         tab-home/logbook/hat/gear.svg (tab bar, currentColor),
                         icon-mic.svg, icon-hand-quill.svg (Sage and Scribe mode buttons, currentColor)

@@ -17,7 +17,7 @@ import { inkText, useScale } from "../theme";
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // 3x art from Figma (Splash 2312:378). The dragon skull is the same Figma bitmap as the Dashboard's.
 const skull = require("../../assets/images/dashboard/skull-dragon.png"); // Ark3 3, 2124:39
-const d20 = require("../../assets/images/splash/die-d20-ink-glow.png"); // inverted dashboard d20 + glow, ink edges on cream
+const d20 = require("../../assets/images/splash/die-d20-ink.png"); // inverted dashboard d20, ink edges, no glow
 const loaderArt = require("../../assets/images/splash/loader-ring.png"); // Loader, 2314:645
 
 type Props = {
@@ -121,13 +121,13 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
         </View>
 
         <Text
-          style={[styles.wordmark, { fontSize: fs(42), marginTop: -s(40) }]}
+          style={[styles.wordmark, { fontSize: fs(42), lineHeight: fs(42), marginTop: -s(40), includeFontPadding: false }]}
           onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
         >
           Arkane Aid
         </Text>
         {/* The inked underline (Figma Rectangle 4901), centred in the old 10 dp slot. */}
-        <Rule width={titleW} color="#2E2E2E" style={{ marginTop: s(4) + s(4.5), marginBottom: s(8) + s(4.5) }} />
+        <Rule width={titleW} color="#2E2E2E" style={{ marginTop: -s(4), marginBottom: s(10) }} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
