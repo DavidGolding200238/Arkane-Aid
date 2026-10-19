@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
-  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -22,16 +21,15 @@ import {
 } from "@expo-google-fonts/atkinson-hyperlegible";
 import { useAuth } from "../context/AuthContext";
 import Rule from "../components/Rule";
+import TornButton from "../components/TornButton";
 import { colors, inkText, useScale } from "../theme";
 
-// 3x art: skull is the Dashboard/Splash dragon; field and social icons from Figma LoginFrame 2601:1443.
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const skull = require("../../assets/images/dashboard/skull-dragon.png");
-const field = require("../../assets/images/auth/input-field.png"); // Rectangle 30, 291×34 @3x
+const field = require("../../assets/images/auth/input-field.png");
 const googleIcon = require("../../assets/images/auth/icon-google.png");
 const facebookIcon = require("../../assets/images/auth/icon-facebook.png");
 
-/** Client-side floor. Supabase Auth also enforces its own minimum in the dashboard (set to 8+). */
 const MIN_PASSWORD = 8;
 
 type Mode = "in" | "up";
@@ -58,12 +56,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
   });
 
   const signingUp = mode === "up";
-  // Modern stacked layout on a 360-wide Figma frame, scaled like every other screen.
   const formW = Math.min(width - s(56), s(360));
   const skullW = s(signingUp ? 248 : 280);
-  const skullH = skullW * (1080 / 994); // skull-dragon@3x aspect
+  const skullH = skullW * (1080 / 994);
   const fieldH = s(40);
-  const btnH = s(44);
   const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
 
   const switchMode = (next: Mode) => {
@@ -129,24 +125,32 @@ export default function LoginScreen({ onOpenDash }: Props) {
             resizeMode="contain"
           />
           <Text
-            style={[styles.wordmark, { fontSize: fs(signingUp ? 36 : 34), lineHeight: fs(signingUp ? 44 : 40) }]}
+            style={[
+              styles.wordmark,
+              {
+                fontSize: fs(signingUp ? 36 : 34),
+                lineHeight: fs(signingUp ? 36 : 34),
+                includeFontPadding: false,
+              },
+            ]}
             onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
           >
             Arkane Aid
           </Text>
+          {/* Snug under the letters, same as PageHeader (no large gap). */}
           <Rule
             width={signingUp ? Math.max(titleW, s(120)) : titleW}
             color={colors.rule}
-            style={{ marginTop: s(signingUp ? 4.5 : 5.5), marginBottom: s(signingUp ? 4.5 : 1.5) }}
+            style={{ marginTop: -s(4), marginBottom: s(signingUp ? 4 : 2) }}
           />
-          {signingUp ? <Text style={[styles.step, { fontSize: fs(15), marginTop: s(10) }]}>Create an account</Text> : null}
+          {signingUp ? <Text style={[styles.step, { fontSize: fs(15), marginTop: s(8) }]}>Create an account</Text> : null}
         </View>
 
         <View style={{ width: formW, marginTop: s(signingUp ? 8 : 20) }}>
           <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>
             {signingUp ? "Email" : "Email or mobile"}
           </Text>
-          <ImageBackground source={field} resizeMode="stretch" style={[styles.field, { height: fieldH }]}>
+          <FieldBox height={fieldH} s={s}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
               autoCapitalize="none"
@@ -157,11 +161,12 @@ export default function LoginScreen({ onOpenDash }: Props) {
               value={email}
               onChangeText={setEmail}
               editable={!busy}
+              placeholderTextColor={colors.placeholder}
             />
-          </ImageBackground>
+          </FieldBox>
 
           <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Password</Text>
-          <ImageBackground source={field} resizeMode="stretch" style={[styles.field, { height: fieldH }]}>
+          <FieldBox height={fieldH} s={s}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
               secureTextEntry={!showPassword}
@@ -170,6 +175,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
               value={password}
               onChangeText={setPassword}
               editable={!busy}
+              placeholderTextColor={colors.placeholder}
             />
             <Pressable
               style={[styles.eye, { right: s(12) }]}
@@ -180,14 +186,14 @@ export default function LoginScreen({ onOpenDash }: Props) {
             >
               <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showPassword ? "Hide" : "Show"}</Text>
             </Pressable>
-          </ImageBackground>
+          </FieldBox>
 
           {signingUp ? (
             <>
               <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>
                 Re-enter password
               </Text>
-              <ImageBackground source={field} resizeMode="stretch" style={[styles.field, { height: fieldH }]}>
+              <FieldBox height={fieldH} s={s}>
                 <TextInput
                   style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
                   secureTextEntry={!showConfirm}
@@ -196,6 +202,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                   value={confirm}
                   onChangeText={setConfirm}
                   editable={!busy}
+                  placeholderTextColor={colors.placeholder}
                 />
                 <Pressable
                   style={[styles.eye, { right: s(12) }]}
@@ -206,7 +213,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 >
                   <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showConfirm ? "Hide" : "Show"}</Text>
                 </Pressable>
-              </ImageBackground>
+              </FieldBox>
             </>
           ) : (
             <Pressable
@@ -232,38 +239,25 @@ export default function LoginScreen({ onOpenDash }: Props) {
             </Text>
           ) : null}
 
-          <Pressable
-            style={[styles.loginBtn, { height: btnH, marginTop: s(signingUp ? 16 : 0), borderRadius: s(8) }]}
-            onPress={submit}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.cream} />
-            ) : (
-              <Text style={[styles.loginText, { fontSize: fs(16) }]}>
-                {signingUp ? "CREATE ACCOUNT" : "Login"}
-              </Text>
-            )}
-          </Pressable>
-
-          {signingUp ? (
-            <Pressable
-              style={[styles.signUpBtn, { height: btnH, marginTop: s(10), borderRadius: s(8) }]}
-              onPress={() => switchMode("in")}
+          <View style={{ marginTop: s(signingUp ? 16 : 4), alignItems: "center" }}>
+            <TornButton
+              label={signingUp ? "Create account" : "Login"}
+              variant="red"
+              fullWidth={formW}
+              onPress={submit}
+              busy={busy}
               disabled={busy}
-            >
-              <Text style={[styles.signUpText, { fontSize: fs(16) }]}>Back to login</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={[styles.signUpBtn, { height: btnH, marginTop: s(8), borderRadius: s(8) }]}
-              onPress={() => switchMode("up")}
+            />
+          </View>
+          <View style={{ marginTop: s(10), alignItems: "center" }}>
+            <TornButton
+              label={signingUp ? "Back to login" : "Sign up"}
+              variant="parchment"
+              fullWidth={formW}
+              onPress={() => switchMode(signingUp ? "in" : "up")}
               disabled={busy}
-            >
-              <Text style={[styles.signUpText, { fontSize: fs(16) }]}>Sign up</Text>
-            </Pressable>
-          )}
+            />
+          </View>
 
           {!signingUp ? (
             <>
@@ -272,31 +266,29 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 <Text style={[styles.or, { fontSize: fs(13) }]}>or</Text>
                 <View style={styles.orLine} />
               </View>
-
-              <SocialButton
-                icon={googleIcon}
-                label="Continue with Google"
-                onPress={() => setNotice("Google is not switched on in Supabase yet.")}
-                s={s}
-                fs={fs}
-              />
-              <SocialButton
-                icon={facebookIcon}
-                label="Continue with Facebook"
-                onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
-                s={s}
-                fs={fs}
-              />
+              <View style={{ alignItems: "center", gap: s(8) }}>
+                <TornButton
+                  label="Continue with Google"
+                  variant="parchment"
+                  fullWidth={formW}
+                  icon={googleIcon}
+                  onPress={() => setNotice("Google is not switched on in Supabase yet.")}
+                />
+                <TornButton
+                  label="Continue with Facebook"
+                  variant="parchment"
+                  fullWidth={formW}
+                  icon={facebookIcon}
+                  onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
+                />
+              </View>
             </>
           ) : null}
 
           {onOpenDash ? (
-            <Pressable
-              style={[styles.dashBtn, { height: btnH, marginTop: s(6), borderRadius: s(8) }]}
-              onPress={onOpenDash}
-            >
-              <Text style={[styles.dashText, { fontSize: fs(16) }]}>Dashboard</Text>
-            </Pressable>
+            <View style={{ marginTop: s(10), alignItems: "center" }}>
+              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} onPress={onOpenDash} />
+            </View>
           ) : null}
         </View>
       </ScrollView>
@@ -304,41 +296,17 @@ export default function LoginScreen({ onOpenDash }: Props) {
   );
 }
 
-/** Parchment strip with an inked edge — same vibe as the text fields, not a bright brand pill. */
-function SocialButton({
-  icon,
-  label,
-  onPress,
-  s,
-  fs,
-}: {
-  icon: number;
-  label: string;
-  onPress: () => void;
-  s: (n: number) => number;
-  fs: (n: number) => number;
-}) {
-  const h = s(44);
+/** Torn parchment field: Image only (no ImageBackground), transparent wrapper — no white box. */
+function FieldBox({ height, s, children }: { height: number; s: (n: number) => number; children: ReactNode }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.social,
-        {
-          height: h,
-          borderRadius: s(8),
-          marginBottom: s(8),
-          gap: s(10),
-          borderWidth: s(1.5),
-        },
-        pressed && styles.pressed,
-      ]}
-    >
-      <Image source={icon} style={{ width: s(22), height: s(22) }} resizeMode="contain" />
-      <Text style={[styles.socialText, { fontSize: fs(15) }]}>{label}</Text>
-    </Pressable>
+    <View style={{ width: "100%", height, backgroundColor: "transparent", overflow: "visible" }}>
+      <Image
+        source={field}
+        style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, width: "100%", height }}
+        resizeMode="stretch"
+      />
+      {children}
+    </View>
   );
 }
 
@@ -364,93 +332,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     ...inkText.red,
   },
-  step: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.muted,
-  },
-  label: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.wordmark,
-  },
-  field: {
-    width: "100%",
-    justifyContent: "center",
-  },
+  step: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.muted },
+  label: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.wordmark },
   input: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
     color: colors.ink,
     paddingVertical: 0,
+    backgroundColor: "transparent",
   },
   eye: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
-  eyeText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: colors.muted,
-  },
+  eyeText: { fontFamily: "AtkinsonHyperlegible_400Regular_Italic", color: colors.muted },
   forgot: {
     alignSelf: "flex-end",
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: colors.muted,
   },
-  loginBtn: {
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.cream,
-    letterSpacing: 0.6,
-  },
-  signUpBtn: {
-    borderWidth: 1.5,
-    borderColor: colors.wordmark,
-    backgroundColor: "rgba(254,252,235,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signUpText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.wordmark,
-  },
-  orRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  orRow: { flexDirection: "row", alignItems: "center" },
   orLine: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: colors.ink, opacity: 0.35 },
-  or: {
-    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: colors.muted,
-  },
-  social: {
-    backgroundColor: "rgba(255,246,226,0.92)",
-    borderColor: colors.cardStroke,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  socialText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.ink,
-  },
-  pressed: { opacity: 0.85 },
-  dashBtn: {
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dashText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.ink,
-  },
-  error: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.wordmark,
-    textAlign: "center",
-  },
-  notice: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: colors.muted,
-    textAlign: "center",
-  },
+  or: { fontFamily: "AtkinsonHyperlegible_400Regular_Italic", color: colors.muted },
+  error: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.wordmark, textAlign: "center" },
+  notice: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.muted, textAlign: "center" },
 });
