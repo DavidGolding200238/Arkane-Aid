@@ -16,16 +16,23 @@ type Props = {
   variant?: keyof typeof ART;
   /** Highlights the label, e.g. while the section it opens is showing. */
   active?: boolean;
-  /** Width in design dp (360-wide Figma frame). Height keeps the art's ratio. */
+  /** Width in design dp (360-wide Figma frame). Height keeps the art's ratio unless `height` is set. */
   width?: number;
-  /** When set, stretches to this on-screen width (dp already scaled) instead of `width`. */
+  /** When set, stretches to this on-screen width (already scaled) instead of `width`. */
   fullWidth?: number;
+  /**
+   * On-screen height in dp (already scaled). Defaults to the art's ratio.
+   * Use ~44–48 for compact auth buttons; keep at least ~44 for touch targets.
+   */
+  height?: number;
   busy?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
   /** Optional leading icon (e.g. Google / Facebook mark). */
   icon?: number;
+  /** Slightly smaller label for compact auth rows. */
+  compact?: boolean;
 };
 
 export default function TornButton({
@@ -35,16 +42,21 @@ export default function TornButton({
   active,
   width = 181,
   fullWidth,
+  height: heightProp,
   busy,
   disabled,
   accessibilityHint,
   style,
   icon,
+  compact,
 }: Props) {
   const { s, fs } = useScale();
   const w = fullWidth ?? s(width);
-  const h = fullWidth ? (fullWidth * ART_H) / ART_W : s((width * ART_H) / ART_W);
+  const naturalH = (w * ART_H) / ART_W;
+  const h = heightProp ?? naturalH;
   const onRed = variant === "red";
+  const iconSize = s(compact ? 18 : 20);
+  const labelSize = fs(compact ? 13 : 14);
 
   return (
     <Pressable
@@ -56,23 +68,23 @@ export default function TornButton({
       accessibilityState={active === undefined ? undefined : { expanded: active }}
       hitSlop={4}
       style={({ pressed }) => [
-        { width: w, height: h },
+        { width: w, height: h, minHeight: s(44) },
         (disabled || busy) && styles.dim,
         pressed && styles.pressed,
         style,
       ]}
     >
       <Image source={ART[variant]} style={{ position: "absolute", width: w, height: h }} resizeMode="stretch" />
-      <View style={[styles.center, icon ? { flexDirection: "row", gap: s(10) } : null]}>
+      <View style={[styles.center, icon ? { flexDirection: "row", gap: s(compact ? 8 : 10) } : null]}>
         {busy ? (
           <ActivityIndicator color={onRed ? colors.cream : colors.ink} />
         ) : (
           <>
-            {icon ? <Image source={icon} style={{ width: s(20), height: s(20) }} resizeMode="contain" /> : null}
+            {icon ? <Image source={icon} style={{ width: iconSize, height: iconSize }} resizeMode="contain" /> : null}
             <Text
               style={[
                 styles.label,
-                { fontSize: fs(14), color: onRed ? colors.cream : active ? colors.activeTab : colors.ink },
+                { fontSize: labelSize, color: onRed ? colors.cream : active ? colors.activeTab : colors.ink },
               ]}
               numberOfLines={1}
             >

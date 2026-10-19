@@ -60,6 +60,8 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const skullW = s(signingUp ? 248 : 280);
   const skullH = skullW * (1080 / 994);
   const fieldH = s(40);
+  // Modern auth height: ~46 dp (touchable, not the old full-bleed bars).
+  const btnH = Math.max(s(44), s(46));
   const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
 
   const switchMode = (next: Mode) => {
@@ -239,38 +241,75 @@ export default function LoginScreen({ onOpenDash }: Props) {
             </Text>
           ) : null}
 
-          <View style={{ marginTop: s(signingUp ? 16 : 4), alignItems: "center" }}>
-            <TornButton
-              label={signingUp ? "Create account" : "Login"}
-              variant="red"
-              fullWidth={formW}
-              onPress={submit}
-              busy={busy}
-              disabled={busy}
-            />
-          </View>
-          <View style={{ marginTop: s(10), alignItems: "center" }}>
-            <TornButton
-              label={signingUp ? "Back to login" : "Sign up"}
-              variant="parchment"
-              fullWidth={formW}
-              onPress={() => switchMode(signingUp ? "in" : "up")}
-              disabled={busy}
-            />
-          </View>
-
-          {!signingUp ? (
+          {/* Compact auth actions: ~44–48 dp tall, Login|Sign up in one row on login. */}
+          {signingUp ? (
+            <View style={{ marginTop: s(16), alignItems: "center", gap: s(10) }}>
+              <TornButton
+                label="Create account"
+                variant="red"
+                fullWidth={formW}
+                height={btnH}
+                compact
+                onPress={submit}
+                busy={busy}
+                disabled={busy}
+              />
+              <Pressable
+                onPress={() => switchMode("in")}
+                disabled={busy}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Back to login"
+              >
+                <Text style={[styles.backLink, { fontSize: fs(14) }]}>Back to login</Text>
+              </Pressable>
+            </View>
+          ) : (
             <>
-              <View style={[styles.orRow, { marginTop: s(14), marginBottom: s(12), gap: s(10) }]}>
+              <View
+                style={{
+                  marginTop: s(8),
+                  flexDirection: "row",
+                  gap: s(10),
+                  width: formW,
+                }}
+              >
+                <TornButton
+                  label="Login"
+                  variant="red"
+                  fullWidth={(formW - s(10)) / 2}
+                  height={btnH}
+                  compact
+                  onPress={submit}
+                  busy={busy}
+                  disabled={busy}
+                  style={{ flex: 1 }}
+                />
+                <TornButton
+                  label="Sign up"
+                  variant="parchment"
+                  fullWidth={(formW - s(10)) / 2}
+                  height={btnH}
+                  compact
+                  onPress={() => switchMode("up")}
+                  disabled={busy}
+                  style={{ flex: 1 }}
+                />
+              </View>
+
+              <View style={[styles.orRow, { marginTop: s(14), marginBottom: s(10), gap: s(10) }]}>
                 <View style={styles.orLine} />
                 <Text style={[styles.or, { fontSize: fs(13) }]}>or</Text>
                 <View style={styles.orLine} />
               </View>
-              <View style={{ alignItems: "center", gap: s(8) }}>
+
+              <View style={{ width: formW, gap: s(8) }}>
                 <TornButton
                   label="Continue with Google"
                   variant="parchment"
                   fullWidth={formW}
+                  height={btnH}
+                  compact
                   icon={googleIcon}
                   onPress={() => setNotice("Google is not switched on in Supabase yet.")}
                 />
@@ -278,16 +317,18 @@ export default function LoginScreen({ onOpenDash }: Props) {
                   label="Continue with Facebook"
                   variant="parchment"
                   fullWidth={formW}
+                  height={btnH}
+                  compact
                   icon={facebookIcon}
                   onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
                 />
               </View>
             </>
-          ) : null}
+          )}
 
           {onOpenDash ? (
             <View style={{ marginTop: s(10), alignItems: "center" }}>
-              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} onPress={onOpenDash} />
+              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} height={btnH} compact onPress={onOpenDash} />
             </View>
           ) : null}
         </View>
@@ -346,6 +387,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
     color: colors.muted,
+  },
+  backLink: {
+    fontFamily: "AtkinsonHyperlegible_400Regular",
+    color: colors.wordmark,
+    textAlign: "center",
+    textDecorationLine: "underline",
   },
   orRow: { flexDirection: "row", alignItems: "center" },
   orLine: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: colors.ink, opacity: 0.35 },
