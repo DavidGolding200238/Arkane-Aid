@@ -199,7 +199,7 @@ src/
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
   lib/                  supabase, parties, character, codex, sage (typed Sage client), voice (cloud voice + device fallback), preload (what the splash loads)
 assets/
-  Icons/                tab and seal icons
+  icons/                dashboard seal icons (icons8 SVGs)
   images/
     backgrounds/        parchment.png
     splash/             die-d20-ink (4x PNG: inverted dashboard d20 with ink edges, no glow), loader-ring (3x PNG); the skull is dashboard/skull-dragon
@@ -210,12 +210,13 @@ assets/
                         tab-home/logbook/hat/gear.svg (tab bar, currentColor),
                         icon-mic.svg, icon-hand-quill.svg (Sage and Scribe mode buttons, currentColor)
     tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
-    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-codex-cream and panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) are the ones in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger are the script sources
+    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-codex-cream and panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) are the ones in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger sources are in art-source/panels/
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
-    sage/               fire-red-loop.webp, fire-blue-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1..8 and fire-blue-1..8 (the Figma keyframes they are built from, on one shared canvas, 3x PNG; frame 1 is the Reduce Motion still)
+    sage/               fire-red-loop.webp, fire-blue-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1 and fire-blue-1 (3x PNG Reduce Motion stills; with keyframes 2..8 in art-source/sage/ they are the Figma keyframes the loops are built from)
     tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
-  Sage/                 orb model
+  models/               sage-avatar.glb (the 3D Sage orb)
+art-source/             source art for scripts/build-sage-fire.py and build-cream-panels.py (not bundled)
 supabase/
   config.toml           local CLI config; both functions verify the user's JWT
   migrations/           schema, RLS and party_sheets, in order

@@ -8,7 +8,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parent.parent / "assets/images/panels"
+ROOT = Path(__file__).resolve().parent.parent / "assets/images/panels"  # output (shipped)
+ART = Path(__file__).resolve().parent.parent / "art-source/panels"  # tan source art (not shipped)
 TARGET = np.array([255, 246, 226], np.float32)  # #FFF6E2
 STRENGTH = 0.6
 LO, HI = 100.0, 162.0  # brightness ramp: untouched below LO, full strength above HI
@@ -21,11 +22,11 @@ def cream(rgb: np.ndarray) -> np.ndarray:
 
 
 def run(name: str) -> None:
-    frame = np.array(Image.open(ROOT / f"{name}-frame@3x.png").convert("RGBA")).astype(np.float32)
+    frame = np.array(Image.open(ART / f"{name}-frame@3x.png").convert("RGBA")).astype(np.float32)
     out = frame.copy()
     out[..., :3] = cream(frame[..., :3])
     Image.fromarray(out.astype(np.uint8), "RGBA").save(ROOT / f"{name}-cream-frame@3x.png", optimize=True)
-    fill = np.array(Image.open(ROOT / f"{name}-fill@3x.jpg").convert("RGB")).astype(np.float32)
+    fill = np.array(Image.open(ART / f"{name}-fill@3x.jpg").convert("RGB")).astype(np.float32)
     Image.fromarray(cream(fill), "RGB").save(ROOT / f"{name}-cream-fill@3x.jpg", quality=88, optimize=True)
     print("wrote", name)
 

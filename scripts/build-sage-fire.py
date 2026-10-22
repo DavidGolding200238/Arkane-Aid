@@ -1,4 +1,6 @@
 # Builds assets/images/sage/fire-{red,blue}-loop.webp (dev tool, not part of the app).
+# Keyframe 1 ships with the app (the Reduce Motion still); keyframes 2-8 are source art only and
+# live in art-source/sage/ so nothing under assets/ is unused.
 # Usage: pip install opencv-python-headless numpy pillow && python scripts/build-sage-fire.py
 #
 # Smooth in-between flame frames from the 8 aligned Sage fire keyframes.
@@ -10,6 +12,7 @@ import cv2, numpy as np, os, sys
 from PIL import Image
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC=os.path.join(ROOT,'assets/images/sage')
+ART=os.path.join(ROOT,'art-source/sage')
 OUT=os.path.join(ROOT,'.cache/sage-fire-frames')
 STEPS=int(sys.argv[1]) if len(sys.argv)>1 else 9
 def bleed(rgb, a):
@@ -26,7 +29,7 @@ def sdf(core):
     m=core.astype(np.uint8)
     return (cv2.distanceTransform(1-m,cv2.DIST_L2,5)-cv2.distanceTransform(m,cv2.DIST_L2,5)).astype(np.float32)
 def load(c,i):
-    f=np.array(Image.open(f'{SRC}/fire-{c}-{i}@3x.png').convert('RGBA')).astype(np.float32)/255
+    f=np.array(Image.open(f'{SRC if i==1 else ART}/fire-{c}-{i}@3x.png').convert('RGBA')).astype(np.float32)/255
     a=f[...,3]; core=a>0.5
     return dict(rgb=bleed(f[...,:3],a), a=a, sdf=sdf(core), fringe=np.where(core,0,a))
 keys={c:[load(c,i) for i in range(1,9)] for c in ['red','blue']}

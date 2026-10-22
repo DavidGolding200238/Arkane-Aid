@@ -8,7 +8,7 @@ import { GLTFLoader } from "three-stdlib";
 import * as THREE from "three";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro asset require
-const model = require("../../assets/Sage/ux_ai_avatar.glb");
+const model = require("../../assets/models/sage-avatar.glb");
 
 // @react-three/fiber 9.8 builds a THREE.Clock inside every Canvas it creates (one per visit to the
 // Sage), and three r183+ warns that Clock is deprecated each time. That code is inside R3F, not

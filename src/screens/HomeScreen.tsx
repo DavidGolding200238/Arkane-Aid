@@ -14,9 +14,9 @@ import { StatusBar } from "expo-status-bar";
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
 import { colors, DESIGN_HEIGHT, DESIGN_WIDTH, fonts, inkText, useAppFonts, useScale } from "../theme";
-import Witch from "../../assets/Icons/icons8-witch-hat.svg";
-import Book from "../../assets/Icons/icons8-book.svg";
-import Settings from "../../assets/Icons/icons8-settings.svg";
+import Witch from "../../assets/icons/icons8-witch-hat.svg";
+import Book from "../../assets/icons/icons8-book.svg";
+import Settings from "../../assets/icons/icons8-settings.svg";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // 3x transparent exports from the Figma dashboard frame 2320:2434.
