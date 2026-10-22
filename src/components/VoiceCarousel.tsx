@@ -18,8 +18,8 @@ const ARROW_LEFT = require("../../assets/images/tome/arrow-left.png");
 const ARROW_RIGHT = require("../../assets/images/tome/arrow-right.png");
 const ARROW_RATIO = 123 / 106;
 
-// Browsing to a voice picks it. A voice that is not ready yet (Bard) can be
-// looked at but leaves the saved choice alone.
+// Browsing to a voice picks it. A voice marked unavailable can be looked at
+// but leaves the saved choice alone.
 export default function VoiceCarousel() {
   const { s, fs } = useScale();
   const { voice, setVoice, ready } = useVoice();
@@ -94,8 +94,12 @@ export default function VoiceCarousel() {
         <Text style={[styles.name, !shown.available && styles.nameSoon, { fontSize: fs(20) }]}>{shown.label}</Text>
         <Rule width={s(82)} thickness={1.5} color={colors.rule} style={{ marginTop: s(2) }} />
       </View>
-      <Text style={[styles.caption, { fontSize: fs(13), marginTop: s(6), minHeight: fs(18) }]}>
-        {shown.available ? "The Sage will speak with this voice" : `Coming soon · the Sage keeps ${savedLabel}`}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        style={[styles.caption, { fontSize: fs(13), marginTop: s(6), minHeight: fs(18) }]}
+      >
+        {shown.available ? shown.blurb : `Coming soon · the Sage keeps ${savedLabel}`}
       </Text>
     </View>
   );

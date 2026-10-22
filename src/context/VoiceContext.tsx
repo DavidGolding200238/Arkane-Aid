@@ -1,9 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import Storage from "expo-sqlite/kv-store";
 
-// The Sage's speaking voice, picked on the Tome screen and read by the Sage
-// screen (Wizard = ornate "wizard" persona and red fire, Plain = blue). Stored on the device (expo-sqlite key-value
-// store, already used by the Supabase session), not in the database.
+// The Sage's personality, picked on the Tome screen and read by the Sage screen.
+// - Wizard: the Sage in an ornate court-mage style (style "wizard"), red fire, Chirp voice Algenib.
+// - Plain:  the Sage, short and direct (persona "sage"), blue fire, Chirp voice Charon.
+// - Bard:   the Bard persona (mode "bard"), a ruling with a rhyme, blue fire, Chirp voice Puck.
+// The facts rules are the same for all three; only the tone and voice change.
+// Stored on the device (expo-sqlite key-value store, already used by the Supabase
+// session), not in the database.
 
 export type VoiceId = "wizard" | "plain" | "bard";
 
@@ -12,14 +16,16 @@ export type VoiceOption = {
   label: string;
   /** Orb colour in the Figma Sage variants. */
   colour: "red" | "blue" | "green";
+  /** One short line under the name on the Tome. */
+  blurb: string;
   /** false = shown in the carousel as "Coming soon" and cannot be chosen. */
   available: boolean;
 };
 
 export const VOICES: readonly VoiceOption[] = [
-  { id: "wizard", label: "Wizard", colour: "red", available: true },
-  { id: "plain", label: "Plain", colour: "blue", available: true },
-  { id: "bard", label: "Bard", colour: "green", available: false },
+  { id: "wizard", label: "Wizard", colour: "red", blurb: "The Sage as an old court mage", available: true },
+  { id: "plain", label: "Plain", colour: "blue", blurb: "The Sage, short and direct", available: true },
+  { id: "bard", label: "Bard", colour: "green", blurb: "Rulings with a rhyme and a wink", available: true },
 ];
 
 export const DEFAULT_VOICE: VoiceId = "wizard";

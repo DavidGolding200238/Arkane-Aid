@@ -75,7 +75,7 @@ The Sage button uses the voice picked on the Tome (Plain, Wizard or Bard), so Ba
 
 ### Settings (Tome)
 
-The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage voice (Wizard or Plain; Bard is ready on the server and switches on by setting `available: true` for Bard in `src/context/VoiceContext.tsx`). The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage personality with the red arrows: Wizard (the Sage as an ornate court mage, Chirp voice Algenib), Plain (the Sage, short and direct, Charon) or Bard (the ruling with a rhyme, Puck). The choice is saved on the device. The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
 
 ---
 
