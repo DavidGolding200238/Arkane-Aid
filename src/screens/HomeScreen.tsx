@@ -1,16 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   Animated,
   Easing,
   Image,
   PanResponder,
-  Platform,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import * as NavigationBar from "expo-navigation-bar";
 
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
@@ -76,11 +74,6 @@ export default function HomeScreen({ onOpen }: Props) {
   openRef.current = onOpen;
 
   const fontsLoaded = useAppFonts();
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    NavigationBar.setPositionAsync("relative").catch(() => undefined);
-  }, []);
 
   const stageW = DESIGN_WIDTH * s;
   const stageH = DESIGN_HEIGHT * s;

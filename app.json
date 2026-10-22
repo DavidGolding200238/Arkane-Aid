@@ -5,13 +5,26 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "androidNavigationBar": {
-      "backgroundColor": "#000000",
-      "barStyle": "light-content"
-    },
     "android": {
-      "package": "za.co.openwindow.arkaneaid",
-      "navigationBarColor": "#000000"
+      "package": "za.co.openwindow.arkaneaid"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset",
+      "expo-font",
+      "expo-sqlite"
+    ],
+    "scheme": "arkaneaid",
+    "ios": {
+      "bundleIdentifier": "za.co.openwindow.arkaneaid"
     }
   }
 }
