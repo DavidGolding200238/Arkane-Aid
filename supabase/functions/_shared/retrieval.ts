@@ -349,8 +349,10 @@ export class SrdIndex {
     const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
     const hits: SrdHit[] = [];
     let used = 0;
+    // Weak matches far below the best one are noise that only costs tokens.
+    const floor = (ranked[0]?.[1] ?? 0) * 0.35;
     for (const [id, score] of ranked) {
-      if (hits.length >= limit) break;
+      if (hits.length >= limit || score < floor) break;
       const chunk = this.chunks[id];
       if (used + chunk.x.length > maxChars && hits.length > 0) continue;
       used += chunk.x.length;

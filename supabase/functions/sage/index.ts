@@ -1,78 +1,122 @@
-import personalities from "../../../src/data/sage-personalities.json" with { type: "json" };
+// The Sage, the Scribe and the Bard: one SRD 5.2.1 knowledge base, three voices.
+//
+// POST { question, mode?: "sage"|"scribe"|"bard", style?: "plain"|"wizard", sheet?, partyId? }
+//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded }
+// Errors -> { error, code } (see _shared/http.ts).
+// Needs the GROQ_API_KEY function secret. Players must be signed in.
+import { requireUser, type Caller } from "../_shared/auth.ts";
+import { chat, GroqError, tidy } from "../_shared/groq.ts";
+import { fail, json, preflight, readJson, text } from "../_shared/http.ts";
+import { PERSONAS, resolveMode, systemPrompt, type SageStyle } from "../_shared/personas.ts";
+import type { SearchResult } from "../_shared/retrieval.ts";
+import { srd } from "../_shared/srd.ts";
 
-type PersonaName = keyof typeof personalities;
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type, apikey",
-};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Questions that are about the table as a whole get the party's sheets as context.
+const ABOUT_PARTY = /\b(party|we|our|us|everyone|everybody|anyone|anybody|who|group|team|together|all of)\b/i;
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
-  }
+  const early = preflight(request);
+  if (early) return early;
+
+  const caller = await requireUser(request);
+  if (!caller) return fail(401, "unauthorized", "Sign in to ask the Sage.");
 
   const key = Deno.env.get("GROQ_API_KEY");
-  if (!key) {
-    return Response.json(
-      { error: "GROQ_API_KEY is not set on this function yet." },
-      { status: 503, headers: cors }
+  if (!key) return fail(503, "not_configured", "The Sage is not set up yet (GROQ_API_KEY is missing).");
+
+  const body = await readJson(request);
+  const resolved = resolveMode(body.mode ?? body.persona);
+  if (!resolved) return fail(400, "bad_request", "Unknown mode. Use sage, scribe or bard.");
+  const persona = PERSONAS[resolved.mode];
+  const style: SageStyle = resolved.style ?? (body.style === "wizard" ? "wizard" : "plain");
+
+  const question = text(body.question, 1500);
+  if (!question) return fail(400, "bad_request", "Ask a question first.");
+  const sheet = text(body.sheet, 2000);
+  const partyId = typeof body.partyId === "string" && UUID.test(body.partyId) ? body.partyId : null;
+
+  const found = srd.search(question, { limit: persona.srdLimit });
+  const party = partyId && ABOUT_PARTY.test(question) ? await partyContext(caller, partyId) : "";
+
+  let reply: string;
+  try {
+    reply = tidy(
+      await chat(key, {
+        model: persona.model,
+        temperature: persona.temperature,
+        maxTokens: persona.maxTokens,
+        messages: [
+          { role: "system", content: systemPrompt(persona.mode, style) },
+          { role: "user", content: userMessage(question, found, sheet, party) },
+        ],
+      }),
     );
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    console.error("sage: groq failed", error instanceof GroqError ? error.status : timedOut ? "timeout" : error);
+    return fail(502, "upstream_failed", timedOut ? "The Sage took too long. Try again." : "The Sage could not answer just now. Try again.");
   }
+  if (!reply) return fail(502, "empty_reply", "The Sage had nothing to say. Try asking another way.");
 
-  const payload = await request.json().catch(() => ({}));
-  const personaName = (payload.persona ?? "sage") as PersonaName;
-  const persona = personalities[personaName];
-  const question = String(payload.question ?? "").trim();
-  const sheet = String(payload.sheet ?? "").trim();
-
-  if (!persona) {
-    return Response.json(
-      { error: `Unknown persona. Use ${Object.keys(personalities).join(", ")}.` },
-      { status: 400, headers: cors }
-    );
-  }
-  if (!question) {
-    return Response.json({ error: "Missing question." }, { status: 400, headers: cors });
-  }
-
-  const userContent =
-    sheet && !question.includes("Sheet:")
-      ? `Sheet: ${sheet}\nQ: ${question}`
-      : question;
-
-  const groq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: persona.model,
-      temperature: persona.temperature,
-      max_tokens: 512,
-      reasoning_effort: "low",
-      messages: [
-        { role: "system", content: persona.system },
-        { role: "user", content: userContent },
-      ],
-    }),
+  return json({
+    mode: persona.mode,
+    persona: persona.name,
+    reply,
+    sources: found.hits.map((hit) => ({ title: hit.title, citation: hit.citation, page: hit.page })),
+    corrections: found.corrections,
+    grounded: found.grounded,
   });
-
-  const data = await groq.json();
-  if (!groq.ok) {
-    const detail = data?.error?.message ?? "Groq rejected the request.";
-    return Response.json({ error: detail }, { status: 502, headers: cors });
-  }
-
-  const message = data.choices?.[0]?.message ?? {};
-  const reply = String(message.content || message.reasoning || "").trim();
-
-  return Response.json(
-    {
-      persona: persona.name,
-      reply,
-    },
-    { headers: cors }
-  );
 });
+
+function userMessage(question: string, found: SearchResult, sheet: string, party: string): string {
+  const parts: string[] = [];
+  if (found.hits.length) {
+    const extracts = found.hits.map((hit) => `[${hit.citation}]\n${hit.text}`).join("\n\n");
+    parts.push(`<srd>\n${extracts}\n</srd>`);
+  } else {
+    parts.push("<srd>\nNo matching SRD 5.2.1 entry.\n</srd>");
+  }
+  if (found.corrections.length) {
+    parts.push(`<corrections>${found.corrections.map((c) => `"${c.from}" means ${c.to}`).join("; ")}</corrections>`);
+  }
+  if (sheet) parts.push(`<sheet>\n${sheet}\n</sheet>`);
+  if (party) parts.push(`<party>\n${party}\n</party>`);
+  parts.push(`Question: ${question}`);
+  return parts.join("\n\n");
+}
+
+type PartySheet = {
+  name: string;
+  class: string | null;
+  race: string | null;
+  level: number;
+  hp_current: number;
+  hp_max: number;
+  ac: number;
+  speed: number;
+  skills: string[] | null;
+  traits: string[] | null;
+  gear: string[] | null;
+  is_me: boolean;
+};
+
+/** The party's sheets, read as the player (RLS + party_sheets only return their own party). */
+async function partyContext(caller: Caller, partyId: string): Promise<string> {
+  const { data, error } = await caller.db.rpc("party_sheets", { target: partyId });
+  if (error || !Array.isArray(data)) {
+    if (error) console.error("sage: party_sheets failed", error.code);
+    return "";
+  }
+  return (data as PartySheet[])
+    .map((c) => {
+      const who = [c.name || "Unnamed", c.is_me ? "(the asker)" : "", c.race, c.class, `level ${c.level}`].filter(Boolean).join(" ");
+      const bits = [`AC ${c.ac}`, `HP ${c.hp_current}/${c.hp_max}`, `speed ${c.speed}`];
+      if (c.skills?.length) bits.push(`skills: ${c.skills.join(", ")}`);
+      if (c.traits?.length) bits.push(`traits: ${c.traits.slice(0, 8).join(", ")}`);
+      if (c.gear?.length) bits.push(`gear: ${c.gear.slice(0, 10).join(", ")}`);
+      return `${who}. ${bits.join("; ")}.`;
+    })
+    .join("\n")
+    .slice(0, 2500);
+}
