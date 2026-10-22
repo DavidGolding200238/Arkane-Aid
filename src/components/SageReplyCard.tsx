@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+  View,
+} from "react-native";
 import CircleButton from "./CircleButton";
 import ParchmentPanel from "./ParchmentPanel";
 import Rule from "./Rule";
@@ -77,15 +86,18 @@ export default function SageReplyCard({
   const { s, fs } = useScale();
   const [shown, setShown] = useState(0);
   const [caretOn, setCaretOn] = useState(true);
-  const fade = useRef(new Animated.Value(0)).current;
+  const fade = useAnimatedValue(0);
   const writing = shown < text.length;
   const cpsRef = useRef(cps);
-  cpsRef.current = cps;
+  useEffect(() => {
+    cpsRef.current = cps;
+  }, [cps]);
 
   // Fade and lift in when a new reply lands, then start writing.
   useEffect(() => {
     let live = true;
     let id: ReturnType<typeof setInterval> | undefined;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restart the typewriter when a new reply arrives
     setShown(0);
     fade.setValue(0);
     Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
@@ -112,6 +124,7 @@ export default function SageReplyCard({
   }, [text, fade]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- jump to the full text when the parent marks it finished
     if (finished) setShown(text.length);
   }, [finished, text]);
 

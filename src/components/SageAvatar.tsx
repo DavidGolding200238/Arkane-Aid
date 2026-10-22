@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property -- three.js props on @react-three/fiber elements (object, args, intensity...) */
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Canvas, useFrame } from "@react-three/fiber/native";
@@ -6,6 +7,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from "three";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro asset require
 const model = require("../../assets/Sage/ux_ai_avatar.glb");
 
 // @react-three/fiber 9.8 builds a THREE.Clock inside every Canvas it creates (one per visit to the

@@ -22,6 +22,8 @@ const LazySageScreen = lazy(loadSageScreen);
 // away. If it isn't loaded yet (the preload timed out), fall back to loading it here.
 function SageEntry(props: { onBack: () => void; onOpenTome: () => void }) {
   const Loaded = loadedSageScreen();
+  // The loaded screen is a module-level component cached by preload, not one created here.
+  // eslint-disable-next-line react-hooks/static-components
   if (Loaded) return <Loaded {...props} />;
   return (
     <Suspense fallback={<SageLoading />}>
@@ -89,7 +91,6 @@ function Gate() {
   }
   if (!user) return <LoginScreen />;
 
-  const tabbed = screen === "home" || screen === "sage" || screen === "codex" || screen === "ledger" || screen === "settings";
 
   return (
     <PartyProvider>

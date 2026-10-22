@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, type MutableRefObject } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
+import { Animated, Easing, StyleSheet, useAnimatedValue, View } from "react-native";
 
 type Props = {
   /** Orb centre and radius inside the stage, in dp. Embers rise from the flames on its lower edge. */
@@ -18,13 +18,13 @@ const BLUE = ["#9FF3E3", "#5FD6C6"];
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; radius: number; blue: Animated.Value; gap: MutableRefObject<[number, number]>; index: number }) {
-  const progress = useRef(new Animated.Value(0)).current;
-  const x = useRef(new Animated.Value(0)).current;
-  const y = useRef(new Animated.Value(0)).current;
-  const rise = useRef(new Animated.Value(0)).current;
-  const sway = useRef(new Animated.Value(0)).current;
-  const size = useRef(rand(2.6, 4.4)).current;
+function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; radius: number; blue: Animated.Value; gap: RefObject<[number, number]>; index: number }) {
+  const progress = useAnimatedValue(0);
+  const x = useAnimatedValue(0);
+  const y = useAnimatedValue(0);
+  const rise = useAnimatedValue(0);
+  const sway = useAnimatedValue(0);
+  const [size] = useState(() => rand(2.6, 4.4));
 
   useEffect(() => {
     let live = true;
@@ -76,7 +76,9 @@ function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; r
 // single native animation; JS only picks a new random start between rises.
 function Embers({ cx, cy, radius, blue, gapMs, count = 8 }: Props) {
   const gap = useRef(gapMs);
-  gap.current = gapMs;
+  useEffect(() => {
+    gap.current = gapMs;
+  }, [gapMs]);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>

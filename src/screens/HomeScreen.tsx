@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -6,6 +6,7 @@ import {
   PanResponder,
   StyleSheet,
   Text,
+  useAnimatedValue,
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -68,10 +69,12 @@ function wrapDelta(delta: number) {
 export default function HomeScreen({ onOpen }: Props) {
   // fit = min(width / 360, height / 780), the same stage scale as before.
   const { fit: s } = useScale();
-  const rot = useRef(new Animated.Value(0)).current;
+  const rot = useAnimatedValue(0);
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
-  openRef.current = onOpen;
+  useLayoutEffect(() => {
+    openRef.current = onOpen;
+  }, [onOpen]);
 
   const fontsLoaded = useAppFonts();
 
@@ -87,7 +90,9 @@ export default function HomeScreen({ onOpen }: Props) {
   const ly = wheel / 2;
 
   const metrics = useRef({ lx, ly, orbit, seal });
-  metrics.current = { lx, ly, orbit, seal };
+  useLayoutEffect(() => {
+    metrics.current = { lx, ly, orbit, seal };
+  }, [lx, ly, orbit, seal]);
 
   const rotate = rot.interpolate({
     inputRange: [-1, 1],
@@ -99,7 +104,9 @@ export default function HomeScreen({ onOpen }: Props) {
   });
 
   const drag = useRef({ x: 0, y: 0, a0: 0, moved: 0 });
-  const pan = useRef(
+  // The handlers only read the refs when a touch happens, never during render.
+  // eslint-disable-next-line react-hooks/refs
+  const [pan] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
@@ -169,7 +176,7 @@ export default function HomeScreen({ onOpen }: Props) {
         }).start();
       },
     })
-  ).current;
+  );
 
   if (!fontsLoaded) return <View style={styles.fallback} />;
 

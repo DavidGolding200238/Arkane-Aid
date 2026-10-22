@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PageHeader from "../components/PageHeader";
@@ -89,7 +100,7 @@ export default function SageScreen({ onBack }: Props) {
   const scroll = useRef<ScrollView>(null);
   // Follow the quill down the page until the user scrolls by hand.
   const follow = useRef(false);
-  const glow = useRef(new Animated.Value(1)).current;
+  const glow = useAnimatedValue(1);
   // Layout of the page, for the soft fades: screen size, header height, and the scroll area.
   const [screen, setScreen] = useState({ w: 0, h: 0 });
   const insets = useSafeAreaInsets();

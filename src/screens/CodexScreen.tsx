@@ -75,6 +75,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   }, [partyId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch from Supabase when the party changes
     load();
   }, [load]);
 

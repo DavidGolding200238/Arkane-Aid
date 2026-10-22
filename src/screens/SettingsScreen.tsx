@@ -1,5 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useAnimatedValue,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "../components/PageHeader";
 import CircleButton from "../components/CircleButton";
@@ -43,7 +53,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const [open, setOpen] = useState<Section>(null);
   const [boundW, setBoundW] = useState(0);
   // The reload icon turns while the party list is loading.
-  const spin = useRef(new Animated.Value(0)).current;
+  const spin = useAnimatedValue(0);
   useEffect(() => {
     if (!loading) {
       spin.stopAnimation();

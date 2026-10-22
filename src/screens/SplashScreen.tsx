@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, Easing, Image, StyleSheet, Text, useAnimatedValue, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
@@ -32,7 +25,7 @@ type Props = {
 export default function SplashScreen({ progress = 0, ready = false, onFinish }: Props) {
   // Same Figma-unit scaling as every other screen (360 wide design, see theme/scale).
   const { s, fs, height } = useScale();
-  const spin = useRef(new Animated.Value(0)).current;
+  const spin = useAnimatedValue(0);
   const [percent, setPercent] = useState(0);
   const [titleW, setTitleW] = useState(220);
 
@@ -57,7 +50,7 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
   // The percentage eases towards the real progress instead of jumping task by task. When
   // everything is loaded it finishes counting to 100%, then lets the user in. The ring's
   // orbiting gold dots are decoration and keep spinning as before.
-  const shown = useRef(new Animated.Value(0)).current;
+  const shown = useAnimatedValue(0);
   const finished = useRef(false);
   useEffect(() => {
     const id = shown.addListener(({ value }) => setPercent(Math.round(value * 100)));

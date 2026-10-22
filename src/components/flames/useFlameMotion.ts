@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, useAnimatedValue } from "react-native";
 
 export type FlameMood = "idle" | "listening" | "thinking" | "speaking";
 export type FlameColour = "red" | "blue";
@@ -45,8 +45,8 @@ export function useReduceMotion() {
  * glow: heat glow strength.
  */
 export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boolean) {
-  const blue = useRef(new Animated.Value(colour === "blue" ? 1 : 0)).current;
-  const glow = useRef(new Animated.Value(MOODS.idle.glowLow)).current;
+  const blue = useAnimatedValue(colour === "blue" ? 1 : 0);
+  const glow = useAnimatedValue(MOODS.idle.glowLow);
 
   const settings = reduce ? MOODS.idle : MOODS[mood];
 

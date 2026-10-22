@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import SageAvatar from "./SageAvatar";
 import FireLoop from "./flames/FireLoop";
 import FlameGlow from "./flames/FlameGlow";

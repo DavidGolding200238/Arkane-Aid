@@ -28,6 +28,7 @@ export default function VoiceCarousel() {
 
   // Jump to the saved voice once it has been read from the device.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync once the saved voice has been read from storage
     if (ready) setIndex(indexOf(voice));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
