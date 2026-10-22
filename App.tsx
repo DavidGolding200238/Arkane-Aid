@@ -14,6 +14,7 @@ import CreatePartyScreen from "./src/screens/CreatePartyScreen";
 import JoinPartyScreen from "./src/screens/JoinPartyScreen";
 import TabBar from "./src/components/TabBar";
 import type { AppScreen } from "./src/navigation/screens";
+import { colors } from "./src/theme";
 import { loadedSageScreen, loadSageScreen, runPreload } from "./src/lib/preload";
 
 const LazySageScreen = lazy(loadSageScreen);
@@ -129,16 +130,16 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  root: { flex: 1, backgroundColor: colors.wash },
   error: {
     flex: 1,
-    backgroundColor: "#E8D7B8",
+    backgroundColor: colors.wash,
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
     gap: 8,
   },
-  errorTitle: { color: "#1A1816", fontSize: 18 },
-  errorBody: { color: "#5A5348", fontSize: 15, textAlign: "center" },
-  errorBack: { color: "#A33A3A", fontSize: 16, marginTop: 12 },
+  errorTitle: { color: colors.ink, fontSize: 18 },
+  errorBody: { color: colors.muted, fontSize: 15, textAlign: "center" },
+  errorBack: { color: colors.wordmark, fontSize: 16, marginTop: 12 },
 });
