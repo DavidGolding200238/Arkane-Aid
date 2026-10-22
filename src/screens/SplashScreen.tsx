@@ -5,7 +5,7 @@ import { useFonts } from "expo-font";
 import { CinzelDecorative_400Regular } from "@expo-google-fonts/cinzel-decorative";
 import { AtkinsonHyperlegible_400Regular_Italic } from "@expo-google-fonts/atkinson-hyperlegible";
 import Rule from "../components/Rule";
-import { inkText, useScale } from "../theme";
+import { colors, inkText, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // 3x art from Figma (Splash 2312:378). The dragon skull is the same Figma bitmap as the Dashboard's.
@@ -123,7 +123,7 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
           Arkane Aid
         </Text>
         {/* The inked underline (Figma Rectangle 4901), centred in the old 10 dp slot. */}
-        <Rule width={titleW} color="#2E2E2E" style={{ marginTop: -s(4), marginBottom: s(10) }} />
+        <Rule width={titleW} color={colors.rule} style={{ marginTop: -s(4), marginBottom: s(10) }} />
 
         <View style={[styles.loaderWrap, { width: loaderSize, height: loaderSize }]}>
           <Animated.Image
@@ -148,8 +148,8 @@ export default function SplashScreen({ progress = 0, ready = false, onFinish }: 
 }
 
 const styles = StyleSheet.create({
-  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  fallback: { flex: 1, backgroundColor: colors.wash },
+  root: { flex: 1, backgroundColor: colors.wash },
   parchment: {
     position: "absolute",
     top: 0,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#A33A3A",
+    color: colors.wordmark,
     textAlign: "center",
     opacity: 0.82,
     ...inkText.red,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: "#5A5348",
+    color: colors.muted,
     letterSpacing: 1.4,
     textAlign: "center",
     opacity: 0.78,

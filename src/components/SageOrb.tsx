@@ -2,6 +2,7 @@ import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import SageAvatar from "./SageAvatar";
 import FireLoop from "./flames/FireLoop";
+import { colors } from "../theme";
 import FlameGlow from "./flames/FlameGlow";
 import Embers from "./flames/Embers";
 import { useFlameMotion, useReduceMotion, type FlameColour, type FlameMood } from "./flames/useFlameMotion";
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   // Soft dark glow around the orb, like the Figma drop shadow.
   halo: {
     position: "absolute",
-    backgroundColor: "#1A0A0A",
+    backgroundColor: colors.orbBackdrop,
     elevation: 14,
     shadowColor: "#000",
     shadowOpacity: 0.55,

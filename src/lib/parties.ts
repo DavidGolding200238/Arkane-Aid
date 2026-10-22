@@ -17,14 +17,6 @@ export type Membership = {
   party: Party;
 };
 
-export type LedgerEntry = {
-  id: string;
-  party_id: string;
-  author_id: string;
-  body: string;
-  created_at: string;
-};
-
 export type Profile = {
   id: string;
   display_name: string | null;
@@ -48,15 +40,6 @@ export async function joinParty(code: string): Promise<Party> {
   const { data, error } = await supabase.rpc("join_party", { join_code: code });
   if (error) throw error;
   return data as Party;
-}
-
-export async function myParties(): Promise<Party[]> {
-  const { data, error } = await supabase
-    .from("parties")
-    .select("id, code, name, created_by, created_at")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Party[];
 }
 
 export type Seat = {
@@ -127,29 +110,3 @@ export async function myProfile(): Promise<Profile | null> {
   return data as Profile | null;
 }
 
-export async function addLedgerEntry(partyId: string, body: string): Promise<void> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  if (!userData.user) throw new Error("Not signed in");
-
-  const trimmed = body.trim();
-  if (!trimmed) throw new Error("Write a line before saving.");
-  if (trimmed.length > 2000) throw new Error("Ledger lines stop at 2000 characters.");
-
-  const { error } = await supabase.from("ledger_entries").insert({
-    party_id: partyId,
-    author_id: userData.user.id,
-    body: trimmed,
-  });
-  if (error) throw error;
-}
-
-export async function partyLedger(partyId: string): Promise<LedgerEntry[]> {
-  const { data, error } = await supabase
-    .from("ledger_entries")
-    .select("id, party_id, author_id, body, created_at")
-    .eq("party_id", partyId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as LedgerEntry[];
-}

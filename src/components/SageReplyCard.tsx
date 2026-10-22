@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     backgroundColor: colors.panel,
     elevation: 6,
-    shadowColor: "#2A1C0A",
+    shadowColor: colors.shadowBrown,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

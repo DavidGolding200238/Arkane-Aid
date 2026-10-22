@@ -6,6 +6,7 @@ import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from "three";
+import { colors } from "../theme";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro asset require
 const model = require("../../assets/models/sage-avatar.glb");
@@ -38,8 +39,8 @@ const kept = new Set(["Sphere", "Core", "Ellipse", "Ellipse 2"]);
 function materialFor(name: string) {
   if (name === "Core") {
     return new THREE.MeshStandardMaterial({
-      color: "#F6D77A",
-      emissive: "#BD7F02",
+      color: colors.orbGlow,
+      emissive: colors.gold,
       emissiveIntensity: 0.85,
       roughness: 0.22,
       metalness: 0.18,
@@ -47,7 +48,7 @@ function materialFor(name: string) {
   }
   if (name.startsWith("Ellipse")) {
     return new THREE.MeshStandardMaterial({
-      color: "#A33A3A",
+      color: colors.wordmark,
       roughness: 0.4,
       metalness: 0.05,
       side: THREE.DoubleSide,
@@ -176,10 +177,10 @@ export default function SageAvatar({ size = 260 }: { size?: number }) {
   return (
     <View style={[styles.slot, { width: size, height: size, borderRadius: size / 2 }]} collapsable={false}>
       <Canvas gl={createRenderer} style={{ width: size, height: size }} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
-        <color attach="background" args={["#1A0A0A"]} />
+        <color attach="background" args={[colors.orbBackdrop]} />
         <ambientLight intensity={1.1} />
         <directionalLight position={[2.2, 3, 2.4]} intensity={1.6} />
-        <pointLight position={[0, 0, 0.4]} intensity={1.3} color="#F6D77A" />
+        <pointLight position={[0, 0, 0.4]} intensity={1.3} color={colors.orbGlow} />
         {orb ? <Spinning object={orb} /> : null}
       </Canvas>
       {!orb ? (
@@ -192,7 +193,7 @@ export default function SageAvatar({ size = 260 }: { size?: number }) {
 const styles = StyleSheet.create({
   slot: {
     overflow: "hidden",
-    backgroundColor: "#1A0A0A",
+    backgroundColor: colors.orbBackdrop,
     alignSelf: "center",
   },
   note: {
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 16,
-    color: "#F6D77A",
+    color: colors.orbGlow,
     fontSize: 12,
     textAlign: "center",
   },

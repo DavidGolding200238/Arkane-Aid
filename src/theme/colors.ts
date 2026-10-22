@@ -23,14 +23,11 @@ export const colors = {
   rule: "#2E2E2E", // thin divider lines
   chevron: "#2C2C2C",
   portrait: "#C8B48A",
+
+  // The Sage orb
+  orbBackdrop: "#1A0A0A", // dark disc behind the 3D orb
+  orbGlow: "#F6D77A", // warm gold of the orb light and its fallback text
+  shadowBrown: "#2A1C0A", // deep brown used for the vignette edge and the reply card shadow
 } as const;
 
 export type ColorName = keyof typeof colors;
-
-// Older names kept so nothing that imported them breaks.
-export const ink = colors.ink;
-export const parchment = colors.cream;
-export const accent = colors.primary;
-export const secondary = colors.gold;
-export const blood = colors.wordmark;
-export const wash = colors.wash;
