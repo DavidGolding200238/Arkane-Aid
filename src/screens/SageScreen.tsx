@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from "react-native";
-import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PageHeader from "../components/PageHeader";
@@ -14,7 +13,8 @@ import { useParty } from "../context/PartyContext";
 import { useVoice } from "../context/VoiceContext";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
-import { askSage, type SagePersona } from "../lib/sage";
+import { askSage, type SageMode, type SagePersona } from "../lib/sage";
+import { prepareDeviceVoices, speak, speechPace, stopSpeaking, type SpeakerVoice } from "../lib/voice";
 import { errorText } from "../lib/parties";
 import { colors, fonts, spacing, useAppFonts, useScale } from "../theme";
 
@@ -35,67 +35,28 @@ function cleanReply(text: string) {
     .trim();
 }
 
-let wizardVoice = "";
-
-function scoreVoice(voice: { identifier?: string; name?: string; language?: string }) {
-  const id = `${voice.identifier ?? ""} ${voice.name ?? ""}`.toLowerCase();
-  const lang = (voice.language ?? "").toLowerCase();
-  if (!lang.startsWith("en")) return -1;
-  if (/female|woman|samantha|victoria|karen|moira|tessa/.test(id)) return 0;
-  let score = 1;
-  if (/male|man|daniel|fred|rjs|iom|alex|bruce|ralph|gordon|arthur/.test(id)) score += 4;
-  if (/en-gb|en_gb|british|uk/.test(id) || lang.startsWith("en-gb")) score += 2;
-  if (/old|deep|low/.test(id)) score += 2;
-  return score;
-}
-
-async function loadWizardVoice() {
-  try {
-    const voices = await Speech.getAvailableVoicesAsync();
-    const ranked = voices
-      .map((voice) => ({ voice, score: scoreVoice(voice) }))
-      .filter((row) => row.score > 0)
-      .sort((a, b) => b.score - a.score);
-    wizardVoice = ranked[0]?.voice.identifier ?? "";
-  } catch {
-    wizardVoice = "";
-  }
-}
-
-const speechRate = (fancy: boolean) => (fancy ? 0.86 : 0.92);
-
-// onEnd runs however the speech stops; onDone only when it reached the end on its own.
-function speakReply(text: string, fancy: boolean, onEnd: () => void, onDone?: () => void) {
-  Speech.stop();
-  Speech.speak(text, {
-    language: "en",
-    rate: speechRate(fancy),
-    pitch: 1,
-    voice: fancy && wizardVoice ? wizardVoice : undefined,
-    onDone: () => {
-      onEnd();
-      onDone?.();
-    },
-    onStopped: onEnd,
-    onError: onEnd,
-  });
-}
-
 // How fast the quill writes, in characters per second, so it roughly keeps pace with the
-// speech: device voices read about 2.9 words a second at rate 1. Clamped so short replies
-// don't crawl and long ones don't race. When the speech finishes, the card completes anyway.
-function writingSpeed(text: string, fancy: boolean) {
+// speech (see speechPace). Clamped so short replies don't crawl and long ones don't race.
+// When the speech finishes, the card completes anyway.
+function writingSpeed(text: string, voice: SpeakerVoice) {
   const words = text.split(/\s+/).filter(Boolean).length || 1;
-  const seconds = words / (2.9 * speechRate(fancy));
+  const seconds = words / speechPace(voice);
   return Math.min(60, Math.max(20, text.length / seconds));
 }
 
 // One immersive line under the orb. It never changes height, so nothing below it moves.
-function statusLine(persona: SagePersona, busy: boolean, speaking: boolean, fancy: boolean) {
-  const sage = persona === "sage";
-  if (busy) return sage ? "Leafing through the tomes..." : "The quill scratches across the page...";
-  if (speaking) return sage ? (fancy ? "The Wizard speaks..." : "The Sage speaks...") : "The Scribe reads it back...";
-  return sage ? "The Sage awaits your question..." : "The Scribe's quill is ready...";
+function statusLine(mode: SageMode, busy: boolean, speaking: boolean, fancy: boolean) {
+  if (mode === "scribe") {
+    if (busy) return "The quill scratches across the page...";
+    return speaking ? "The Scribe reads it back..." : "The Scribe's quill is ready...";
+  }
+  if (mode === "bard") {
+    if (busy) return "The Bard tunes the lute...";
+    return speaking ? "The Bard sings..." : "The Bard awaits your question...";
+  }
+  if (busy) return "Leafing through the tomes...";
+  if (speaking) return fancy ? "The Wizard speaks..." : "The Sage speaks...";
+  return "The Sage awaits your question...";
 }
 
 function noteTitle(text: string) {
@@ -107,10 +68,13 @@ export default function SageScreen({ onBack }: Props) {
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
   // The voice is picked on the Tome. Wizard = ornate persona and red fire, anything else = plain Sage and blue fire.
+  // Bard (when it is enabled on the Tome) answers through the same Sage button.
   const { voice } = useVoice();
   const fancy = voice === "wizard";
   const { s, fs } = useScale();
   const [persona, setPersona] = useState<SagePersona>("sage");
+  const mode: SageMode = persona === "scribe" ? "scribe" : voice === "bard" ? "bard" : "sage";
+  const speaker: SpeakerVoice = mode === "sage" ? (fancy ? "wizard" : "sage") : mode;
   const [question, setQuestion] = useState("");
   const [asked, setAsked] = useState("");
   const [reply, setReply] = useState("");
@@ -135,9 +99,9 @@ export default function SageScreen({ onBack }: Props) {
   const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
   useEffect(() => {
-    loadWizardVoice();
+    prepareDeviceVoices();
     return () => {
-      Speech.stop();
+      stopSpeaking();
     };
   }, []);
 
@@ -177,7 +141,7 @@ export default function SageScreen({ onBack }: Props) {
       setError(persona === "sage" ? "Ask a real question. Three characters at least." : "Write a little more. Three characters at least.");
       return;
     }
-    Speech.stop();
+    stopSpeaking();
     setSpeaking(false);
     setError("");
     setReply("");
@@ -190,27 +154,23 @@ export default function SageScreen({ onBack }: Props) {
     setBusy(true);
     try {
       let brief = "";
-      if (persona === "sage" && needsSheet(trimmed)) {
+      if (mode !== "scribe" && needsSheet(trimmed)) {
         const character = await loadCharacter(partyId);
         const gear = character ? await loadEquipment(character.id) : [];
         const traits = character ? await loadTraits(character.id) : [];
         brief = sheetBrief(character, gear, traits);
         setSheetLine(brief ? "Sheet attached." : "No sheet yet.");
       }
-      const style = fancy
-        ? "Speak as an old court mage. Warm, ornate, short enough to read aloud. Plain text, no markdown.\n\n"
-        : "";
-      const prompt = brief ? `${style}Sheet: ${brief}\nQ: ${trimmed}` : `${style}${trimmed}`;
-      let data;
-      try {
-        data = await askSage(prompt, fancy && persona === "sage" ? "wizard" : persona, brief);
-      } catch (err) {
-        if (!String(errorText(err)).toLowerCase().includes("unknown persona")) throw err;
-        data = await askSage(prompt, persona, brief);
-      }
-      const text = cleanReply(String(data?.reply ?? ""));
+      const data = await askSage({
+        question: trimmed,
+        mode,
+        style: fancy ? "wizard" : "plain",
+        sheet: brief,
+        partyId,
+      });
+      const text = cleanReply(data.reply);
       if (!text) {
-        setError("Sage returned an empty reply. Try again, or check the Edge Function logs.");
+        setError("The Sage had nothing to say. Try asking another way.");
         return;
       }
       setReply(text);
@@ -223,12 +183,7 @@ export default function SageScreen({ onBack }: Props) {
         }
       }
       setSpeaking(true);
-      speakReply(
-        text,
-        fancy,
-        () => setSpeaking(false),
-        () => setReplyDone(true),
-      );
+      speak(text, speaker, { onEnd: () => setSpeaking(false), onDone: () => setReplyDone(true) });
     } catch (err) {
       setError(errorText(err));
       // Keep what they typed so they can try again.
@@ -240,19 +195,19 @@ export default function SageScreen({ onBack }: Props) {
 
   const toggleSpeech = () => {
     if (speaking) {
-      Speech.stop();
+      stopSpeaking();
       setSpeaking(false);
       return;
     }
     if (!reply) return;
     setSpeaking(true);
-    speakReply(reply, fancy, () => setSpeaking(false));
+    speak(reply, speaker, { onEnd: () => setSpeaking(false) });
   };
 
   if (!fontsLoaded) return <View style={styles.root} />;
 
   const sage = persona === "sage";
-  const replyLabel = sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
+  const replyLabel = mode === "bard" ? "Bard" : sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
   const footNote = [sheetLine, noted].filter(Boolean).join(" ");
   // Fade sizes. Top: solid paper from the very top of the screen (behind the status bar and the
   // header) down to the header's bottom edge, just below the title underline, then a short fade.
@@ -264,7 +219,7 @@ export default function SageScreen({ onBack }: Props) {
   const dockTop = scrollBox.y + scrollBox.h; // where the scroll area ends and the typing box area begins
   const bottomFadeTop = dockTop - bottomFade;
   const bottomFadeH = scrollBox.h > 0 && screen.h > 0 ? screen.h - bottomFadeTop : 0;
-  const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(persona, busy, speaking, fancy);
+  const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(mode, busy, speaking, fancy);
 
   return (
     <KeyboardAvoidingView
@@ -321,7 +276,7 @@ export default function SageScreen({ onBack }: Props) {
               label={replyLabel}
               asked={asked}
               footNote={footNote}
-              cps={writingSpeed(reply, fancy)}
+              cps={writingSpeed(reply, speaker)}
               finished={replyDone}
               speaking={speaking}
               onToggleSpeech={toggleSpeech}
