@@ -1,5 +1,5 @@
 -- Arkane Aid backend phase 2
--- Paste into the Supabase SQL editor and run once, after 001.
+-- Applied by `supabase db push` (or paste into the SQL editor, after 001).
 -- Safe to re-run. Does not drop the existing tables.
 --
 -- Covers:

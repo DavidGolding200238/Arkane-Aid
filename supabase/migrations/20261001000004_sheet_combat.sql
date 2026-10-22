@@ -1,5 +1,5 @@
 -- Arkane Aid backend phase 4
--- Paste into the Supabase SQL editor and run once, after 003.
+-- Applied by `supabase db push` (or paste into the SQL editor, after 003).
 -- Safe to re-run.
 --
 -- Adds the rest of a normal 5e sheet:
