@@ -83,7 +83,7 @@ The settings screen is called the Tome. It shows which party you are bound to. A
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Expo SDK 57 |
+| Framework | Expo SDK 58 (React Native 0.88, React 19.3) |
 | Language | TypeScript |
 | UI | React Native |
 | Auth and data | Supabase Auth, Postgres, Storage, Row Level Security |
@@ -105,7 +105,7 @@ Expo Go on Android is the main way to run it. A development build is optional.
 
 ### Requirements
 
-Node.js 20 or newer. The Expo Go app on the phone. The phone and the laptop on the same network, or a tunnel.
+Node.js 22.13 or newer (or 24.3+; Expo SDK 58 does not run on Node 20 or odd versions like 23). The Expo Go app for SDK 58 on the phone. The phone and the laptop on the same network, or a tunnel.
 
 ### Steps
 
@@ -128,7 +128,7 @@ Start Metro for Expo Go.
 npm start            # expo start --go
 ```
 
-If the phone is not on the same network, use `npx expo start --go --tunnel`. Scan the QR code with Expo Go.
+If the phone is not on the same network, use `npx expo start --go --tunnel ngrok` (no account needed). Plain `--tunnel` on SDK 58 uses Expo's new tunnel, which needs a free Expo account (`npx expo login`). Scan the QR code with Expo Go.
 
 ### Development build (optional)
 
@@ -249,7 +249,7 @@ One sheet per person per party. Switching party must not leak another campaign's
 
 The orb is a slot. A Spline embed will not run in Expo Go. Do not add an orb implementation unless asked.
 
-Expo SDK 57 draws edge to edge, so the app bar sits above the phone's own navigation bar.
+Expo SDK 58 draws edge to edge, so the app bar sits above the phone's own navigation bar.
 
 ---
 
