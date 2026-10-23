@@ -75,6 +75,11 @@ export async function askSage(request: SageRequest): Promise<SageReply> {
   });
   if (error) throw await functionError(error, "The Sage could not answer just now.");
   if (!data?.reply) throw new SageError("The Sage had nothing to say. Try asking another way.", "empty_reply");
+  // Every sage function since the greeting fix answers with smallTalk. Without it the live
+  // function is older than this app: redeploy it (npx supabase functions deploy sage).
+  if (__DEV__ && typeof (data as { smallTalk?: unknown }).smallTalk !== "boolean") {
+    console.warn("Sage: the deployed sage function is out of date. Run: npx supabase functions deploy sage");
+  }
   return {
     ...data,
     sources: Array.isArray(data.sources) ? data.sources : [],
