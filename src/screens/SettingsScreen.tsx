@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   useAnimatedValue,
   View,
@@ -20,6 +21,7 @@ import TornButton from "../components/TornButton";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
+import { useVoice } from "../context/VoiceContext";
 import { errorText, myProfile, partySeats, type Profile, type Seat } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
@@ -47,6 +49,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const { s, fs, width } = useScale();
   const { user, signOut } = useAuth();
   const { memberships, selected, select, refresh, loading, error } = useParty();
+  const { readAloud, setReadAloud } = useVoice();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileError, setProfileError] = useState("");
   const [seats, setSeats] = useState<Record<string, Seat[]>>({});
@@ -268,6 +271,31 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           Voice Personality
         </Text>
         <VoiceCarousel />
+
+        {/* Read replies aloud: on by default. Off = the Sage only writes its replies (for a DM who
+            would rather read them out), and anything being read now stops. Saved on the device. */}
+        <ParchmentPanel
+          variant="ledger"
+          style={{ marginTop: s(18) }}
+          contentStyle={{ paddingHorizontal: s(16), paddingVertical: s(12) }}
+        >
+          <View style={[styles.headingRow, { gap: s(12) }]}>
+            <View style={styles.flex}>
+              <Text style={[styles.tipTitle, { fontSize: fs(16) }]}>Read replies aloud</Text>
+              <Text style={[styles.meta, { fontSize: fs(13), lineHeight: fs(18) }]}>
+                {readAloud ? "The Sage speaks each reply." : "Silent. Replies are written only."}
+              </Text>
+            </View>
+            <Switch
+              value={readAloud}
+              onValueChange={setReadAloud}
+              trackColor={{ false: colors.portrait, true: colors.primary }}
+              thumbColor={colors.cream}
+              ios_backgroundColor={colors.portrait}
+              accessibilityLabel="Read replies aloud"
+            />
+          </View>
+        </ParchmentPanel>
       </ScrollView>
     </View>
   );
