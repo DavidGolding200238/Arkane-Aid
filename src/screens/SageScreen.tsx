@@ -6,6 +6,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   useAnimatedValue,
@@ -100,7 +101,7 @@ export default function SageScreen({ onBack }: Props) {
   const fontsLoaded = useAppFonts();
   const [replyDone, setReplyDone] = useState(false);
   const [writing, setWriting] = useState(false);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   // Follow the quill down the page until the user scrolls by hand.
   const follow = useRef(false);
   const glow = useAnimatedValue(1);
