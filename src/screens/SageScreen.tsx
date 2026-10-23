@@ -83,7 +83,8 @@ export default function SageScreen({ onBack }: Props) {
   const partyId = selected?.party.id ?? null;
   // The voice is picked on the Tome. Wizard = ornate persona and red fire, Arbiter (id "plain") = short rulings and
   // blue fire, Bard = the Bard persona and green fire, answering through the same Sage button.
-  const { voice } = useVoice();
+  // readAloud off (Tome switch): replies are only written, never spoken.
+  const { voice, readAloud } = useVoice();
   const fancy = voice === "wizard";
   const { s, fs } = useScale();
   const [persona, setPersona] = useState<SagePersona>("sage");
@@ -124,6 +125,14 @@ export default function SageScreen({ onBack }: Props) {
       stopSpeaking();
     };
   }, []);
+
+  // Switched off on the Tome while something was being read: stop and leave the speaking state.
+  useEffect(() => {
+    if (readAloud) return;
+    stopSpeaking();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- leave the speaking state when reading aloud is switched off
+    setSpeaking(false);
+  }, [readAloud]);
 
   // A new reply: follow the writing down the page. The card sits below everything else,
   // so the orb above never moves; the page only scrolls.
@@ -205,8 +214,10 @@ export default function SageScreen({ onBack }: Props) {
           setNoted("Written to the Codex.");
         }
       }
-      setSpeaking(true);
-      speak(text, speaker, { onEnd: () => setSpeaking(false), onDone: () => setReplyDone(true) });
+      if (readAloud) {
+        setSpeaking(true);
+        speak(text, speaker, { onEnd: () => setSpeaking(false), onDone: () => setReplyDone(true) });
+      }
     } catch (err) {
       setError(errorText(err));
       // Keep what they typed so they can try again.
@@ -222,7 +233,7 @@ export default function SageScreen({ onBack }: Props) {
       setSpeaking(false);
       return;
     }
-    if (!reply) return;
+    if (!reply || !readAloud) return;
     setSpeaking(true);
     speak(reply, speaker, { onEnd: () => setSpeaking(false) });
   };
@@ -302,7 +313,7 @@ export default function SageScreen({ onBack }: Props) {
               cps={writingSpeed(reply, speaker)}
               finished={replyDone}
               speaking={speaking}
-              onToggleSpeech={toggleSpeech}
+              onToggleSpeech={readAloud ? toggleSpeech : undefined}
               onWritingChange={onWritingChange}
             />
           </View>
