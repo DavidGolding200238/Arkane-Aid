@@ -1,8 +1,8 @@
 // Shared SRD 5.2.1 knowledge base for every persona (Sage, Scribe, Bard).
 //
 // Free-tier friendly: the chunked SRD ships inside the function bundle as JSON (about 1.5 MB),
-// and search is an in-memory BM25 index with typo-tolerant name matching. No database calls,
-// no embeddings, no paid search. The index is built once per cold start (tens of ms).
+// and keyword search is an in-memory BM25 index with typo-tolerant name matching. The index is
+// built once per cold start (tens of ms). Meaning search (pgvector) is layered on top in hybrid.ts.
 //
 // Typo tolerance works in two layers:
 //   1. Names: every window of 1-4 query words is compared with every entry title
@@ -147,7 +147,7 @@ function allowedEdits(length: number): number {
 const MIN_CLOSENESS = 0.8;
 
 /** Title without tags like "[Condition]". */
-function cleanTitle(title: string): string {
+export function cleanTitle(title: string): string {
   return title.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
 }
 
@@ -315,6 +315,26 @@ export class SrdIndex {
     return Math.min(1, (best + (terms.length - 1) * 2) / 5);
   }
 
+  /** The chunk's title as stored in the JSON (with tags), to check a seeded row still lines up. */
+  rawTitle(id: number): string | undefined {
+    return this.chunks[id]?.t;
+  }
+
+  /** A search hit for one chunk id (used to turn meaning-search ids into hits). */
+  hitFor(id: number, score = 0): SrdHit {
+    const chunk = this.chunks[id];
+    return {
+      id,
+      title: cleanTitle(chunk.t),
+      kind: chunk.k,
+      page: chunk.pg,
+      part: chunk.n,
+      citation: citationFor(chunk),
+      text: chunk.x,
+      score: Math.round(score * 100) / 100,
+    };
+  }
+
   search(question: string, options: { limit?: number; maxChars?: number } = {}): SearchResult {
     const limit = options.limit ?? 4;
     const maxChars = options.maxChars ?? 6000;
@@ -380,16 +400,7 @@ export class SrdIndex {
       const chunk = this.chunks[id];
       if (used + chunk.x.length > maxChars && hits.length > 0) continue;
       used += chunk.x.length;
-      hits.push({
-        id,
-        title: cleanTitle(chunk.t),
-        kind: chunk.k,
-        page: chunk.pg,
-        part: chunk.n,
-        citation: citationFor(chunk),
-        text: chunk.x,
-        score: Math.round(score * 100) / 100,
-      });
+      hits.push(this.hitFor(id, score));
     }
     const top = hits[0]?.score ?? 0;
     return { hits, corrections, grounded: strongest >= 12 || top >= 18 };
