@@ -3,7 +3,7 @@ import { Animated, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import type { FlameColour } from "./useFlameMotion";
 
-// The orb fire as animated WebP loops: red for Wizard, teal for Plain, green for Bard. Each loop
+// The orb fire as animated WebP loops: red for Wizard, teal for Arbiter, green for Bard. Each loop
 // is 72 frames at 24 fps (3 s), made offline from the 8 aligned Figma fire frames by morphing the
 // flame shape between them (scripts/build-sage-fire.py), so the fire flows instead of stepping;
 // the green one is the red fire recoloured frame by frame. Playback is decoded natively by

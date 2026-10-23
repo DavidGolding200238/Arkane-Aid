@@ -41,7 +41,7 @@ const TIPS = [
 
 // "Tome": the settings screen. Account and party tools sit behind ACCOUNT,
 // quick how-to tips behind GUIDANCE, and the Sage's voice is picked below
-// (Wizard, Plain or Bard, saved in VoiceContext and read by the Sage screen).
+// (Wizard, Arbiter or Bard, saved in VoiceContext and read by the Sage screen).
 export default function SettingsScreen({ onBack, onOpen }: Props) {
   const fontsLoaded = useAppFonts();
   const { s, fs, width } = useScale();

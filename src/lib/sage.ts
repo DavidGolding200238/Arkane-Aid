@@ -8,7 +8,7 @@ import { supabase } from "./supabase";
 export type SagePersona = "sage" | "scribe";
 /** Who answers. "bard" is the Sage's ruling with a witty, musical flourish. */
 export type SageMode = "sage" | "scribe" | "bard";
-/** How the Sage sounds: plain teacher, or ornate court mage ("Wizard" on the Tome). */
+/** How the Sage sounds: "plain" is the Arbiter (short, sure rulings), "wizard" the ornate court mage. */
 export type SageStyle = "plain" | "wizard";
 
 export type SageSource = { title: string; citation: string; page: number };

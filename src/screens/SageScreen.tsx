@@ -70,8 +70,8 @@ function statusLine(mode: SageMode, busy: boolean, speaking: boolean, fancy: boo
     return speaking ? "The Bard sings..." : "The Bard awaits your question...";
   }
   if (busy) return "Leafing through the tomes...";
-  if (speaking) return fancy ? "The Wizard speaks..." : "The Sage speaks...";
-  return "The Sage awaits your question...";
+  if (speaking) return fancy ? "The Wizard speaks..." : "The Arbiter speaks...";
+  return fancy ? "The Sage awaits your question..." : "The Arbiter awaits your question...";
 }
 
 function noteTitle(text: string) {
@@ -82,7 +82,7 @@ function noteTitle(text: string) {
 export default function SageScreen({ onBack }: Props) {
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
-  // The voice is picked on the Tome. Wizard = ornate persona and red fire, Plain = plain Sage and
+  // The voice is picked on the Tome. Wizard = ornate persona and red fire, Arbiter (id "plain") = short rulings and
   // blue fire, Bard = the Bard persona and green fire, answering through the same Sage button.
   const { voice } = useVoice();
   const fancy = voice === "wizard";
@@ -222,7 +222,7 @@ export default function SageScreen({ onBack }: Props) {
   if (!fontsLoaded) return <View style={styles.root} />;
 
   const sage = persona === "sage";
-  const replyLabel = mode === "bard" ? "Bard" : sage ? (fancy ? "Wizard" : "Sage") : "Scribe";
+  const replyLabel = mode === "bard" ? "Bard" : sage ? (fancy ? "Wizard" : "Arbiter") : "Scribe";
   const footNote = [sheetLine, noted].filter(Boolean).join(" ");
   // Fade sizes. Top: solid paper from the very top of the screen (behind the status bar and the
   // header) down to the header's bottom edge, just below the title underline, then a short fade.

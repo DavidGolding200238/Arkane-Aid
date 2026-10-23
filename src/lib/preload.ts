@@ -80,7 +80,7 @@ const SAGE_ART = [
 ];
 
 async function prefetchFire() {
-  // Download the three fire loops (red Wizard, blue Plain, green Bard) and put them in
+  // Download the three fire loops (red Wizard, blue Arbiter, green Bard) and put them in
   // expo-image's cache, so the flames are there the moment the Sage or the Tome opens instead
   // of decoding 2.4 MB each on first view.
   const [{ Image }, { LOOPS }] = await Promise.all([import("expo-image"), import("../components/flames/FireLoop")]);
