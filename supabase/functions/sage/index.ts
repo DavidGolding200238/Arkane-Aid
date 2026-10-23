@@ -2,7 +2,8 @@
 //
 // POST { question, mode?: "sage"|"scribe"|"bard", style?: "plain"|"wizard", sheet?, partyId?,
 //        history?: [{ q, a }] (last exchanges of this session, at most 3 used) }
-//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded, smallTalk, retrieval }
+//   -> { mode, persona, reply, source, sources: [{ title, citation, page }], corrections, grounded, smallTalk, chat, retrieval }
+// `reply` has no citations in it (it is read aloud); `source` is the short footer, e.g. "Alignment, p. 21".
 // Retrieval is keyword + meaning search (Supabase.ai gte-small + match_srd); keyword only until seeded.
 // Errors -> { error, code } (see _shared/http.ts).
 // Needs the GROQ_API_KEY function secret. Players must be signed in.

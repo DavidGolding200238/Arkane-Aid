@@ -40,11 +40,31 @@ Deno.test("real typos are still corrected", () => {
   assertEquals(srd.correctWord("firebal"), "fireball");
 });
 
-Deno.test("small talk skips the SRD and asks for a greeting, not Lore", () => {
-  const message = userMessage("Hello", null, "", "");
-  assertStringIncludes(message, "<small_talk>");
-  assertStringIncludes(message, "No Lore:");
+Deno.test("small talk skips the SRD: a lean chat note and the message, nothing else", () => {
+  const message = userMessage("Hello", null, "", "", { kind: "greeting", hasHistory: false });
+  assertStringIncludes(message, "<chat>");
+  assertStringIncludes(message, "Greet back");
   assertFalse(message.includes("<srd>"));
+  assert(message.length < 200, `${message.length} chars`);
+});
+
+Deno.test("a reaction never asks for a greeting, with or without history", () => {
+  for (const hasHistory of [true, false]) {
+    const message = userMessage("Damn", null, "", "", { kind: "chat", hasHistory });
+    assertStringIncludes(message, "Do not greet");
+    assertFalse(/Greet back/.test(message));
+  }
+});
+
+Deno.test("hello mid-conversation does not start over", () => {
+  assertStringIncludes(userMessage("hi", null, "", "", { kind: "greeting", hasHistory: true }), "do not start over");
+});
+
+Deno.test("SRD extracts carry short tags, not the whole breadcrumb", () => {
+  const message = userMessage("how does alignment work", srd.search("alignment"), "", "");
+  assertStringIncludes(message, "p. 21]");
+  assertFalse(message.includes(" > "));
+  assertFalse(message.includes("SRD 5.2.1,"));
 });
 
 Deno.test("spelling fixes are passed as guesses, never as fact", () => {
@@ -62,11 +82,11 @@ const voices: [Mode, "plain" | "wizard", string][] = [
   ["scribe", "plain", "you are the Scribe"],
 ];
 for (const [mode, style, identity] of voices) {
-  Deno.test(`${mode}/${style} greets in character and never labels a greeting Lore`, () => {
+  Deno.test(`${mode}/${style} greets in character and never labels chat Lore`, () => {
     const prompt = systemPrompt(mode, style);
     assertStringIncludes(prompt, identity);
-    assertStringIncludes(prompt, "When greeted");
-    assertStringIncludes(prompt, 'Never label it "Lore:"');
+    assertStringIncludes(prompt, "Greet only when greeted");
+    assertStringIncludes(prompt, 'Never label chat "Lore:"');
     assert(PERSONAS[mode]);
   });
 }

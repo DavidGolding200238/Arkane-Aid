@@ -1,22 +1,41 @@
 // The user message the model sees: SRD extracts, possible spelling fixes, the sheet, the party.
 import type { SearchResult } from "./retrieval.ts";
+import { shortCitation } from "./reply.ts";
+import type { ChatKind } from "./smalltalk.ts";
 
-/** Marks a greeting or small talk, so the persona greets back instead of looking anything up. */
-export const SMALL_TALK_NOTE =
-  "<small_talk>The player is only greeting you, thanking you or chatting. This is not a rules question. " +
-  "Reply in your own voice with a short greeting and an offer to help with rules, spells, monsters or the table. " +
-  "One or two short sentences. No Lore: or Homebrew idea: label, no citation.</small_talk>";
+/** Short notes for chat (no SRD block, so these stay cheap). How to chat is in the system prompt. */
+export function chatNote(kind: ChatKind, hasHistory: boolean): string {
+  const note = {
+    greeting: hasHistory
+      ? "The player says hello again mid-conversation. Reply in one short line and carry on; do not start over."
+      : "The player greets you. Greet back in one short line and ask how you can help.",
+    thanks: "The player thanks you. Take it warmly in a line, tied to what you just helped with if there was something.",
+    farewell: "The player is saying goodbye. Bid them farewell in one short line.",
+    chat: hasHistory
+      ? "A reaction or casual chat, not a rules question and not a greeting. Answer it naturally, following on from what was just said. Do not greet."
+      : "A reaction or casual chat, not a rules question and not a greeting. Answer it naturally and lightly offer to help. Do not greet.",
+  }[kind];
+  return `<chat>${note}</chat>`;
+}
+
+/** Sheet reviews: kind and constructive, and only real rules count as mistakes. */
+export const SHEET_REVIEW_NOTE =
+  "<sheet_review>Review the sheet kindly: for each real problem say what is off, the rule, and how to fix it. " +
+  "Choices the rules leave to the player are suggestions, not errors. End by offering to help fix it.</sheet_review>";
 
 export function userMessage(
   question: string,
   found: SearchResult | null,
   sheet: string,
   party: string,
+  chat: { kind: ChatKind; hasHistory: boolean } | null = null,
+  review = false,
 ): string {
-  if (!found) return `${SMALL_TALK_NOTE}\n\nMessage: ${question}`;
+  if (!found) return `${chatNote(chat?.kind ?? "chat", chat?.hasHistory ?? false)}\n\nMessage: ${question}`;
   const parts: string[] = [];
   if (found.hits.length) {
-    const extracts = found.hits.map((hit) => `[${hit.citation}]\n${hit.text}`).join("\n\n");
+    // Short tags ("Alignment, p. 21") keep the prompt small and are what the Source line copies.
+    const extracts = found.hits.map((hit) => `[${shortCitation(hit.citation)}]\n${hit.text}`).join("\n\n");
     parts.push(`<srd>\n${extracts}\n</srd>`);
   } else {
     parts.push("<srd>\nNo matching SRD 5.2.1 entry.\n</srd>");
@@ -30,6 +49,7 @@ export function userMessage(
     );
   }
   if (sheet) parts.push(`<sheet>\n${sheet}\n</sheet>`);
+  if (sheet && review) parts.push(SHEET_REVIEW_NOTE);
   if (party) parts.push(`<party>\n${party}\n</party>`);
   parts.push(`Question: ${question}`);
   return parts.join("\n\n");
