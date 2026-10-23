@@ -149,12 +149,27 @@ supabase link --project-ref YOUR-PROJECT-REF
 supabase db push                                   # applies supabase/migrations in order
 supabase secrets set GROQ_API_KEY=...
 supabase functions deploy sage
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co SUPABASE_SERVICE_ROLE_KEY=... npm run seed:srd   # once, needs Deno
 ```
+
+The service role key (Dashboard > Project Settings > API keys) is only typed into that one command. Never put it in a file in this repo or in the app.
 
 - `supabase/migrations/` holds the schema: profiles, parties and members, characters, equipment, traits, the Codex, the portrait bucket, Row Level Security, and `party_sheets`, a read-only function the Sage uses for party questions (it runs as the caller, so it only sees parties they belong to).
 - `supabase/functions/sage` answers questions with Groq and requires a signed-in user. Speech happens on the phone, so there is no speech function or key.
 - Without `GROQ_API_KEY` the Sage reports that it is not configured.
+- **Sage retrieval is hybrid.** Keyword search (BM25 with typo-tolerant names, bundled with the function) finds named entries and misspellings ("firebal"). Meaning search finds plain-language questions with no shared words ("can I hit someone running away" -> Opportunity Attacks): the function embeds the question with Supabase's built-in `gte-small` model (`Supabase.ai.Session`, free, no key) and `match_srd` returns the nearest SRD entries from `srd_chunks` (pgvector, HNSW index, read-only for signed-in players). The two lists are merged by reciprocal rank fusion; a strongly named entry stays first; 4 entries go to the model. If `srd_chunks` is empty or the RPC fails, the Sage quietly uses keyword search alone, and the reply says `"retrieval": "keyword"`.
+- `npm run seed:srd` embeds the 2,015 SRD entries (2,260 pieces: long entries are split to stay under gte-small's 512-token limit) on your computer with the same model and upserts them. About a minute, a few MB in the database. Re-run after rebuilding the SRD JSON. `-- --dry-run` embeds only.
+- **Short memory.** The app sends the last 3 exchanges of the current Sage session with each question, so "how long does it last?" works after "how does rage work". It is held in the Sage screen only: leaving the screen, switching Sage/Scribe or changing voice clears it, and it is never saved. The function clips it to about 600 tokens and also searches a short follow-up with the previous question's words. The Scribe gets no memory.
 - `npm run test:functions` type-checks, lints and tests the functions (needs Deno). `deno run -A scripts/ask-sage.ts bard "how much damage does firebal do"` asks Groq locally with the same prompts.
+
+### Sage evals
+
+`evals/sage-eval.json` holds 32 questions: rules, typos, plain-language questions, conditions, spells, monsters, greetings, lore and a follow-up pair. Each can list the SRD entries it should find (`expect`), words the answer must or must not contain, whether it must start with "Lore:", and whether it is small talk.
+
+- `npm run eval:search` scores retrieval only (no Groq, no Supabase, free): is an expected entry in the top 4 for keyword, semantic and hybrid search. Semantic search runs in memory over the same embeddings the seed writes (`.cache/`, built on first run).
+- `npm run eval:answers` asks the deployed Sage every question in one voice (Arbiter by default; `-- --voice wizard|bard`) and checks the replies. `-- --tone` adds 3 questions in each of the three voices. `-- --local` runs the same code on your computer with `GROQ_API_KEY` instead of the deployed function. It paces itself at 3 requests a minute (`-- --rpm`) because the Groq free tier allows 8K tokens a minute and one request is about 1.5-2.5K tokens; it waits and retries on a rate limit.
+  Deployed mode needs `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the publishable key) and either `SAGE_EVAL_TOKEN` or `SAGE_EVAL_EMAIL` + `SAGE_EVAL_PASSWORD` for a test account, set in your shell only.
+- Both write a markdown and JSON scorecard to `evals/results/` (gitignored).
 
 ---
 
@@ -218,12 +233,13 @@ assets/
 art-source/             source art for scripts/build-sage-fire.py, build-cream-panels.py and build-tome-orbs.py (tome/: the Figma orb exports) (not bundled)
 supabase/
   config.toml           local CLI config; the sage function verifies the user's JWT
-  migrations/           schema, RLS and party_sheets, in order
+  migrations/           schema, RLS, party_sheets and srd_chunks (pgvector), in order
   functions/
-    _shared/            personas, SRD search, auth, Groq, HTTP helpers (+ tests)
+    _shared/            personas, SRD search (keyword + hybrid), memory, auth, Groq, HTTP helpers (+ tests)
     _shared/srd/        SRD 5.2.1 chunks (CC-BY-4.0)
     sage/               rules Q&A (Groq)
-scripts/                build-srd.py (rebuilds the SRD chunks), ask-sage.ts (local test), panel tools
+scripts/                build-srd.py (rebuilds the SRD chunks), srd-embed.ts (seeds srd_chunks), ask-sage.ts (local test), panel tools
+evals/                  sage-eval.json, search.ts and answers.ts (npm run eval:search / eval:answers)
 eas.json                development, preview and production build profiles
 ```
 
@@ -234,6 +250,7 @@ eas.json                development, preview and production build profiles
 `character_equipment` and traits hang off the character.
 `codex_entries` are party notes and items.
 Portraits live in the `character-portraits` bucket.
+`srd_chunks` holds the SRD pieces and their gte-small embeddings for the Sage (read-only for players).
 
 ---
 
