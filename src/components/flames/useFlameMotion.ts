@@ -42,7 +42,7 @@ export function useReduceMotion() {
 
 /**
  * The colour fade between fires, as native-driven Animated values.
- * tint: how much of each colour shows, 0..1 (red = Wizard, blue = Plain, green = Bard).
+ * tint: how much of each colour shows, 0..1 (red = Wizard, blue = Arbiter, green = Bard).
  * under: while the colour changes, the old colour, drawn solid beneath the new one as it
  *   fades in (null once the fade is done, so only one fire loop plays).
  */

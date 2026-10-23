@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken aloud by the phone's own free text to speech (expo-speech), so it always works in Expo Go and needs no paid service. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, green for Bard, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
+Ask a ruling. The reply is spoken aloud by the phone's own free text to speech (expo-speech), so it always works in Expo Go and needs no paid service. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. The Arbiter (the table's judge) gives short, sure rulings. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Arbiter, green for Bard, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
 
 ### Scribe
 
@@ -67,15 +67,15 @@ The `sage` Edge Function searches the full System Reference Document 5.2.1 (CC-B
 
 Sage, Scribe and Bard share one set of fact rules (`supabase/functions/_shared/personas.ts`) and differ only in voice:
 
-- **Sage** (Plain): short, direct rulings. **Wizard** is the same Sage in a warmer, ornate court-mage tone.
+- **Sage** (Arbiter): short, sure rulings from the bench. **Wizard** is the same Sage in a warmer, ornate court-mage tone.
 - **Scribe**: one past-tense ledger line, no advice, written into the Codex.
 - **Bard**: the same ruling told with flair, a little rhythm and a wink, still accurate and cited.
 
-The Sage button uses the voice picked on the Tome (Plain, Wizard or Bard), so Bard needs no extra button. Each persona has its own on-device voice setting: the app picks the best English voice the phone offers for each one (offline voices first) and gives each its own speed and pitch, so Wizard, Plain, Bard and Scribe sound different. Voices use the device's free text-to-speech; no paid services.
+The Sage button uses the voice picked on the Tome (Arbiter, Wizard or Bard), so Bard needs no extra button. Each persona has its own on-device voice setting: the app picks the best English voice the phone offers for each one (offline voices first) and gives each its own speed and pitch, so Wizard, Arbiter, Bard and Scribe sound different. Voices use the device's free text-to-speech; no paid services.
 
 ### Settings (Tome)
 
-The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage personality with the red arrows: Wizard (the Sage as an ornate court mage, a slower, lower voice), Plain (the Sage, short and direct) or Bard (the ruling with a rhyme, a brighter voice). The choice is saved on the device. The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage personality with the red arrows: Wizard (the Sage as an ornate court mage, a slower, lower voice), Arbiter (the table's judge: short, sure rulings from the bench; saved internally as "plain", so older choices still work) or Bard (the ruling with a rhyme, a brighter voice). The choice is saved on the device. The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
 
 ---
 
@@ -176,7 +176,7 @@ supabase functions deploy sage
 | Splash | Title, and real loading: fonts, the main screens' art, the Sage's fire, code and orb model, with the percentage driven by finished tasks (never longer than 15 s) |
 | Login and Sign up | Email authentication |
 | Dashboard | Home. Seals for Sage, Codex, Ledger, and Settings |
-| Sage | Ask a ruling or note the table. Voice (Plain or Wizard) comes from the Tome |
+| Sage | Ask a ruling or note the table. Voice (Arbiter, Wizard or Bard) comes from the Tome |
 | Codex | Session book. Notes and items. Ledger tab opens the sheet |
 | Ledger | Player sheet for the current party |
 | Tome (Settings) | Account and parties, guidance, voice personality |

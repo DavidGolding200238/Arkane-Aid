@@ -21,7 +21,7 @@ const ORB_CY = 10;
 type Props = {
   /** Orb diameter in dp (already scaled). */
   size: number;
-  /** "red" for the Wizard voice, "blue" for Plain, "green" for Bard. Changing it fades between them. */
+  /** "red" for the Wizard voice, "blue" for Arbiter, "green" for Bard. Changing it fades between them. */
   flame: FlameColour;
   /** What the Sage is doing; sets the flames' pace, glow and embers. */
   mood?: FlameMood;

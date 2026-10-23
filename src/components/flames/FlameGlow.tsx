@@ -18,7 +18,7 @@ type Props = {
   tint: Record<FlameColour, Animated.Value>;
 };
 
-// Red for Wizard, teal for Plain, emerald for Bard (matching the green fire's body).
+// Red for Wizard, teal for Arbiter, emerald for Bard (matching the green fire's body).
 const GLOW: Record<FlameColour, string> = { red: "#E4572E", blue: "#2BA697", green: "#3DB35A" };
 
 // How far the glow reaches past the orb's edge: 9% of the orb radius (about 13 dp on an A55).
