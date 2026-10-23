@@ -33,7 +33,7 @@ for (const [name, voice] of clients) {
     Deno.test(`${name}: "${question}" is small talk, with no spelling hint and no SRD search`, async () => {
       const { request, result } = await run({ question, sheet: "Level 3 Wizard", ...voice });
       const user = request.messages[1].content;
-      assertStringIncludes(user, "<small_talk>");
+      assertStringIncludes(user, "<chat>");
       assertFalse(user.includes("<possible_corrections>"));
       assertFalse(user.includes("<srd>"));
       assertFalse(user.includes("<sheet>"));
@@ -72,7 +72,11 @@ Deno.test("wizard, arbiter and bard prompts differ only in the identity block", 
     assertEquals(prompts[flavour].replace(IDENTITIES[flavour], ""), base);
   }
   assertStringIncludes(base, '"Lore:" or "Homebrew idea:"');
-  assertStringIncludes(base, "When greeted");
+  assertStringIncludes(base, "Greet only when greeted");
+  assertStringIncludes(base, "Manner: a warm, kind companion");
+  assertStringIncludes(base, "never errors");
+  assertStringIncludes(base, "can't go above 20");
+  assertStringIncludes(base, "Source: Alignment, p. 21");
   assertStringIncludes(base, "the answer comes first");
   assertFalse(/Alex|Jack/.test(base));
 });
@@ -116,11 +120,12 @@ Deno.test("scribe: no memory", async () => {
   assertEquals(request.messages.length, 2);
 });
 
-Deno.test("small talk: no memory and no search", async () => {
+Deno.test("small talk: keeps the memory but skips the search", async () => {
   const { request, searched, result } = await runWith({ question: "thanks!", mode: "sage", history: rage });
-  assertEquals(request.messages.length, 2);
+  assertEquals(request.messages.length, 4);
   assertEquals(searched, []);
   assertEquals(result.retrieval, "none");
+  assertEquals(result.chat, "thanks");
 });
 
 Deno.test("a follow-up searches with the previous question too", async () => {
@@ -139,4 +144,103 @@ Deno.test("meaning search failing still answers from keyword search", async () =
   const { result } = await runWith({ question: "how does grappling work", mode: "sage" }, () => Promise.reject(new Error("down")));
   assertEquals(result.retrieval, "keyword");
   assert(result.sources.length > 0);
+});
+
+// ---- Chat, tone and sources: the same for the Wizard, the Arbiter and the Bard ----
+
+const SAGE_VOICES = clients.filter(([n]) => ["wizard", "arbiter", "bard"].includes(n));
+const sheetRuling = [{ q: "Check my playersheet and tell me whats wrong", a: "Thy Strength of 30 is above the 20 a player character may have. Lower it to 20 or less." }];
+
+async function runReply(body: Record<string, unknown>, modelReply: string) {
+  const sent: ChatRequest[] = [];
+  const searched: string[] = [];
+  const result = await ask(body, {
+    chat: (request) => {
+      sent.push(request);
+      return Promise.resolve(modelReply);
+    },
+    party: () => Promise.resolve(""),
+    semantic: (text) => {
+      searched.push(text);
+      return Promise.resolve([]);
+    },
+  });
+  return { request: sent[0], result: result as AskReply, searched };
+}
+
+for (const [name, voice] of SAGE_VOICES) {
+  for (const question of ["Damn", "damn!", "wow", "ok", "lol", "hmm", "nice", "ugh", "oh no", "fuck", "damn ok"]) {
+    Deno.test(`${name}: "${question}" after a ruling is chat with memory, not a greeting`, async () => {
+      const { request, result, searched } = await runReply({ question, history: sheetRuling, ...voice }, "Aye, harsh news.");
+      assertEquals(searched, []);
+      assertEquals(request.messages.length, 4);
+      assertEquals(request.messages[2].content, sheetRuling[0].a);
+      const user = request.messages[3].content;
+      assertStringIncludes(user, "<chat>");
+      assertStringIncludes(user, "following on from what was just said");
+      assertStringIncludes(user, "Do not greet");
+      assertFalse(user.includes("Greet back"));
+      assertFalse(user.includes("<srd>"));
+      assertEquals(result.chat, "chat");
+      assert(result.smallTalk);
+    });
+  }
+
+  Deno.test(`${name}: "Damn" with no history still does not greet`, async () => {
+    const { request } = await runReply({ question: "Damn", ...voice }, "Aye?");
+    assertEquals(request.messages.length, 2);
+    assertStringIncludes(request.messages[1].content, "Do not greet");
+  });
+
+  Deno.test(`${name}: "Hello" mid-conversation carries on instead of starting over`, async () => {
+    const { request, result } = await runReply({ question: "Hello", history: sheetRuling, ...voice }, "Hello again.");
+    assertEquals(request.messages.length, 4);
+    assertStringIncludes(request.messages[3].content, "do not start over");
+    assertEquals(result.chat, "greeting");
+  });
+
+  Deno.test(`${name}: citations are split out of the spoken reply`, async () => {
+    const model = "Thy sheet lacks an alignment. Strength 30 is too high for a player character. " +
+      "(SRD: Creation > Create Your Character > Step 4: Alignment, p. 21; SRD: Creation > Create Your Character > Step 3: Ability Scores > Adjust Ability Scores, p. 21)";
+    const { result } = await runReply({ question: "how does alignment work", ...voice }, model);
+    assertFalse(/SRD|p\. ?\d|>/.test(result.reply), result.reply);
+    assertEquals(result.reply, "Thy sheet lacks an alignment. Strength 30 is too high for a player character.");
+    assertEquals(result.source, "Alignment, p. 21; Adjust Ability Scores, p. 21");
+  });
+
+  Deno.test(`${name}: a Source line is moved to the footer`, async () => {
+    const { result } = await runReply({ question: "how much damage does fireball do", ...voice }, "Fireball deals 8d6 Fire damage.\nSource: Fireball, p. 131");
+    assertEquals(result.reply, "Fireball deals 8d6 Fire damage.");
+    assertEquals(result.source, "Fireball, p. 131");
+  });
+
+  Deno.test(`${name}: chat never gets a source footer`, async () => {
+    const { result } = await runReply({ question: "thanks", ...voice }, "My pleasure. Source: Fireball, p. 131");
+    assertEquals(result.source, "");
+    assertEquals(result.reply, "My pleasure.");
+  });
+
+  Deno.test(`${name}: a sheet review searches the creation rules and asks for a kind review`, async () => {
+    const { request, result } = await runReply(
+      { question: "Check my playersheet and tell me whats wrong", sheet: "Brakka Human Fighter L1\nSTR30 DEX12 CON14 INT8 WIS10 CHA10", ...voice },
+      "Mostly fine.",
+    );
+    const user = request.messages[1].content;
+    assertStringIncludes(user, "<sheet_review>");
+    assertStringIncludes(user, "how to fix it");
+    assertStringIncludes(user, "[Adjust Ability Scores, p. 21]");
+    assert(result.sources.some((s) => s.title === "Adjust Ability Scores"));
+  });
+}
+
+Deno.test("wizard, arbiter and bard send the same chat and sheet-review messages", async () => {
+  const sheet = { question: "Check my playersheet and tell me whats wrong", sheet: "STR30" };
+  const chat = { question: "Damn", history: sheetRuling };
+  for (const body of [sheet, chat]) {
+    const sent = await Promise.all(SAGE_VOICES.map(([, v]) => runReply({ ...body, ...v }, "ok")));
+    for (const other of sent.slice(1)) {
+      assertEquals(other.request.messages.slice(1), sent[0].request.messages.slice(1));
+      assertEquals(other.request.maxTokens, sent[0].request.maxTokens);
+    }
+  }
 });
