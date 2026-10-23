@@ -41,30 +41,25 @@ export function useReduceMotion() {
 }
 
 /**
- * All the flame motion as native-driven Animated values, so nothing re-renders per frame.
+ * The colour fade between fires, as native-driven Animated values.
  * tint: how much of each colour shows, 0..1 (red = Wizard, blue = Plain, green = Bard).
  * under: while the colour changes, the old colour, drawn solid beneath the new one as it
  *   fades in (null once the fade is done, so only one fire loop plays).
- * glow: heat glow strength.
  */
-export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boolean) {
+export function useFlameTint(colour: FlameColour, reduce: boolean, fadeMs = COLOUR_MS) {
   const red = useAnimatedValue(colour === "red" ? 1 : 0);
   const blue = useAnimatedValue(colour === "blue" ? 1 : 0);
   const green = useAnimatedValue(colour === "green" ? 1 : 0);
   const [tint] = useState<Record<FlameColour, Animated.Value>>(() => ({ red, blue, green }));
-  const glow = useAnimatedValue(MOODS.idle.glowLow);
   // The colour the last fade finished on. While it differs from colour, it is the one underneath.
   const [settled, setSettled] = useState(colour);
 
-  const settings = reduce ? MOODS.idle : MOODS[mood];
-
-  // Colour fade between the fires, glows and embers.
   useEffect(() => {
     const fade = Animated.parallel(
       FLAME_COLOURS.map((c) =>
         Animated.timing(tint[c], {
           toValue: c === colour ? 1 : 0,
-          duration: reduce ? 0 : COLOUR_MS,
+          duration: reduce ? 0 : fadeMs,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
@@ -72,7 +67,20 @@ export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boo
     );
     fade.start(({ finished }) => finished && setSettled(colour));
     return () => fade.stop();
-  }, [tint, colour, reduce]);
+  }, [tint, colour, reduce, fadeMs]);
+
+  return { tint, under: settled === colour ? null : settled };
+}
+
+/**
+ * All the flame motion as native-driven Animated values, so nothing re-renders per frame.
+ * tint / under: the colour fade (see useFlameTint), for the fire, glow and embers.
+ * glow: heat glow strength.
+ */
+export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boolean) {
+  const { tint, under } = useFlameTint(colour, reduce);
+  const glow = useAnimatedValue(MOODS.idle.glowLow);
+  const settings = reduce ? MOODS.idle : MOODS[mood];
 
   // Mood: blend the glow to the new level, then breathe gently. Native-driven loop, no JS timers.
   useEffect(() => {
@@ -93,5 +101,5 @@ export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boo
     };
   }, [reduce, settings, glow]);
 
-  return { tint, under: settled === colour ? null : settled, glow, emberGapMs: settings.emberGapMs };
+  return { tint, under, glow, emberGapMs: settings.emberGapMs };
 }
