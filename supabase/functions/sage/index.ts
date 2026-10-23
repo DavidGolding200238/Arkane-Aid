@@ -1,14 +1,15 @@
 // The Sage, the Scribe and the Bard: one SRD 5.2.1 knowledge base, three voices.
 //
 // POST { question, mode?: "sage"|"scribe"|"bard", style?: "plain"|"wizard", sheet?, partyId? }
-//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded }
+//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded, smallTalk }
 // Errors -> { error, code } (see _shared/http.ts).
 // Needs the GROQ_API_KEY function secret. Players must be signed in.
 import { requireUser, type Caller } from "../_shared/auth.ts";
 import { chat, GroqError, tidy } from "../_shared/groq.ts";
 import { fail, json, preflight, readJson, text } from "../_shared/http.ts";
 import { PERSONAS, resolveMode, systemPrompt, type SageStyle } from "../_shared/personas.ts";
-import type { SearchResult } from "../_shared/retrieval.ts";
+import { userMessage } from "../_shared/message.ts";
+import { isSmallTalk } from "../_shared/smalltalk.ts";
 import { srd } from "../_shared/srd.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,8 +37,10 @@ Deno.serve(async (request) => {
   const sheet = text(body.sheet, 2000);
   const partyId = typeof body.partyId === "string" && UUID.test(body.partyId) ? body.partyId : null;
 
-  const found = srd.search(question, { limit: persona.srdLimit });
-  const party = partyId && ABOUT_PARTY.test(question) ? await partyContext(caller, partyId) : "";
+  // A message that is only a greeting or "thanks" is answered in character without searching
+  // the SRD (a fuzzy search on "Hello" only finds noise). Anything with a question in it is searched.
+  const found = isSmallTalk(question) ? null : srd.search(question, { limit: persona.srdLimit });
+  const party = found && partyId && ABOUT_PARTY.test(question) ? await partyContext(caller, partyId) : "";
 
   let reply: string;
   try {
@@ -48,7 +51,7 @@ Deno.serve(async (request) => {
         maxTokens: persona.maxTokens,
         messages: [
           { role: "system", content: systemPrompt(persona.mode, style) },
-          { role: "user", content: userMessage(question, found, sheet, party) },
+          { role: "user", content: userMessage(question, found, found ? sheet : "", party) },
         ],
       }),
     );
@@ -63,28 +66,12 @@ Deno.serve(async (request) => {
     mode: persona.mode,
     persona: persona.name,
     reply,
-    sources: found.hits.map((hit) => ({ title: hit.title, citation: hit.citation, page: hit.page })),
-    corrections: found.corrections,
-    grounded: found.grounded,
+    sources: found?.hits.map((hit) => ({ title: hit.title, citation: hit.citation, page: hit.page })) ?? [],
+    corrections: found?.corrections ?? [],
+    grounded: found?.grounded ?? false,
+    smallTalk: !found,
   });
 });
-
-function userMessage(question: string, found: SearchResult, sheet: string, party: string): string {
-  const parts: string[] = [];
-  if (found.hits.length) {
-    const extracts = found.hits.map((hit) => `[${hit.citation}]\n${hit.text}`).join("\n\n");
-    parts.push(`<srd>\n${extracts}\n</srd>`);
-  } else {
-    parts.push("<srd>\nNo matching SRD 5.2.1 entry.\n</srd>");
-  }
-  if (found.corrections.length) {
-    parts.push(`<corrections>${found.corrections.map((c) => `"${c.from}" means ${c.to}`).join("; ")}</corrections>`);
-  }
-  if (sheet) parts.push(`<sheet>\n${sheet}\n</sheet>`);
-  if (party) parts.push(`<party>\n${party}\n</party>`);
-  parts.push(`Question: ${question}`);
-  return parts.join("\n\n");
-}
 
 type PartySheet = {
   name: string;

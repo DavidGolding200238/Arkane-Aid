@@ -9,7 +9,10 @@
 //      (spell, monster, condition, rule) by Damerau-Levenshtein, so "firebal" finds Fireball
 //      and "owlbaer" finds Owlbear.
 //   2. Words: a query word the SRD never uses is corrected to the closest SRD word
-//      (one edit for short words, two for long ones), so "grapled" searches "grappled".
+//      (one edit for words of 5-7 letters, two for longer ones), so "grapled" searches "grappled".
+// A word that is ordinary English (a bundled SCOWL list, see srd.ts) is never "corrected", so
+// "hello" stays hello instead of turning into "hells". Corrections are only guesses: the Sage is
+// told they may be wrong (see message.ts).
 
 export type SrdChunk = {
   t: string; // title, e.g. "Fireball" or "Grappled [Condition]"
@@ -133,12 +136,15 @@ export function editDistance(a: string, b: string, max = 3): number {
   return d[a.length][b.length];
 }
 
-/** How many typos a word or name of this length may carry. */
+/** How many typos a word or name of this length may carry. Short words are never guessed at. */
 function allowedEdits(length: number): number {
-  if (length < 4) return 0;
-  if (length < 7) return 1;
+  if (length < 5) return 0;
+  if (length < 8) return 1;
   return 2;
 }
+
+/** A guess must still look like the word: at most one letter in five may differ. */
+const MIN_CLOSENESS = 0.8;
 
 /** Title without tags like "[Condition]". */
 function cleanTitle(title: string): string {
@@ -177,9 +183,12 @@ export class SrdIndex {
   private avgLen = 1;
   private wordFreq = new Map<string, number>(); // raw (unstemmed) words, for spelling correction
   private names: Name[] = [];
+  private english: Set<string>;
 
-  constructor(data: SrdData) {
+  /** english: common English words (lowercase) that are never treated as typos. */
+  constructor(data: SrdData, english: Iterable<string> = []) {
     this.attribution = data.attribution;
+    this.english = new Set(english);
     this.chunks = data.chunks;
     const byName = new Map<string, Name>();
     let total = 0;
@@ -221,25 +230,39 @@ export class SrdIndex {
     return this.chunks.length;
   }
 
-  /** Closest SRD word to a word the SRD never uses, or null. */
+  /** A word that is not a typo: the SRD uses it, it is common English, or it has a digit. */
+  private known(word: string): boolean {
+    return this.wordFreq.has(word) || this.english.has(word) || STOP.has(word) || /\d/.test(word);
+  }
+
+  /** Closest SRD word to a word that is neither in the SRD nor common English, or null.
+   *  Same first letter, close spelling, and a word that starts the same way wins a tie
+   *  ("firebal" -> "fireball"), then the more common SRD word. */
   correctWord(word: string): string | null {
-    if (this.wordFreq.has(word) || STOP.has(word) || /\d/.test(word)) return null;
+    if (this.known(word)) return null;
     const max = allowedEdits(word.length);
     if (!max) return null;
     let best: string | null = null;
     let bestDist = max + 1;
+    let bestPrefix = false;
     let bestFreq = 0;
     for (const [candidate, freq] of this.wordFreq) {
-      if (Math.abs(candidate.length - word.length) > max) continue;
-      if (candidate[0] !== word[0] && max < 2) continue;
+      if (candidate[0] !== word[0] || Math.abs(candidate.length - word.length) > max) continue;
       const dist = editDistance(word, candidate, max);
-      if (dist < bestDist || (dist === bestDist && freq > bestFreq)) {
+      if (dist > max || 1 - dist / Math.max(word.length, candidate.length) < MIN_CLOSENESS) continue;
+      const prefix = candidate.startsWith(word) || word.startsWith(candidate);
+      const better =
+        dist < bestDist ||
+        (dist === bestDist && prefix && !bestPrefix) ||
+        (dist === bestDist && prefix === bestPrefix && freq > bestFreq);
+      if (better) {
         best = candidate;
         bestDist = dist;
+        bestPrefix = prefix;
         bestFreq = freq;
       }
     }
-    return bestDist <= max ? best : null;
+    return best;
   }
 
   /** Entry titles named in the question. Exact (by stem) or, when the question has a word the
@@ -252,7 +275,7 @@ export class SrdIndex {
         if (STOP.has(slice[0]) || STOP.has(slice[slice.length - 1])) continue;
         const phrase = slice.join(" ");
         const stemmed = stemPhrase(phrase);
-        const unknown = slice.some((w) => !this.wordFreq.has(w) && !/\d/.test(w));
+        const unknown = slice.some((w) => !this.known(w));
         const max = unknown ? allowedEdits(phrase.replace(/ /g, "").length) : 0;
         for (const name of this.names) {
           let dist: number;
@@ -261,6 +284,7 @@ export class SrdIndex {
           else dist = editDistance(phrase, name.norm, max);
           if (dist > max) continue;
           const closeness = 1 - dist / Math.max(phrase.length, name.norm.length);
+          if (closeness < MIN_CLOSENESS) continue;
           const prev = found.get(name.norm);
           if (!prev || prev.closeness < closeness) found.set(name.norm, { name, closeness, typed: phrase });
         }
