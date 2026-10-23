@@ -1,4 +1,5 @@
 import * as Speech from "expo-speech";
+import { speakable } from "./speechText";
 
 // Reading replies aloud with the phone's own free text to speech (expo-speech). No paid
 // service and no network call. Works in Expo Go and in a development build.
@@ -45,7 +46,8 @@ export function speak(text: string, voice: SpeakerVoice, handlers: Handlers) {
   const mine = ++generation;
   current = handlers;
   const { rate, pitch } = TUNING[voice];
-  Speech.speak(text, {
+  // Never read citations, page numbers or markdown symbols aloud (the card shows the source).
+  Speech.speak(speakable(text), {
     language: "en",
     rate,
     pitch,
