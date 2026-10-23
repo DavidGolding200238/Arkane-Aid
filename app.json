@@ -10,14 +10,6 @@
     },
     "plugins": [
       "expo-dev-client",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": false,
-          "recordAudioAndroid": false,
-          "enableBackgroundPlayback": false
-        }
-      ],
       "expo-asset",
       "expo-font",
       "expo-sqlite"

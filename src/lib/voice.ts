@@ -1,15 +1,9 @@
 import * as Speech from "expo-speech";
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
-import { File, Paths } from "expo-file-system";
-import { supabase } from "./supabase";
-import { functionError } from "./sage";
 
-// Reading replies aloud. First choice: a Google Chirp 3 HD voice per persona, through the
-// `tts` edge function (the Google key stays in Supabase). If that is not set up yet, fails,
-// or the phone is offline, the phone's own voice (expo-speech) reads it instead. Both work
-// in Expo Go and in a development build.
+// Reading replies aloud with the phone's own free text to speech (expo-speech). No paid
+// service and no network call. Works in Expo Go and in a development build.
 
-/** Who is speaking. Each has its own cloud voice (supabase/functions/_shared/voices.ts). */
+/** Who is speaking. Each gets its own device voice, rate and pitch so they sound different. */
 export type SpeakerVoice = "sage" | "wizard" | "scribe" | "bard";
 
 type Handlers = {
@@ -19,156 +13,113 @@ type Handlers = {
   onDone?: () => void;
 };
 
-// Device voice settings, kept from the first version of the Sage screen.
-const DEVICE_RATE: Record<SpeakerVoice, number> = { sage: 0.92, wizard: 0.86, scribe: 0.95, bard: 0.98 };
-// The cloud voices speak a little slower than device voices at the same rate.
-const CLOUD_WORDS_PER_SECOND = 2.6;
-const DEVICE_WORDS_PER_SECOND = 2.9;
+type DeviceVoice = { identifier?: string; name?: string; language?: string; quality?: string };
 
-// Off for the rest of the session once the function says it is not configured, or after two
-// failures in a row, so nobody waits on a voice that will not come.
-let cloudEnabled = true;
-let cloudFailures = 0;
-let player: AudioPlayer | null = null;
-let finishTimer: ReturnType<typeof setTimeout> | null = null;
+// Rate and pitch per persona: the Wizard slow and low, the Bard brighter, the Scribe even.
+const TUNING: Record<SpeakerVoice, { rate: number; pitch: number }> = {
+  sage: { rate: 0.92, pitch: 1 },
+  wizard: { rate: 0.86, pitch: 0.9 },
+  scribe: { rate: 0.95, pitch: 1 },
+  bard: { rate: 0.98, pitch: 1.05 },
+};
+const WORDS_PER_SECOND = 2.9;
+
 let current: Handlers | null = null;
 let generation = 0;
-let audioModeSet = false;
-const cache = new Map<string, string>();
-let clip = 0;
 
 /** Words per second the reply will be read at, so the quill can keep pace. */
 export function speechPace(voice: SpeakerVoice): number {
-  return cloudEnabled ? CLOUD_WORDS_PER_SECOND : DEVICE_WORDS_PER_SECOND * DEVICE_RATE[voice];
+  return WORDS_PER_SECOND * TUNING[voice].rate;
 }
 
 export function stopSpeaking() {
   generation += 1;
   Speech.stop();
-  releasePlayer();
   const handlers = current;
   current = null;
   handlers?.onEnd();
 }
 
-export async function speak(text: string, voice: SpeakerVoice, handlers: Handlers) {
+export function speak(text: string, voice: SpeakerVoice, handlers: Handlers) {
   stopSpeaking();
   const mine = ++generation;
   current = handlers;
-  if (cloudEnabled) {
-    const played = await playCloud(text, voice, mine);
-    if (played || mine !== generation) return;
-  }
-  if (mine !== generation) return;
-  speakOnDevice(text, voice, mine);
+  const { rate, pitch } = TUNING[voice];
+  Speech.speak(text, {
+    language: "en",
+    rate,
+    pitch,
+    voice: picked?.[voice] || undefined,
+    onDone: () => finish(mine, true),
+    onStopped: () => finish(mine, false),
+    onError: () => finish(mine, false),
+  });
 }
 
 function finish(mine: number, reachedEnd: boolean) {
   if (mine !== generation) return;
   const handlers = current;
   current = null;
-  releasePlayer();
   handlers?.onEnd();
   if (reachedEnd) handlers?.onDone?.();
 }
 
-function releasePlayer() {
-  if (finishTimer) clearTimeout(finishTimer);
-  finishTimer = null;
-  if (player) {
-    try {
-      player.pause();
-      player.remove();
-    } catch {
-      // already released
-    }
-    player = null;
-  }
-}
+// ---- Choosing a device voice per persona ----
+// Voice names differ by phone (Android: "en-gb-x-rjs-local", iOS: "Daniel"), so this only
+// nudges the choice: English first, offline and enhanced voices preferred, and each persona
+// leans towards a different accent or voice so they do not all sound alike. If nothing
+// matches, the phone's default English voice is used.
 
-async function playCloud(text: string, voice: SpeakerVoice, mine: number): Promise<boolean> {
-  try {
-    const uri = await cloudAudio(text, voice);
-    if (mine !== generation) return true;
-    if (!audioModeSet) {
-      await setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
-      audioModeSet = true;
-    }
-    const next = createAudioPlayer({ uri });
-    player = next;
-    next.addListener("playbackStatusUpdate", (status) => {
-      if (status.didJustFinish) finish(mine, true);
-    });
-    next.play();
-    // Safety net: if the finish event never comes, end after the clip's length plus a margin.
-    const words = text.split(/\s+/).filter(Boolean).length || 1;
-    finishTimer = setTimeout(() => finish(mine, true), (words / 1.5 + 5) * 1000);
-    cloudFailures = 0;
-    return true;
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    cloudFailures += 1;
-    if (code === "not_configured" || code === "unauthorized" || cloudFailures >= 2) cloudEnabled = false;
-    releasePlayer();
-    return false;
-  }
-}
+let picked: Record<SpeakerVoice, string> | null = null;
 
-async function cloudAudio(text: string, voice: SpeakerVoice): Promise<string> {
-  const key = `${voice}:${text}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
-  const { data, error } = await supabase.functions.invoke<{ audioContent: string }>("tts", { body: { text, voice } });
-  if (error) throw await functionError(error, "The voice could not be loaded.");
-  if (!data?.audioContent) throw new Error("No audio came back.");
-  const file = new File(Paths.cache, `sage-voice-${clip++ % 8}.mp3`);
-  file.create({ overwrite: true });
-  file.write(data.audioContent, { encoding: "base64" });
-  // Only the last few clips are kept; older cache names get reused above.
-  for (const [oldKey, uri] of cache) if (uri === file.uri) cache.delete(oldKey);
-  cache.set(key, file.uri);
-  return file.uri;
-}
+const MALE = /\bmale\b|daniel|fred|rjs|iom|alex|bruce|ralph|gordon|arthur|aaron|oliver|tom\b/;
+const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|serena|kate|fis|gba|sfg|tpc/;
+const GB = /en-gb|en_gb|british|\buk\b/;
 
-// ---- Device voice (expo-speech) ----
-
-let wizardVoice: string | null = null;
-
-function scoreVoice(voice: { identifier?: string; name?: string; language?: string }) {
+function base(voice: DeviceVoice) {
+  const lang = (voice.language ?? "").toLowerCase().replace("_", "-");
+  if (!lang.startsWith("en")) return null;
   const id = `${voice.identifier ?? ""} ${voice.name ?? ""}`.toLowerCase();
-  const lang = (voice.language ?? "").toLowerCase();
-  if (!lang.startsWith("en")) return -1;
-  if (/female|woman|samantha|victoria|karen|moira|tessa/.test(id)) return 0;
   let score = 1;
-  if (/male|man|daniel|fred|rjs|iom|alex|bruce|ralph|gordon|arthur/.test(id)) score += 4;
-  if (/en-gb|en_gb|british|uk/.test(id) || lang.startsWith("en-gb")) score += 2;
-  if (/old|deep|low/.test(id)) score += 2;
-  return score;
+  if (voice.quality === "Enhanced") score += 1;
+  if (/local/.test(id) && !/network/.test(id)) score += 1; // works offline
+  return { id, lang, score };
 }
 
-/** Picks the deepest, oldest-sounding English device voice for the Wizard. Safe to call early. */
+const PREFERENCE: Record<SpeakerVoice, (id: string, lang: string) => number> = {
+  // Older, deeper court mage: male, British, "deep/old" if the phone names it so.
+  wizard: (id, lang) => (MALE.test(id) ? 4 : FEMALE.test(id) ? -3 : 0) + (GB.test(id) || lang.startsWith("en-gb") ? 2 : 0) + (/old|deep|low/.test(id) ? 2 : 0),
+  // Calm teacher: British or neutral English.
+  sage: (id, lang) => (GB.test(id) || lang.startsWith("en-gb") ? 2 : 0) + (MALE.test(id) ? 1 : 0),
+  // Even record-keeper: a different-sounding (often female) voice.
+  scribe: (id) => (FEMALE.test(id) ? 3 : 0),
+  // Lively minstrel: a lighter accent where available (Irish, Australian, US).
+  bard: (id, lang) => (/en-ie|en-au|irish|austral/.test(id) || /en-(ie|au)/.test(lang) ? 3 : lang.startsWith("en-us") ? 1 : 0),
+};
+
+/** Picks a device voice for each persona. Safe to call early; runs once. */
 export async function prepareDeviceVoices() {
-  if (wizardVoice !== null) return;
+  if (picked) return;
+  const choice: Record<SpeakerVoice, string> = { sage: "", wizard: "", scribe: "", bard: "" };
   try {
-    const voices = await Speech.getAvailableVoicesAsync();
-    const ranked = voices
-      .map((voice) => ({ voice, score: scoreVoice(voice) }))
-      .filter((row) => row.score > 0)
-      .sort((a, b) => b.score - a.score);
-    wizardVoice = ranked[0]?.voice.identifier ?? "";
+    const voices = (await Speech.getAvailableVoicesAsync()) as DeviceVoice[];
+    const english = voices.map((v) => ({ v, b: base(v) })).filter((row) => row.b && row.v.identifier);
+    const used = new Set<string>();
+    for (const persona of ["wizard", "sage", "scribe", "bard"] as SpeakerVoice[]) {
+      let best: { id: string; score: number } | null = null;
+      for (const { v, b } of english) {
+        if (!b || !v.identifier) continue;
+        // Prefer a voice no other persona has taken yet.
+        const score = b.score + PREFERENCE[persona](b.id, b.lang) - (used.has(v.identifier) ? 3 : 0);
+        if (!best || score > best.score) best = { id: v.identifier, score };
+      }
+      if (best && best.score > 0) {
+        choice[persona] = best.id;
+        used.add(best.id);
+      }
+    }
   } catch {
-    wizardVoice = "";
+    // Keep the default voice for everyone.
   }
-}
-
-function speakOnDevice(text: string, voice: SpeakerVoice, mine: number) {
-  Speech.speak(text, {
-    language: "en",
-    rate: DEVICE_RATE[voice],
-    pitch: voice === "bard" ? 1.05 : 1,
-    voice: voice === "wizard" && wizardVoice ? wizardVoice : undefined,
-    onDone: () => finish(mine, true),
-    onStopped: () => finish(mine, false),
-    onError: () => finish(mine, false),
-  });
+  picked = choice;
 }

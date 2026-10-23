@@ -45,7 +45,7 @@ Create a party and get a code. Join a party with that code. The creator is the d
 
 ### Sage
 
-Ask a ruling. The reply is spoken aloud: a Google Chirp 3 HD voice from the `tts` Edge Function when it is set up, otherwise the phone's own text to speech (expo-speech), so it always works in Expo Go. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
+Ask a ruling. The reply is spoken aloud by the phone's own free text to speech (expo-speech), so it always works in Expo Go and needs no paid service. A compact player sheet is attached only when the question depends on the character. General rules send no sheet. Plain voice is short and direct. Wizard voice is the same ruling in a warmer, ornate tone. The voice is picked on the Tome, and the Sage screen colours the orb fire to match: red for Wizard, blue for Plain, fading between them when the voice changes. The fire is a smooth 3-second loop (an animated WebP morphed offline from the 8 Figma frames, played natively by expo-image), with a thin heat glow at the orb's rim and a few rising embers; the glow is faint while idle, brighter and quicker while the Sage thinks, and pulses gently while it speaks (Reduce Motion shows a still frame and no embers). Under the orb a short status line sets the mood and changes while the Sage thinks or speaks. Two buttons pick the mode: Sage (microphone) on the left, Scribe (quill) on the right. The question or note is typed in a square parchment box docked at the bottom, with the round red send button (a cream pen nib) in its corner; it grows as you type and stays above the keyboard. The reply writes itself out on a parchment card like a quill, roughly in step with the speech; tap the card to show it all at once. Speech in is a placeholder until a development build. The header floats over the page with no strip of its own: content scrolling under the title, or down towards the typing box, melts into the paper through soft fades made of the same parchment.
 
 ### Scribe
 
@@ -71,11 +71,11 @@ Sage, Scribe and Bard share one set of fact rules (`supabase/functions/_shared/p
 - **Scribe**: one past-tense ledger line, no advice, written into the Codex.
 - **Bard**: the same ruling told with flair, a little rhythm and a wink, still accurate and cited.
 
-The Sage button uses the voice picked on the Tome (Plain, Wizard or Bard), so Bard needs no extra button. Each persona has its own Chirp 3 HD voice (Charon, Algenib, Kore, Puck).
+The Sage button uses the voice picked on the Tome (Plain, Wizard or Bard), so Bard needs no extra button. Each persona has its own on-device voice setting: the app picks the best English voice the phone offers for each one (offline voices first) and gives each its own speed and pitch, so Wizard, Plain, Bard and Scribe sound different. Voices use the device's free text-to-speech; no paid services.
 
 ### Settings (Tome)
 
-The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage personality with the red arrows: Wizard (the Sage as an ornate court mage, Chirp voice Algenib), Plain (the Sage, short and direct, Charon) or Bard (the ruling with a rhyme, Puck). The choice is saved on the device. The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
+The settings screen is called the Tome. It shows which party you are bound to. ACCOUNT holds sign out, create party, join party, reload, and switching the active party. GUIDANCE has quick how-to tips. Voice Personality picks the Sage personality with the red arrows: Wizard (the Sage as an ornate court mage, a slower, lower voice), Plain (the Sage, short and direct) or Bard (the ruling with a rhyme, a brighter voice). The choice is saved on the device. The choice is saved on the device in `VoiceContext` and the Sage screen reads it.
 
 ---
 
@@ -88,7 +88,7 @@ The settings screen is called the Tome. It shows which party you are bound to. A
 | UI | React Native |
 | Auth and data | Supabase Auth, Postgres, Storage, Row Level Security |
 | AI | Groq, called from a Supabase Edge Function |
-| Speech | Google Cloud Text-to-Speech (Chirp 3 HD) through the `tts` Edge Function, expo-audio playback, expo-speech fallback |
+| Speech | expo-speech: the device's free text to speech, no paid services |
 | Portrait | expo-image-picker |
 | Orb slot | three, @react-three/fiber, expo-gl |
 | Fonts | Cinzel Decorative, Atkinson Hyperlegible |
@@ -147,14 +147,13 @@ Install the Supabase CLI, then from the repo root:
 supabase login
 supabase link --project-ref YOUR-PROJECT-REF
 supabase db push                                   # applies supabase/migrations in order
-supabase secrets set GROQ_API_KEY=... GOOGLE_TTS_API_KEY=...
+supabase secrets set GROQ_API_KEY=...
 supabase functions deploy sage
-supabase functions deploy tts
 ```
 
 - `supabase/migrations/` holds the schema: profiles, parties and members, characters, equipment, traits, the Codex, the portrait bucket, Row Level Security, and `party_sheets`, a read-only function the Sage uses for party questions (it runs as the caller, so it only sees parties they belong to).
-- `supabase/functions/sage` answers questions with Groq. `supabase/functions/tts` turns a reply into speech. Both require a signed-in user.
-- Without `GOOGLE_TTS_API_KEY` the app uses the phone's voice; without `GROQ_API_KEY` the Sage reports that it is not configured.
+- `supabase/functions/sage` answers questions with Groq and requires a signed-in user. Speech happens on the phone, so there is no speech function or key.
+- Without `GROQ_API_KEY` the Sage reports that it is not configured.
 - `npm run test:functions` type-checks, lints and tests the functions (needs Deno). `deno run -A scripts/ask-sage.ts bard "how much damage does firebal do"` asks Groq locally with the same prompts.
 
 ---
@@ -197,7 +196,7 @@ src/
                         ParchmentPanel, ThemedButton, TornButton, VoiceCarousel, Rule (inked underline), PageFade, icons
   theme/                colors, spacing, typography (fonts, heading ink), scale (360-wide sizing)
   context/              AuthContext, PartyContext, VoiceContext (saved Sage voice)
-  lib/                  supabase, parties, character, codex, sage (typed Sage client), voice (cloud voice + device fallback), preload (what the splash loads)
+  lib/                  supabase, parties, character, codex, sage (typed Sage client), voice (device text to speech per persona), preload (what the splash loads)
 assets/
   icons/                dashboard seal icons (icons8 SVGs)
   images/
@@ -218,13 +217,12 @@ assets/
   models/               sage-avatar.glb (the 3D Sage orb)
 art-source/             source art for scripts/build-sage-fire.py and build-cream-panels.py (not bundled)
 supabase/
-  config.toml           local CLI config; both functions verify the user's JWT
+  config.toml           local CLI config; the sage function verifies the user's JWT
   migrations/           schema, RLS and party_sheets, in order
   functions/
-    _shared/            personas, SRD search, auth, Groq, voices, HTTP helpers (+ tests)
+    _shared/            personas, SRD search, auth, Groq, HTTP helpers (+ tests)
     _shared/srd/        SRD 5.2.1 chunks (CC-BY-4.0)
     sage/               rules Q&A (Groq)
-    tts/                Chirp 3 HD speech
 scripts/                build-srd.py (rebuilds the SRD chunks), ask-sage.ts (local test), panel tools
 eas.json                development, preview and production build profiles
 ```

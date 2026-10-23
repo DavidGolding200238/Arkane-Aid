@@ -52,7 +52,7 @@ export class SageError extends Error {
 }
 
 /** Turns a failed function call into one readable SageError. Shared with the voice client. */
-export async function functionError(error: unknown, fallback: string): Promise<SageError> {
+async function functionError(error: unknown, fallback: string): Promise<SageError> {
   if (error instanceof FunctionsHttpError) {
     const response = error.context as Response;
     const body = await response.json().catch(() => null);
