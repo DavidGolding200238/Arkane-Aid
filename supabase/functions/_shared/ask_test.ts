@@ -80,3 +80,63 @@ Deno.test("wizard, arbiter and bard prompts differ only in the identity block", 
 Deno.test("the scribe keeps its ledger voice", () => {
   assertStringIncludes(systemPrompt("scribe"), "Write it as ONE ledger line");
 });
+
+// Short memory: the last exchanges of this Sage session ride along as chat turns.
+async function runWith(body: Record<string, unknown>, semantic?: (text: string) => Promise<never[]>) {
+  const sent: ChatRequest[] = [];
+  const searched: string[] = [];
+  const result = await ask(body, {
+    chat: (request) => {
+      sent.push(request);
+      return Promise.resolve("It lasts 10 minutes.");
+    },
+    party: () => Promise.resolve(""),
+    semantic: semantic ?? ((text) => {
+      searched.push(text);
+      return Promise.resolve([]);
+    }),
+  });
+  return { request: sent[0], result: result as AskReply, searched };
+}
+
+const rage = [{ q: "how does a barbarian's rage work", a: "As a bonus action you enter a Rage..." }];
+
+for (const [name, voice] of clients.filter(([n]) => !n.startsWith("scribe"))) {
+  Deno.test(`${name}: earlier exchanges are sent before the new question`, async () => {
+    const { request } = await runWith({ question: "how long does it last?", history: rage, ...voice });
+    assertEquals(request.messages.length, 4);
+    assertEquals(request.messages[1], { role: "user", content: `Question: ${rage[0].q}` });
+    assertEquals(request.messages[2].role, "assistant");
+    assertStringIncludes(request.messages[3].content, "how long does it last?");
+  });
+}
+
+Deno.test("scribe: no memory", async () => {
+  const { request } = await runWith({ question: "Notes: we fought goblins", mode: "scribe", history: rage });
+  assertEquals(request.messages.length, 2);
+});
+
+Deno.test("small talk: no memory and no search", async () => {
+  const { request, searched, result } = await runWith({ question: "thanks!", mode: "sage", history: rage });
+  assertEquals(request.messages.length, 2);
+  assertEquals(searched, []);
+  assertEquals(result.retrieval, "none");
+});
+
+Deno.test("a follow-up searches with the previous question too", async () => {
+  const { searched, result } = await runWith({ question: "how long does it last?", mode: "sage", history: rage });
+  assertEquals(searched, [`how long does it last? ${rage[0].q}`]);
+  assert(result.sources.some((s) => s.title.includes("Rage")));
+  assertEquals(result.retrieval, "keyword");
+});
+
+Deno.test("a fresh question does not borrow the previous one", async () => {
+  const { searched } = await runWith({ question: "how does grappling work", mode: "sage", history: rage });
+  assertEquals(searched, ["how does grappling work"]);
+});
+
+Deno.test("meaning search failing still answers from keyword search", async () => {
+  const { result } = await runWith({ question: "how does grappling work", mode: "sage" }, () => Promise.reject(new Error("down")));
+  assertEquals(result.retrieval, "keyword");
+  assert(result.sources.length > 0);
+});
