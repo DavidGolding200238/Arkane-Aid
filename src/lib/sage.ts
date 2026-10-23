@@ -1,4 +1,5 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import { splitSource } from "./speechText";
 import { supabase } from "./supabase";
 
 // Client side of the `sage` edge function (supabase/functions/sage). One SRD 5.2.1 knowledge
@@ -16,7 +17,10 @@ export type SageSource = { title: string; citation: string; page: number };
 export type SageReply = {
   mode: SageMode;
   persona: string;
+  /** The answer to show and read aloud. No citations in it. */
   reply: string;
+  /** Short source note for the card footer, e.g. "Alignment, p. 21". Never spoken. "" when none. */
+  source: string;
   /** SRD 5.2.1 entries the answer was grounded in. Empty for lore and homebrew answers. */
   sources: SageSource[];
   /** Spelling fixes the search made, e.g. { from: "firebal", to: "Fireball" }. */
@@ -88,8 +92,13 @@ export async function askSage(request: SageRequest): Promise<SageReply> {
   if (__DEV__ && typeof (data as { smallTalk?: unknown }).smallTalk !== "boolean") {
     console.warn("Sage: the deployed sage function is out of date. Run: npx supabase functions deploy sage");
   }
+  // Newer functions send the source apart; for an older one (or a model slip) split it here.
+  const split = splitSource(data.reply);
+  const given = typeof data.source === "string" ? data.source.trim() : "";
   return {
     ...data,
+    reply: split.text || data.reply,
+    source: given || split.source,
     sources: Array.isArray(data.sources) ? data.sources : [],
     corrections: Array.isArray(data.corrections) ? data.corrections : [],
   };

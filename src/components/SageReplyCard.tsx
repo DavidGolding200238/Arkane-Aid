@@ -22,6 +22,8 @@ type Props = {
   asked?: string;
   /** "Sheet attached." / "Written to the Codex." */
   footNote?: string;
+  /** Where the ruling comes from, e.g. "Alignment, p. 21". Shown small under the reply, never spoken. */
+  source?: string;
   /** Writing speed in characters per second. */
   cps: number;
   /** Set true to finish the writing at once (e.g. the speech has ended). */
@@ -78,6 +80,7 @@ export default function SageReplyCard({
   label,
   asked,
   footNote,
+  source,
   cps,
   finished,
   speaking,
@@ -183,6 +186,14 @@ export default function SageReplyCard({
             {text.slice(0, shown)}
             {writing ? <Text style={[styles.caret, !caretOn && styles.caretOff]}>{" |"}</Text> : null}
           </Text>
+          {source && !writing ? (
+            <Text
+              style={[styles.source, { fontSize: fs(12), lineHeight: fs(16) }]}
+              accessibilityLabel={`Source: ${source.replace(/\bp\. ?/g, "page ")}, SRD 5.2.1`}
+            >
+              Source: {source.replace(/, p\. ?(\d+)/g, " (SRD p.$1)")}
+            </Text>
+          ) : null}
           {footNote && !writing ? <Text style={[styles.noted, { fontSize: fs(12) }]}>{footNote}</Text> : null}
         </ParchmentPanel>
       </Pressable>
@@ -210,6 +221,7 @@ const styles = StyleSheet.create({
   body: { fontFamily: fonts.body, color: colors.ink },
   caret: { color: colors.wordmark, fontFamily: fonts.headingBold },
   caretOff: { color: "transparent" },
+  source: { fontFamily: fonts.bodyItalic, color: colors.muted, opacity: 0.85 },
   noted: { fontFamily: fonts.bodyItalic, color: colors.panelStroke, textAlign: "right" },
   pauseBars: { flexDirection: "row", alignItems: "center" },
   pauseBar: { borderRadius: 2, backgroundColor: colors.cream },

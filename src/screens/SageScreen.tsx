@@ -100,6 +100,7 @@ export default function SageScreen({ onBack }: Props) {
   const [question, setQuestion] = useState("");
   const [asked, setAsked] = useState("");
   const [reply, setReply] = useState("");
+  const [source, setSource] = useState("");
   const [error, setError] = useState("");
   const [noted, setNoted] = useState("");
   const [sheetLine, setSheetLine] = useState("");
@@ -176,6 +177,7 @@ export default function SageScreen({ onBack }: Props) {
     setSpeaking(false);
     setError("");
     setReply("");
+    setSource("");
     setReplyDone(false);
     setNoted("");
     setSheetLine("");
@@ -206,6 +208,7 @@ export default function SageScreen({ onBack }: Props) {
         return;
       }
       setReply(text);
+      setSource(mode === "scribe" ? "" : data.source);
       if (mode !== "scribe") setMemory({ key: memoryKey, turns: [...history, { q: trimmed, a: text }].slice(-3) });
       if (persona === "scribe") {
         if (!partyId) {
@@ -311,6 +314,7 @@ export default function SageScreen({ onBack }: Props) {
               label={replyLabel}
               asked={asked}
               footNote={footNote}
+              source={source}
               cps={writingSpeed(reply, speaker)}
               finished={replyDone}
               speaking={speaking}
