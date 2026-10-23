@@ -244,3 +244,69 @@ Deno.test("wizard, arbiter and bard send the same chat and sheet-review messages
     }
   }
 });
+
+// David's scope rule: anything D&D or campaign gets a real answer, anything else a kind
+// one-line "outside my tome" and a nudge back. The rule is shared, so every voice gets it.
+const OUT_OF_SCOPE = [
+  "how do I reverse a string in python",
+  "solve 3x + 5 = 20 for my maths homework",
+  "who won the football last night",
+];
+const ODD_BUT_IN_SCOPE = [
+  "my rogue tries to seduce a dragon mid-fall, what happens?",
+  "how would a medieval town handle taxes for my campaign",
+];
+
+Deno.test("the scope rule is in every voice and is word for word the same", () => {
+  const scopes = SAGE_VOICES.map(([, v]) => {
+    const prompt = systemPrompt(v.mode as "sage" | "bard", v.style as "plain" | "wizard");
+    return prompt.split("\n\n").find((part) => part.startsWith("Scope:"));
+  });
+  for (const scope of scopes) {
+    assert(scope);
+    assertStringIncludes(scope, "always get a real, helpful answer, never a refusal");
+    assertStringIncludes(scope, "coding, maths, sport, trivia, essays");
+    assertStringIncludes(scope, "answer none of it, not even a hint");
+    assertStringIncludes(scope, "outside your tome");
+    assertStringIncludes(scope, "If it could belong in a campaign, it is in scope");
+    assertEquals(scope, scopes[0]);
+    assert(scope.length < 520, `scope rule is ${scope.length} chars`);
+  }
+  for (const [, v] of SAGE_VOICES) {
+    assertFalse(systemPrompt(v.mode as "sage" | "bard", v.style as "plain" | "wizard").includes("steer back"));
+  }
+});
+
+for (const [name, voice] of SAGE_VOICES) {
+  for (const question of OUT_OF_SCOPE) {
+    Deno.test(`${name}: "${question}" is not chat and is sent under the scope rule`, async () => {
+      const decline = "That lies outside my tome, friend. Shall we get back to the game?";
+      const { request, result } = await runReply({ question, ...voice }, decline);
+      assertEquals(result.chat, null);
+      assertFalse(result.smallTalk);
+      assertStringIncludes(request.messages[0].content, "answer none of it, not even a hint");
+      assertEquals(result.reply, decline);
+      assertEquals(result.source, "");
+    });
+  }
+  for (const question of ODD_BUT_IN_SCOPE) {
+    Deno.test(`${name}: "${question}" is a real question: searched and answered`, async () => {
+      const { request, result, searched } = await runReply({ question, ...voice }, "Roll Charisma.\nSource: Falling, p. 179");
+      assertEquals(result.chat, null);
+      assert(searched.length > 0);
+      assertStringIncludes(request.messages[request.messages.length - 1].content, "<srd>");
+      assertStringIncludes(request.messages[0].content, "never a refusal");
+      assertEquals(result.reply, "Roll Charisma.");
+    });
+  }
+}
+
+Deno.test("out-of-scope and odd questions reach all three voices as the same message", async () => {
+  for (const question of [...OUT_OF_SCOPE, ...ODD_BUT_IN_SCOPE]) {
+    const sent = await Promise.all(SAGE_VOICES.map(([, v]) => runReply({ question, ...v }, "ok")));
+    for (const other of sent.slice(1)) {
+      assertEquals(other.request.messages.slice(1), sent[0].request.messages.slice(1));
+      assertEquals(other.request.maxTokens, sent[0].request.maxTokens);
+    }
+  }
+});
