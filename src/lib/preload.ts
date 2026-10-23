@@ -69,6 +69,7 @@ const PAGES = [
   require("../../assets/images/tome/voice-orb-wizard.png"),
   require("../../assets/images/tome/voice-orb-plain.png"),
   require("../../assets/images/tome/voice-orb-bard.png"),
+  require("../../assets/images/tome/orb-shadow.png"),
   require("../../assets/images/tome/arrow-left.png"),
   require("../../assets/images/tome/arrow-right.png"),
 ];

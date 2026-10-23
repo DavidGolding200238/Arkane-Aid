@@ -212,10 +212,10 @@ assets/
     panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-codex-cream and panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) are the ones in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger sources are in art-source/panels/
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
     sage/               fire-red-loop.webp, fire-blue-loop.webp, fire-green-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1, fire-blue-1, fire-green-1 (3x PNG Reduce Motion stills; red and blue with keyframes 2..8 in art-source/sage/ are the Figma keyframes the loops are built from; green is the red fire recoloured by the build script)
-    tome/               d20-badge, voice-orb-wizard/plain/bard, arrow-left/right (3x PNG, transparent)
+    tome/               d20-badge, voice-orb-wizard/plain/bard (orb discs), orb-shadow, arrow-left/right (PNG, transparent; orbs from scripts/build-tome-orbs.py)
     ledger/             stat-header, stat-body, portrait-ink (3x PNG, transparent), portrait-placeholder (3x JPEG)
   models/               sage-avatar.glb (the 3D Sage orb)
-art-source/             source art for scripts/build-sage-fire.py and build-cream-panels.py (not bundled)
+art-source/             source art for scripts/build-sage-fire.py, build-cream-panels.py and build-tome-orbs.py (tome/: the Figma orb exports) (not bundled)
 supabase/
   config.toml           local CLI config; the sage function verifies the user's JWT
   migrations/           schema, RLS and party_sheets, in order
