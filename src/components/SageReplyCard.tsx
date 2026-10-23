@@ -27,7 +27,8 @@ type Props = {
   /** Set true to finish the writing at once (e.g. the speech has ended). */
   finished?: boolean;
   speaking: boolean;
-  onToggleSpeech: () => void;
+  /** Play / stop the spoken reply. Left out when reading aloud is off on the Tome: no button. */
+  onToggleSpeech?: () => void;
   /** Told when the quill starts and stops, so the screen can follow it. */
   onWritingChange?: (writing: boolean) => void;
 };
@@ -160,12 +161,14 @@ export default function SageReplyCard({
           variant="card"
           contentStyle={{ paddingHorizontal: s(20), paddingTop: s(16), paddingBottom: s(18), gap: s(spacing.sm) }}
         >
-          <View style={[styles.head, { gap: s(spacing.sm) }]}>
+          <View style={[styles.head, { gap: s(spacing.sm), minHeight: playSize }]}>
             <Text style={[styles.label, { fontSize: fs(14) }]}>{label.toUpperCase()}</Text>
             <Rule color={colors.rule} style={styles.flex} />
-            <CircleButton size={playSize} onPress={onToggleSpeech} accessibilityLabel={speaking ? "Stop the reply" : "Play the reply"}>
-              {speaking ? <PauseGlyph size={playSize} bar={s(3)} /> : <PlayGlyph size={playSize} />}
-            </CircleButton>
+            {onToggleSpeech ? (
+              <CircleButton size={playSize} onPress={onToggleSpeech} accessibilityLabel={speaking ? "Stop the reply" : "Play the reply"}>
+                {speaking ? <PauseGlyph size={playSize} bar={s(3)} /> : <PlayGlyph size={playSize} />}
+              </CircleButton>
+            ) : null}
           </View>
           {asked ? (
             <Text style={[styles.asked, { fontSize: fs(14), lineHeight: fs(19) }]} numberOfLines={2}>
