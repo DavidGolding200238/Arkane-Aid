@@ -13,6 +13,7 @@ export type EvalCase = {
   history_of?: string;
   sheet?: string;
   source?: string[];
+  out_of_scope?: boolean;
 };
 
 export const CASES = cases.cases as EvalCase[];
@@ -54,6 +55,10 @@ export function checkReply(
   if (c.source?.length && meta.source !== undefined) {
     const note = meta.source.toLowerCase();
     checks.push({ name: `source names ${c.source.join(" / ")}`, pass: c.source.some((s) => note.includes(s.toLowerCase())) });
+  }
+  if (c.out_of_scope) {
+    checks.push({ name: "short decline", pass: reply.trim().length <= 320 && !/^\W*(lore|homebrew idea):/i.test(reply.trim()) });
+    if (meta.source !== undefined) checks.push({ name: "no Source footer", pass: meta.source === "" });
   }
   if (c.lore) checks.push({ name: 'starts with "Lore:"', pass: /^\W*lore:/i.test(reply.trim()) });
   if (c.small_talk !== undefined && meta.smallTalk !== undefined) {
