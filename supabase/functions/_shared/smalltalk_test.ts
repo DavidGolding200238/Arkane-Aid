@@ -3,6 +3,11 @@ import { assertEquals } from "jsr:@std/assert@1";
 import { chatKind } from "./smalltalk.ts";
 
 const cases: [string, string | null][] = [
+  // Off-topic requests are not chat: they reach the model under the scope rule.
+  ["how do I reverse a string in python", null],
+  ["solve 3x + 5 = 20 for my maths homework", null],
+  ["who won the football last night", null],
+  ["my rogue tries to seduce a dragon mid-fall, what happens?", null],
   ["Hello", "greeting"],
   ["hi there", "greeting"],
   ["Good morning, Arbiter", "greeting"],
