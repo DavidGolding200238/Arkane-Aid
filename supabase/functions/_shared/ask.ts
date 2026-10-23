@@ -6,6 +6,8 @@ import { userMessage } from "./message.ts";
 import { PERSONAS, resolveMode, type SageStyle, systemPrompt, temperatureFor } from "./personas.ts";
 import { isSmallTalk } from "./smalltalk.ts";
 import { srd } from "./srd.ts";
+import { hybridSearch, type SemanticSearch } from "./hybrid.ts";
+import { historyMessages, isFollowUp, readHistory } from "./history.ts";
 import { text } from "./http.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,6 +19,8 @@ export type AskDeps = {
   chat: (request: ChatRequest) => Promise<string>;
   /** The party's sheets as text, read as the caller. */
   party: (partyId: string) => Promise<string>;
+  /** Meaning search (gte-small + pgvector). Missing or failing means keyword search only. */
+  semantic?: SemanticSearch;
 };
 
 export type AskReply = {
@@ -27,6 +31,8 @@ export type AskReply = {
   corrections: { from: string; to: string }[];
   grounded: boolean;
   smallTalk: boolean;
+  /** "hybrid" when meaning search took part, "keyword" when it was off or failed, "none" for small talk. */
+  retrieval: "hybrid" | "keyword" | "none";
 };
 
 export type AskError = { error: string; code: "bad_request" | "empty_reply" };
@@ -45,7 +51,15 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
   // A message that is only a greeting or "thanks" is answered in character without searching
   // the SRD (a fuzzy search on "Hello" only finds noise). Anything with a question in it is searched.
   // Same check for every persona and style.
-  const found = isSmallTalk(question) ? null : srd.search(question, { limit: persona.srdLimit });
+  const smallTalk = isSmallTalk(question);
+  // Short memory: the last few exchanges of this Sage session, sent by the app. The Scribe
+  // writes one-off notes, so it gets none; small talk does not need any either.
+  const history = persona.mode === "scribe" || smallTalk ? [] : readHistory(body.history);
+  // "What about at level 5?" searches with the previous question's words too.
+  const context = history.length && isFollowUp(question) ? history[history.length - 1].q : undefined;
+  const found = smallTalk
+    ? null
+    : await hybridSearch(srd, question, { limit: persona.srdLimit, semantic: deps.semantic, context });
   const party = found && partyId && ABOUT_PARTY.test(question) ? await deps.party(partyId) : "";
 
   const reply = tidy(
@@ -55,6 +69,7 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
       maxTokens: persona.maxTokens,
       messages: [
         { role: "system", content: systemPrompt(persona.mode, style) },
+        ...historyMessages(history),
         { role: "user", content: userMessage(question, found, found ? sheet : "", party) },
       ],
     }),
@@ -69,5 +84,6 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
     corrections: found?.corrections ?? [],
     grounded: found?.grounded ?? false,
     smallTalk: !found,
+    retrieval: found?.retrieval ?? "none",
   };
 }

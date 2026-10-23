@@ -1,13 +1,16 @@
 // The Sage, the Scribe and the Bard: one SRD 5.2.1 knowledge base, three voices.
 //
-// POST { question, mode?: "sage"|"scribe"|"bard", style?: "plain"|"wizard", sheet?, partyId? }
-//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded, smallTalk }
+// POST { question, mode?: "sage"|"scribe"|"bard", style?: "plain"|"wizard", sheet?, partyId?,
+//        history?: [{ q, a }] (last exchanges of this session, at most 3 used) }
+//   -> { mode, persona, reply, sources: [{ title, citation, page }], corrections, grounded, smallTalk, retrieval }
+// Retrieval is keyword + meaning search (Supabase.ai gte-small + match_srd); keyword only until seeded.
 // Errors -> { error, code } (see _shared/http.ts).
 // Needs the GROQ_API_KEY function secret. Players must be signed in.
 import { ask } from "../_shared/ask.ts";
 import { requireUser, type Caller } from "../_shared/auth.ts";
 import { chat, GroqError } from "../_shared/groq.ts";
 import { fail, json, preflight, readJson } from "../_shared/http.ts";
+import { semanticSearch } from "../_shared/semantic.ts";
 
 Deno.serve(async (request) => {
   const early = preflight(request);
@@ -24,6 +27,7 @@ Deno.serve(async (request) => {
     const result = await ask(body, {
       chat: (chatRequest) => chat(key, chatRequest),
       party: (partyId) => partyContext(caller, partyId),
+      semantic: semanticSearch(caller.db),
     });
     if ("error" in result) return fail(result.code === "bad_request" ? 400 : 502, result.code, result.error);
     return json(result);
