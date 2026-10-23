@@ -1,5 +1,5 @@
 {
-  "about": "Sage eval set. `expect`: SRD entry titles (exact, as in srd-5.2.1.json); a case passes retrieval if any of them is in the top 4. `must_include`: every group must match (a group is a list of alternatives, case-insensitive). `must_not_include`: none may appear. `lore`: the reply must start with \"Lore:\". `small_talk`: the function must report smallTalk. `history_of`: id of the case asked just before (follow-up pair).",
+  "about": "Sage eval set. `expect`: SRD entry titles (exact, as in srd-5.2.1.json); a case passes retrieval if any of them is in the top 4. `must_include`: every group must match (a group is a list of alternatives, case-insensitive). `must_not_include`: none may appear. `lore`: the reply must start with \"Lore:\". `small_talk`: the function must report smallTalk. `history_of`: id of the case asked just before (follow-up pair). `sheet`: the asker's sheet (sheetBrief form). `source`: the reply's Source footer must name one of these. Every reply is also checked for citations left in the spoken text.",
   "cases": [
     { "id": "opportunity-plain", "kind": "plain", "question": "can I hit someone running away", "expect": ["Opportunity Attacks"], "must_include": [["opportunity attack"], ["reaction"]] },
     { "id": "opportunity-rule", "kind": "rule", "question": "how do opportunity attacks work", "expect": ["Opportunity Attacks"], "must_include": [["reaction"], ["reach"]] },
@@ -32,7 +32,9 @@
     { "id": "lore-hells", "kind": "lore", "question": "who rules the Nine Hells", "lore": true, "must_include": [["asmodeus"]] },
     { "id": "lore-elves", "kind": "lore", "question": "where do elves go when they die in the Forgotten Realms", "lore": true },
     { "id": "follow-rage", "kind": "followup", "question": "how does a barbarian's rage work", "expect": ["Level 1: Rage"], "must_include": [["bonus action"], ["resistance"]] },
-    { "id": "follow-rage-2", "kind": "followup", "question": "how long does it last?", "history_of": "follow-rage", "expect": ["Level 1: Rage"], "must_include": [["minute", "turn"]], "must_not_include": ["Lore:"] }
+    { "id": "follow-rage-2", "kind": "followup", "question": "how long does it last?", "history_of": "follow-rage", "expect": ["Level 1: Rage"], "must_include": [["minute", "turn"]], "must_not_include": ["Lore:"] },
+    { "id": "sheet-review", "kind": "sheet", "question": "Check my playersheet and tell me whats wrong", "sheet": "Brakka Half-Orc Barbarian L1. AC14 SPD30 PB+2 HP 15/15. STR30 DEX14 CON16 INT8 WIS12 CHA10. Skills: Athletics, Intimidation. Gear: Greataxe, Handaxe", "source": ["Adjust Ability Scores", "Ability Scores"], "must_include": [["20"], ["strength", "str"]], "must_not_include": ["mandatory", "illegal", "must choose an alignment"] },
+    { "id": "sheet-damn", "kind": "interjection", "question": "Damn", "history_of": "sheet-review", "small_talk": true, "must_not_include": ["hello", "greetings", "well met", "welcome", "how can i help", "Lore:", "Source:", "SRD"] }
   ],
-  "tone": ["opportunity-plain", "typo-fireball", "greeting-hello"]
+  "tone": ["opportunity-plain", "typo-fireball", "greeting-hello", "sheet-review", "sheet-damn"]
 }

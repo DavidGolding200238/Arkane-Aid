@@ -11,6 +11,8 @@ export type EvalCase = {
   lore?: boolean;
   small_talk?: boolean;
   history_of?: string;
+  sheet?: string;
+  source?: string[];
 };
 
 export const CASES = cases.cases as EvalCase[];
@@ -37,7 +39,7 @@ export type ReplyCheck = { name: string; pass: boolean; detail?: string };
 export function checkReply(
   c: EvalCase,
   reply: string,
-  meta: { smallTalk?: boolean; sources?: { title: string }[] } = {},
+  meta: { smallTalk?: boolean; sources?: { title: string }[]; source?: string } = {},
 ): ReplyCheck[] {
   const text = reply.toLowerCase();
   const checks: ReplyCheck[] = [];
@@ -46,6 +48,12 @@ export function checkReply(
   }
   for (const bad of c.must_not_include ?? []) {
     checks.push({ name: `avoids ${bad}`, pass: !text.includes(bad.toLowerCase()) });
+  }
+  // The reply is read aloud: citations belong in the Source footer, never in the text.
+  checks.push({ name: "no citation in the spoken text", pass: !/\bSRD\b|\bp\.\s*\d|^\s*sources?:/im.test(reply) });
+  if (c.source?.length && meta.source !== undefined) {
+    const note = meta.source.toLowerCase();
+    checks.push({ name: `source names ${c.source.join(" / ")}`, pass: c.source.some((s) => note.includes(s.toLowerCase())) });
   }
   if (c.lore) checks.push({ name: 'starts with "Lore:"', pass: /^\W*lore:/i.test(reply.trim()) });
   if (c.small_talk !== undefined && meta.smallTalk !== undefined) {

@@ -126,7 +126,7 @@ async function withBackoff(asker: Asker, body: Record<string, unknown>): Promise
   }
 }
 
-type Result = { id: string; voice: string; question: string; reply: string; sources: string[]; retrieval?: string; checks: ReplyCheck[]; pass: boolean; error?: string };
+type Result = { id: string; voice: string; question: string; reply: string; source?: string; sources: string[]; retrieval?: string; checks: ReplyCheck[]; pass: boolean; error?: string };
 
 let asker: Asker;
 try {
@@ -153,9 +153,9 @@ for (const [n, { c, voice: v }] of plan.entries()) {
     ? [{ q: previous.question, a: replies.get(`${v}:${previous.id}`)! }]
     : [];
   try {
-    const r = await withBackoff(asker, { question: c.question, ...VOICES[v], history });
+    const r = await withBackoff(asker, { question: c.question, ...VOICES[v], history, sheet: c.sheet ?? "" });
     replies.set(`${v}:${c.id}`, r.reply);
-    const checks = checkReply(c, r.reply, { smallTalk: r.smallTalk });
+    const checks = checkReply(c, r.reply, { smallTalk: r.smallTalk, source: r.source ?? "" });
     if (c.expect?.length) {
       const want = c.expect.map(cleanTitle);
       checks.push({ name: `cites ${want.join(" / ")}`, pass: r.sources.some((s) => want.includes(s.title)) });
@@ -166,6 +166,7 @@ for (const [n, { c, voice: v }] of plan.entries()) {
       voice: v,
       question: c.question,
       reply: r.reply,
+      source: r.source,
       sources: r.sources.map((s) => s.citation),
       retrieval: r.retrieval,
       checks,
@@ -198,7 +199,7 @@ const md = [
   "",
   "## Replies",
   "",
-  ...results.flatMap((r) => [`### ${r.id} (${r.voice})`, "", `> ${r.question}`, "", r.reply || `_${r.error}_`, "", ...r.sources.map((s) => `- ${s}`), ""]),
+  ...results.flatMap((r) => [`### ${r.id} (${r.voice})`, "", `> ${r.question}`, "", r.reply || `_${r.error}_`, "", ...(r.source ? [`_Source: ${r.source}_`, ""] : []), ...r.sources.map((s) => `- ${s}`), ""]),
 ];
 const path = await writeResults(`answers-${voice}${tone ? "-tone" : ""}`, md.join("\n"), { passed, total: results.length, results });
 console.log(`\n${passed}/${results.length} passed. Scorecard: ${path}`);
