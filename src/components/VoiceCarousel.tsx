@@ -55,7 +55,7 @@ export default function VoiceCarousel() {
 
   const shown = VOICES[index];
   // Only the shown voice's fire loop is mounted (plus the old one during the short fade).
-  const { tint, under } = useFlameTint(shown.colour, reduce, FIRE_FADE_MS);
+  const { under } = useFlameTint(shown.colour, reduce, FIRE_FADE_MS);
   const step = (delta: number) => {
     const next = (index + delta + VOICES.length) % VOICES.length;
     setIndex(next);
@@ -134,7 +134,7 @@ export default function VoiceCarousel() {
                 height={FIRE.height * px}
                 colour={shown.colour}
                 under={under}
-                tint={tint}
+                fadeMs={FIRE_FADE_MS}
                 still={reduce}
               />
             </View>

@@ -50,7 +50,7 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
       </View>
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
         {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
-        <FireLoop width={fireW} height={fireH} colour={flame} under={under} tint={tint} still={reduce} />
+        <FireLoop width={fireW} height={fireH} colour={flame} under={under} still={reduce} />
       </View>
       {reduce ? null : (
         <View pointerEvents="none" style={styles.embers}>
