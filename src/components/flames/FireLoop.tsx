@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Animated, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import type { FlameColour } from "./useFlameMotion";
@@ -29,18 +29,42 @@ type Props = {
   colour: FlameColour;
   /** While the colour changes: the old fire, kept solid underneath (see useFlameMotion). */
   under?: FlameColour | null;
-  /** How much of each colour shows (native-driven); only the new colour's value is used. */
-  tint?: Record<FlameColour, Animated.Value>;
+  /** Length of the fade from the old fire to the new one, in ms. */
+  fadeMs?: number;
   /** Reduce Motion: show a still frame. */
   still: boolean;
 };
 
+// One fire layer. A layer that mounts during a colour change fades itself in from 0 to 1 with its
+// own value. On Expo SDK 58 (RN 0.88) the shared native-driven tint never showed a fire that was
+// mounted after the screen opened: the Tome picker kept the first fire (blue) for every voice.
+// This fade is JS-driven, so its value is real and the layer always ends fully opaque.
+function Layer({ fadeIn, fadeMs, children }: { fadeIn: boolean; fadeMs: number; children: React.ReactNode }) {
+  const [opacity] = useState(() => new Animated.Value(fadeIn ? 0 : 1));
+  useEffect(() => {
+    if (!fadeIn) return;
+    const fade = Animated.timing(opacity, { toValue: 1, duration: fadeMs, useNativeDriver: false });
+    fade.start(({ finished }) => {
+      if (!finished) opacity.setValue(1);
+    });
+    return () => fade.stop();
+    // Only on mount: a layer fades in once, when its colour arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View style={[styles.layer, { opacity }]} pointerEvents="none">
+      {children}
+    </Animated.View>
+  );
+}
+
 // Only the shown fire is mounted (plus the old one for the ~600 ms of a colour change), so only
 // one loop decodes at a time. The new fire fades in on top while the old stays solid underneath,
 // so the flames never go see-through mid-fade.
-function FireLoop({ width, height, colour, under, tint, still }: Props) {
+function FireLoop({ width, height, colour, under, fadeMs = 600, still }: Props) {
+  const fading = !!under && under !== colour;
   const layer = (c: FlameColour, top: boolean) => (
-    <Animated.View key={c} style={[styles.layer, top && tint ? { opacity: tint[c] } : null]} pointerEvents="none">
+    <Layer key={c} fadeIn={top && fading && !still} fadeMs={fadeMs}>
       <Image
         source={still ? STILLS[c] : LOOPS[c]}
         style={{ width, height }}
@@ -50,10 +74,10 @@ function FireLoop({ width, height, colour, under, tint, still }: Props) {
         cachePolicy="memory-disk"
         accessible={false}
       />
-    </Animated.View>
+    </Layer>
   );
   // Always a keyed list, so the shown fire keeps playing (no remount) when the old one leaves.
-  return <>{[under && under !== colour ? layer(under, false) : null, layer(colour, true)]}</>;
+  return <>{[fading ? layer(under, false) : null, layer(colour, true)]}</>;
 }
 
 const styles = StyleSheet.create({

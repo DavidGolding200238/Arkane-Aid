@@ -65,8 +65,14 @@ export function useFlameTint(colour: FlameColour, reduce: boolean, fadeMs = COLO
         }),
       ),
     );
-    fade.start(({ finished }) => finished && setSettled(colour));
-    return () => fade.stop();
+    fade.start();
+    // Settle on a timer, not on the animation's finished callback: on RN 0.88 that callback did
+    // not always arrive for native-driven fades, which left the old fire showing for good.
+    const settle = setTimeout(() => setSettled(colour), reduce ? 0 : fadeMs + 50);
+    return () => {
+      clearTimeout(settle);
+      fade.stop();
+    };
   }, [tint, colour, reduce, fadeMs]);
 
   return { tint, under: settled === colour ? null : settled };
