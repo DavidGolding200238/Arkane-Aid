@@ -58,7 +58,9 @@ export default function TabBar({
 
   return (
     <View style={[styles.bar, { paddingBottom: bottom, paddingHorizontal: s(SIDE) }]} accessibilityRole="tablist">
-      <Image source={TEXTURE} style={styles.texture} resizeMode="cover" />
+      <View style={styles.texture} pointerEvents="none">
+        <Image source={TEXTURE} style={styles.full} resizeMode="cover" />
+      </View>
       {TABS.map(({ id, label, Icon }) => {
         const on = id === active;
         return (
@@ -87,7 +89,15 @@ export default function TabBar({
 
 const styles = StyleSheet.create({
   bar: { flexDirection: "row", backgroundColor: colors.ink, overflow: "hidden" },
-  texture: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
+  // The texture used to be the Image itself with width/height "100%". React Native's Yoga resolves
+  // a percentage size on an absolute child against the parent's content box (minus padding),
+  // unlike CSS, so on Android it came out 2 x SIDE narrower than the padded bar and left a strip
+  // of the darker ink at the right (the web build follows CSS, so it never showed there). Insets
+  // alone are no fix for an Image: a bundled image then takes its intrinsic size (361 x 52 dp).
+  // So a plain View is sized by insets (padding box, 1 dp past each side so fractional pixel
+  // ratios never leave a hairline; the bar clips it) and the Image fills that View.
+  texture: { position: "absolute", top: 0, bottom: 0, left: -1, right: -1 },
+  full: { width: "100%", height: "100%" },
   tab: { flex: 1, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.7 },
 });
