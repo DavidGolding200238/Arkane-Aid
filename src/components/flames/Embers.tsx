@@ -1,24 +1,42 @@
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import { Animated, Easing, StyleSheet, useAnimatedValue, View } from "react-native";
+import type { FlameColour } from "./useFlameMotion";
 
 type Props = {
   /** Orb centre and radius inside the stage, in dp. Embers rise from the flames on its lower edge. */
   cx: number;
   cy: number;
   radius: number;
-  /** 0 = red (Wizard), 1 = blue (Plain), native-driven. */
-  blue: Animated.Value;
+  /** The shown colour, and the old one while the colour changes (see useFlameMotion). */
+  colour: FlameColour;
+  under?: FlameColour | null;
+  /** How much of each colour shows, native-driven. */
+  tint: Record<FlameColour, Animated.Value>;
   /** Pause between embers [min, max] ms; shorter when the Sage is busy. */
   gapMs: [number, number];
   count?: number;
 };
 
-const RED = ["#FFB45C", "#FF8A3D"];
-const BLUE = ["#9FF3E3", "#5FD6C6"];
+// Two tones per fire: amber for red, pale teal for blue, green-gold for green (Bard).
+const TONES: Record<FlameColour, [string, string]> = {
+  red: ["#FFB45C", "#FF8A3D"],
+  blue: ["#9FF3E3", "#5FD6C6"],
+  green: ["#E4F27E", "#8EE07A"],
+};
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; radius: number; blue: Animated.Value; gap: RefObject<[number, number]>; index: number }) {
+type EmberProps = {
+  cx: number;
+  cy: number;
+  radius: number;
+  colours: FlameColour[];
+  tint: Record<FlameColour, Animated.Value>;
+  gap: RefObject<[number, number]>;
+  index: number;
+};
+
+function Ember({ cx, cy, radius, colours, tint, gap, index }: EmberProps) {
   const progress = useAnimatedValue(0);
   const x = useAnimatedValue(0);
   const y = useAnimatedValue(0);
@@ -59,31 +77,31 @@ function Ember({ cx, cy, radius, blue, gap, index }: { cx: number; cy: number; r
   return (
     <Animated.View style={[styles.ember, { width: size, height: size, opacity, transform: [{ translateX }, { translateY }, { scale }] }]}>
       {/* Each colour is a bright core with a faint soft halo around it. */}
-      <Animated.View style={[styles.fill, { opacity: blue.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>
-        <View style={[styles.halo, { left: -size * 0.9, top: -size * 0.9, width: size * 2.8, height: size * 2.8, borderRadius: size * 1.4, backgroundColor: RED[tone] }]} />
-        <View style={[styles.fill, { borderRadius: size / 2, backgroundColor: RED[tone] }]} />
-      </Animated.View>
-      <Animated.View style={[styles.fill, { opacity: blue }]}>
-        <View style={[styles.halo, { left: -size * 0.9, top: -size * 0.9, width: size * 2.8, height: size * 2.8, borderRadius: size * 1.4, backgroundColor: BLUE[tone] }]} />
-        <View style={[styles.fill, { borderRadius: size / 2, backgroundColor: BLUE[tone] }]} />
-      </Animated.View>
+      {colours.map((c) => (
+        <Animated.View key={c} style={[styles.fill, { opacity: tint[c] }]}>
+          <View style={[styles.halo, { left: -size * 0.9, top: -size * 0.9, width: size * 2.8, height: size * 2.8, borderRadius: size * 1.4, backgroundColor: TONES[c][tone] }]} />
+          <View style={[styles.fill, { borderRadius: size / 2, backgroundColor: TONES[c][tone] }]} />
+        </Animated.View>
+      ))}
     </Animated.View>
   );
 }
 
 // A handful of tiny embers drifting up from the flames and fading out. Each one is a pair of
-// stacked glowing dots (red and blue) so the colour fade stays on the native driver. Every rise is a
+// stacked glowing dots (the shown colour, plus the old one while it fades) so the colour fade
+// stays on the native driver. Every rise is a
 // single native animation; JS only picks a new random start between rises.
-function Embers({ cx, cy, radius, blue, gapMs, count = 8 }: Props) {
+function Embers({ cx, cy, radius, colour, under, tint, gapMs, count = 8 }: Props) {
   const gap = useRef(gapMs);
   useEffect(() => {
     gap.current = gapMs;
   }, [gapMs]);
+  const colours = under && under !== colour ? [under, colour] : [colour];
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {Array.from({ length: count }, (_, i) => (
-        <Ember key={i} index={i} cx={cx} cy={cy} radius={radius} blue={blue} gap={gap} />
+        <Ember key={i} index={i} cx={cx} cy={cy} radius={radius} colours={colours} tint={tint} gap={gap} />
       ))}
     </View>
   );

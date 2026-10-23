@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, useAnimatedValue } from "react-native";
 
 export type FlameMood = "idle" | "listening" | "thinking" | "speaking";
-export type FlameColour = "red" | "blue";
+export type FlameColour = "red" | "blue" | "green";
+export const FLAME_COLOURS: readonly FlameColour[] = ["red", "blue", "green"];
 
 // How each mood shows. The fire loop itself plays at one calm speed (it is a natively decoded
 // animated image, see FireLoop); the mood shows in the thin heat glow at the orb's rim (strength
@@ -20,7 +21,7 @@ export const MOODS: Record<FlameMood, { glowLow: number; glowHigh: number; pulse
 };
 
 const BLEND_MS = 500; // mood to mood
-const COLOUR_MS = 600; // red <-> blue
+const COLOUR_MS = 600; // one fire colour to another
 
 /** Reduce Motion from the system settings, kept up to date. */
 export function useReduceMotion() {
@@ -41,24 +42,37 @@ export function useReduceMotion() {
 
 /**
  * All the flame motion as native-driven Animated values, so nothing re-renders per frame.
- * blue: 0 = red fire, 1 = blue fire.
+ * tint: how much of each colour shows, 0..1 (red = Wizard, blue = Plain, green = Bard).
+ * under: while the colour changes, the old colour, drawn solid beneath the new one as it
+ *   fades in (null once the fade is done, so only one fire loop plays).
  * glow: heat glow strength.
  */
 export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boolean) {
+  const red = useAnimatedValue(colour === "red" ? 1 : 0);
   const blue = useAnimatedValue(colour === "blue" ? 1 : 0);
+  const green = useAnimatedValue(colour === "green" ? 1 : 0);
+  const [tint] = useState<Record<FlameColour, Animated.Value>>(() => ({ red, blue, green }));
   const glow = useAnimatedValue(MOODS.idle.glowLow);
+  // The colour the last fade finished on. While it differs from colour, it is the one underneath.
+  const [settled, setSettled] = useState(colour);
 
   const settings = reduce ? MOODS.idle : MOODS[mood];
 
-  // Colour fade between the red (Wizard) and blue (Plain) fire, glow and embers.
+  // Colour fade between the fires, glows and embers.
   useEffect(() => {
-    Animated.timing(blue, {
-      toValue: colour === "blue" ? 1 : 0,
-      duration: reduce ? 0 : COLOUR_MS,
-      easing: Easing.inOut(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [blue, colour, reduce]);
+    const fade = Animated.parallel(
+      FLAME_COLOURS.map((c) =>
+        Animated.timing(tint[c], {
+          toValue: c === colour ? 1 : 0,
+          duration: reduce ? 0 : COLOUR_MS,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ),
+    );
+    fade.start(({ finished }) => finished && setSettled(colour));
+    return () => fade.stop();
+  }, [tint, colour, reduce]);
 
   // Mood: blend the glow to the new level, then breathe gently. Native-driven loop, no JS timers.
   useEffect(() => {
@@ -79,5 +93,5 @@ export function useFlameMotion(mood: FlameMood, colour: FlameColour, reduce: boo
     };
   }, [reduce, settings, glow]);
 
-  return { blue, glow, emberGapMs: settings.emberGapMs };
+  return { tint, under: settled === colour ? null : settled, glow, emberGapMs: settings.emberGapMs };
 }

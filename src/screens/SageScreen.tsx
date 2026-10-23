@@ -21,7 +21,8 @@ import SageReplyCard from "../components/SageReplyCard";
 import SageOrb from "../components/SageOrb";
 import SageModeButtons from "../components/SageModeButtons";
 import { useParty } from "../context/PartyContext";
-import { useVoice } from "../context/VoiceContext";
+import { useVoice, type VoiceId } from "../context/VoiceContext";
+import type { FlameColour } from "../components/flames/useFlameMotion";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SageMode, type SagePersona } from "../lib/sage";
@@ -30,6 +31,8 @@ import { errorText } from "../lib/parties";
 import { colors, fonts, spacing, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
+// The orb's fire for each voice picked on the Tome.
+const FLAME: Record<VoiceId, FlameColour> = { wizard: "red", plain: "blue", bard: "green" };
 
 type Props = { onBack: () => void; onOpenTome?: () => void };
 
@@ -78,8 +81,8 @@ function noteTitle(text: string) {
 export default function SageScreen({ onBack }: Props) {
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
-  // The voice is picked on the Tome. Wizard = ornate persona and red fire, anything else = plain Sage and blue fire.
-  // Bard (when it is enabled on the Tome) answers through the same Sage button.
+  // The voice is picked on the Tome. Wizard = ornate persona and red fire, Plain = plain Sage and
+  // blue fire, Bard = the Bard persona and green fire, answering through the same Sage button.
   const { voice } = useVoice();
   const fancy = voice === "wizard";
   const { s, fs } = useScale();
@@ -266,7 +269,7 @@ export default function SageScreen({ onBack }: Props) {
           if (follow.current && reply) scroll.current?.scrollToEnd({ animated: true });
         }}
       >
-        <SageOrb size={s(250)} flame={fancy ? "red" : "blue"} mood={busy ? "thinking" : speaking ? "speaking" : "idle"} />
+        <SageOrb size={s(250)} flame={FLAME[voice]} mood={busy ? "thinking" : speaking ? "speaking" : "idle"} />
 
         <Animated.Text
           style={[styles.status, { fontSize: fs(16), lineHeight: fs(22), marginTop: s(spacing.md), opacity: glow }]}

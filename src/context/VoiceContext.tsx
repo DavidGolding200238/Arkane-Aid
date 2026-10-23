@@ -4,7 +4,7 @@ import Storage from "expo-sqlite/kv-store";
 // The Sage's personality, picked on the Tome screen and read by the Sage screen.
 // - Wizard: the Sage in an ornate court-mage style (style "wizard"), red fire, a slow low device voice.
 // - Plain:  the Sage, short and direct (persona "sage"), blue fire, a calm device voice.
-// - Bard:   the Bard persona (mode "bard"), a ruling with a rhyme, blue fire, a brighter device voice.
+// - Bard:   the Bard persona (mode "bard"), a ruling with a rhyme, green fire, a brighter device voice.
 // The facts rules are the same for all three; only the tone and voice change.
 // Stored on the device (expo-sqlite key-value store, already used by the Supabase
 // session), not in the database.

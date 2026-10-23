@@ -7,8 +7,8 @@ import FlameGlow from "./flames/FlameGlow";
 import Embers from "./flames/Embers";
 import { useFlameMotion, useReduceMotion, type FlameColour, type FlameMood } from "./flames/useFlameMotion";
 
-// Orb fire (Figma component set 2189:64, teal 2320:1208), played as a smooth animated loop
-// (see flames/FireLoop). The loops share the original 870 x 472 px (3x) canvas.
+// Orb fire (Figma component set 2189:64, teal 2320:1208; green is the red fire recoloured), played
+// as a smooth animated loop (see flames/FireLoop). The loops share the original 870 x 472 px (3x) canvas.
 // Where the orb sits inside the fire art, measured on the 870 x 472 px canvas:
 // a circle of radius 378 px centred at (443, 10) runs through the solid part of
 // the flames in every frame, so its lower edge never peeks out.
@@ -21,7 +21,7 @@ const ORB_CY = 10;
 type Props = {
   /** Orb diameter in dp (already scaled). */
   size: number;
-  /** "red" for the Wizard voice, "blue" for Plain. Changing it fades between the two. */
+  /** "red" for the Wizard voice, "blue" for Plain, "green" for Bard. Changing it fades between them. */
   flame: FlameColour;
   /** What the Sage is doing; sets the flames' pace, glow and embers. */
   mood?: FlameMood;
@@ -30,7 +30,7 @@ type Props = {
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
 function SageOrb({ size, flame, mood = "idle" }: Props) {
   const reduce = useReduceMotion();
-  const { blue, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
+  const { tint, under, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
   const fireW = ART_W * k;
   const fireH = ART_H * k;
@@ -44,17 +44,17 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
 
   return (
     <View style={{ width: fireW, height: stageH }}>
-      <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} blue={blue} />
+      <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} colour={flame} under={under} tint={tint} />
       <View style={[styles.halo, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}>
         <SageAvatar size={size} />
       </View>
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
         {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
-        <FireLoop width={fireW} height={fireH} blue={blue} still={reduce} />
+        <FireLoop width={fireW} height={fireH} colour={flame} under={under} tint={tint} still={reduce} />
       </View>
       {reduce ? null : (
         <View pointerEvents="none" style={styles.embers}>
-          <Embers cx={orbCx} cy={orbCy} radius={size / 2} blue={blue} gapMs={emberGapMs} />
+          <Embers cx={orbCx} cy={orbCy} radius={size / 2} colour={flame} under={under} tint={tint} gapMs={emberGapMs} />
         </View>
       )}
     </View>

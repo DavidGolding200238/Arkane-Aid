@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
+import type { FlameColour } from "./useFlameMotion";
 
 type Props = {
   /** Centre of the orb inside the stage, in dp. */
@@ -10,12 +11,15 @@ type Props = {
   orbRadius: number;
   /** Glow strength 0..1 (native-driven). */
   glow: Animated.Value;
-  /** 0 = red (Wizard), 1 = blue (Plain), native-driven. */
-  blue: Animated.Value;
+  /** The shown colour, and the old one while the colour changes (see useFlameMotion). */
+  colour: FlameColour;
+  under?: FlameColour | null;
+  /** How much of each colour shows, native-driven. */
+  tint: Record<FlameColour, Animated.Value>;
 };
 
-const RED = "#E4572E";
-const BLUE = "#2BA697";
+// Red for Wizard, teal for Plain, emerald for Bard (matching the green fire's body).
+const GLOW: Record<FlameColour, string> = { red: "#E4572E", blue: "#2BA697", green: "#3DB35A" };
 
 // How far the glow reaches past the orb's edge: 9% of the orb radius (about 13 dp on an A55).
 export const RIM = 0.09;
@@ -43,26 +47,25 @@ function Halo({ id, colour, size, orbRadius }: { id: string; colour: string; siz
   );
 }
 
-// Soft heat glow in the voice colour, drawn behind the orb and fire. Two pre-drawn SVG
-// gradients (red and blue) whose opacity is glow x colour, so the pulse, the mood changes
-// and the red/blue fade all run on the native driver without redrawing the SVG.
-function FlameGlow({ cx, cy, orbRadius, glow, blue }: Props) {
+// Soft heat glow in the voice colour, drawn behind the orb and fire. Pre-drawn SVG gradients
+// (the shown colour, plus the old one during a colour change) whose opacity is glow x tint, so
+// the pulse, the mood changes and the colour fade all run on the native driver without
+// redrawing the SVG.
+function FlameGlow({ cx, cy, orbRadius, glow, colour, under, tint }: Props) {
   // Canvas just larger than the glow (circle = 48% of it), absolutely positioned so it never
   // takes up layout space.
   const size = Math.ceil((orbRadius * (1 + RIM)) / 0.48);
   const half = size / 2;
-  const red = Animated.multiply(glow, blue.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }));
-  const teal = Animated.multiply(glow, blue);
   const box = { left: cx - half, top: cy - half, width: size, height: size };
+  const shown = under && under !== colour ? [under, colour] : [colour];
 
   return (
     <View pointerEvents="none" style={[styles.box, box]}>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: red }]}>
-        <Halo id="glowRed" colour={RED} size={size} orbRadius={orbRadius} />
-      </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: teal }]}>
-        <Halo id="glowBlue" colour={BLUE} size={size} orbRadius={orbRadius} />
-      </Animated.View>
+      {shown.map((c) => (
+        <Animated.View key={c} style={[StyleSheet.absoluteFill, { opacity: Animated.multiply(glow, tint[c]) }]}>
+          <Halo id={`glow-${c}`} colour={GLOW[c]} size={size} orbRadius={orbRadius} />
+        </Animated.View>
+      ))}
     </View>
   );
 }

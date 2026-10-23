@@ -75,16 +75,15 @@ const PAGES = [
 const SAGE_ART = [
   require("../../assets/images/sage/fire-red-1.png"),
   require("../../assets/images/sage/fire-blue-1.png"),
+  require("../../assets/images/sage/fire-green-1.png"),
 ];
 
 async function prefetchFire() {
-  // Download both fire loops and put them in expo-image's cache, so the flames are there the
-  // moment the Sage opens instead of decoding 2.4 MB each on first view.
-  const [{ Image }, { LOOP_RED, LOOP_BLUE }] = await Promise.all([
-    import("expo-image"),
-    import("../components/flames/FireLoop"),
-  ]);
-  const assets = await Asset.loadAsync([LOOP_RED, LOOP_BLUE]);
+  // Download the three fire loops (red Wizard, blue Plain, green Bard) and put them in
+  // expo-image's cache, so the flames are there the moment the Sage or the Tome opens instead
+  // of decoding 2.4 MB each on first view.
+  const [{ Image }, { LOOPS }] = await Promise.all([import("expo-image"), import("../components/flames/FireLoop")]);
+  const assets = await Asset.loadAsync(Object.values(LOOPS));
   const uris = assets.map((a) => a.localUri ?? a.uri).filter(Boolean);
   if (uris.length) await Image.prefetch(uris, "memory-disk");
 }
