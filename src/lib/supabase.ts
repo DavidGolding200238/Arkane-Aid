@@ -11,6 +11,9 @@ if (!supabaseUrl || !supabasePublishableKey) {
   );
 }
 
+// Auth storage holds Supabase session tokens only (access/refresh), via Expo SQLite's
+// localStorage polyfill. Passwords are never written here — they go to Supabase Auth over
+// HTTPS and are hashed server-side (bcrypt). See AuthContext and README Authentication.
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     storage: localStorage,

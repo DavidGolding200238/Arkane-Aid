@@ -1,18 +1,47 @@
-import { Platform, Pressable, StyleSheet, View } from "react-native";
-import House from "../../assets/Icons/icons8-house.svg";
-import Book from "../../assets/Icons/icons8-book.svg";
-import Hat from "../../assets/Icons/icons8-witch-hat.svg";
-import Settings from "../../assets/Icons/icons8-settings.svg";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import HomeIcon from "../../assets/images/icons/tab-home.svg";
+import LogbookIcon from "../../assets/images/icons/tab-logbook.svg";
+import HatIcon from "../../assets/images/icons/tab-hat.svg";
+import GearIcon from "../../assets/images/icons/tab-gear.svg";
 import type { AppScreen } from "../navigation/screens";
+import { colors, useScale } from "../theme";
 
-const TABS: { id: AppScreen; Icon: typeof House }[] = [
-  { id: "home", Icon: House },
-  { id: "codex", Icon: Book },
-  { id: "sage", Icon: Hat },
-  { id: "settings", Icon: Settings },
+// Tab bar from Figma Group 6086 (2320:2385): #1a1816 bar with a faint texture,
+// cream icons, and a textured red rounded square behind the active one
+// (Variant2 of each icon component, e.g. 2320:2092). Figma has no labels.
+const TEXTURE = require("../../assets/images/tabbar/tab-bar-texture.jpg");
+const ACTIVE = require("../../assets/images/tabbar/tab-active.png");
+
+type TabId = "home" | "codex" | "sage" | "settings";
+
+const TABS: { id: TabId; label: string; Icon: typeof HomeIcon }[] = [
+  { id: "home", label: "Home", Icon: HomeIcon },
+  { id: "codex", label: "Codex", Icon: LogbookIcon },
+  { id: "sage", label: "Sage", Icon: HatIcon },
+  { id: "settings", label: "Tome", Icon: GearIcon },
 ];
 
-const SYSTEM_NAV = Platform.OS === "android" ? 48 : 20;
+// Which tab is lit for each screen. Ledger is opened from the Codex (its
+// Ledger tab), so it lights Codex; Create and Join party live under the Tome.
+export function tabFor(screen: AppScreen): TabId {
+  switch (screen) {
+    case "ledger":
+      return "codex";
+    case "create":
+    case "join":
+      return "settings";
+    default:
+      return screen;
+  }
+}
+
+// Design sizes (360-wide Figma frame).
+const BAR_H = 52; // Figma 52.3
+const ICON = 38; // icons FIT a ~40 dp box in Figma
+const ACTIVE_W = 46;
+const ACTIVE_H = 44;
+const SIDE = 12; // keeps the four icons on Figma's ~84 dp rhythm
 
 export default function TabBar({
   current,
@@ -21,17 +50,34 @@ export default function TabBar({
   current: AppScreen;
   onOpen: (screen: AppScreen) => void;
 }) {
+  const { s } = useScale();
+  const insets = useSafeAreaInsets();
+  const active = tabFor(current);
+  // Sit above the system navigation bar (gesture pill or 3-button bar).
+  const bottom = Math.max(insets.bottom, s(4));
+
   return (
-    <View style={[styles.row, { paddingBottom: SYSTEM_NAV }]}>
-      {TABS.map(({ id, Icon }) => {
-        const on =
-          id === current ||
-          (id === "codex" && current === "ledger") ||
-          (id === "settings" && (current === "create" || current === "join"));
-        const colour = on ? "#FFFFFF" : "rgba(255,255,255,0.62)";
+    <View style={[styles.bar, { paddingBottom: bottom, paddingHorizontal: s(SIDE) }]} accessibilityRole="tablist">
+      <Image source={TEXTURE} style={styles.texture} resizeMode="cover" />
+      {TABS.map(({ id, label, Icon }) => {
+        const on = id === active;
         return (
-          <Pressable key={id} style={styles.tab} onPress={() => onOpen(id)} hitSlop={8}>
-            <Icon width={26} height={26} color={colour} fill={colour} />
+          <Pressable
+            key={id}
+            style={({ pressed }) => [styles.tab, { height: s(BAR_H) }, pressed && styles.pressed]}
+            onPress={() => onOpen(id)}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: on }}
+          >
+            {on ? (
+              <Image
+                source={ACTIVE}
+                style={{ position: "absolute", width: s(ACTIVE_W), height: s(ACTIVE_H) }}
+                resizeMode="stretch"
+              />
+            ) : null}
+            <Icon width={s(ICON)} height={s(ICON)} color={colors.cream} />
           </Pressable>
         );
       })}
@@ -40,10 +86,8 @@ export default function TabBar({
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    backgroundColor: "#111111",
-    paddingTop: 12,
-  },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", height: 44 },
+  bar: { flexDirection: "row", backgroundColor: colors.ink, overflow: "hidden" },
+  texture: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center" },
+  pressed: { opacity: 0.7 },
 });

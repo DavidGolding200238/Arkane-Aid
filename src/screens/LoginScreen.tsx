@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
-  ActivityIndicator,
   Image,
-  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +10,6 @@ import {
   Text,
   TextInput,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -21,19 +18,24 @@ import {
   AtkinsonHyperlegible_400Regular,
   AtkinsonHyperlegible_400Regular_Italic,
 } from "@expo-google-fonts/atkinson-hyperlegible";
-import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../context/AuthContext";
+import Rule from "../components/Rule";
+import TornButton from "../components/TornButton";
+import { colors, inkText, useScale } from "../theme";
 
-const parchment = require("../../assets/Splash Screen/pexels-pixabay-235985 (1) 3.png");
-const skull = require("../../assets/Splash Screen/Dragon Logo.png");
-const underline = require("../../assets/Splash Screen/Rectangle 4901.png");
-const field = require("../../assets/Login Screen/Rectangle 30.png");
+const parchment = require("../../assets/images/backgrounds/parchment.png");
+const skull = require("../../assets/images/dashboard/skull-dragon.png");
+const field = require("../../assets/images/auth/input-field.png");
+const googleIcon = require("../../assets/images/auth/icon-google.png");
+const facebookIcon = require("../../assets/images/auth/icon-facebook.png");
+
+const MIN_PASSWORD = 8;
 
 type Mode = "in" | "up";
 type Props = { onOpenDash?: () => void };
 
 export default function LoginScreen({ onOpenDash }: Props) {
-  const { width } = useWindowDimensions();
+  const { s, fs, width } = useScale();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -53,10 +55,15 @@ export default function LoginScreen({ onOpenDash }: Props) {
   });
 
   const signingUp = mode === "up";
-  const formW = signingUp ? Math.min(width - 56, 360) : width - 56;
-  const skullW = signingUp ? Math.min(width * 0.58, 248) : Math.min(width * 0.62, 280);
-  const skullH = skullW * (361 / 333);
-  const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + 8 : 52;
+  const formW = Math.min(width - s(56), s(360));
+  const skullW = s(signingUp ? 248 : 280);
+  const skullH = skullW * (1080 / 994);
+  const fieldH = s(40);
+  // Compact auth: buttons hug their labels (~40 dp art, hit area padded to 44 by TornButton).
+  const btnH = s(40);
+  const pairW = s(128); // fits "SIGN UP"/"LOGIN" with modest padding; both equal
+  const socialW = Math.min(formW, s(284));
+  const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -70,8 +77,13 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const submit = async () => {
     setError("");
     setNotice("");
-    if (!email.includes("@") || password.length < 6) {
-      setError("Use a real email and a password of at least 6 characters.");
+    const trimmed = email.trim();
+    if (!trimmed.includes("@") || !trimmed.includes(".")) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (password.length < MIN_PASSWORD) {
+      setError(`Password must be at least ${MIN_PASSWORD} characters.`);
       return;
     }
     if (signingUp && password !== confirm) {
@@ -80,13 +92,15 @@ export default function LoginScreen({ onOpenDash }: Props) {
     }
     setBusy(true);
     try {
-      if (!signingUp) await signIn(email.trim(), password);
+      if (!signingUp) await signIn(trimmed, password);
       else {
-        await signUp(email.trim(), password);
-        setNotice("Account created. Confirm the email if Supabase still asks for it.");
+        await signUp(trimmed, password);
+        setNotice("Account created. Check your email if Supabase asks you to confirm it.");
+        setPassword("");
+        setConfirm("");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Auth failed.");
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(false);
     }
@@ -103,73 +117,106 @@ export default function LoginScreen({ onOpenDash }: Props) {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.page,
-          signingUp ? { paddingTop: topInset } : { paddingTop: 56, paddingBottom: 28 },
-        ]}
+        contentContainerStyle={[styles.page, { paddingTop: signingUp ? topInset : s(48), paddingBottom: s(36) }]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
         <View style={styles.hero}>
           <Image
             source={skull}
-            style={{ width: skullW, height: skullH, marginBottom: signingUp ? 2 : -skullH * 0.18 }}
+            style={{ width: skullW, height: skullH, marginBottom: signingUp ? s(2) : -skullH * 0.18 }}
             resizeMode="contain"
           />
           <Text
-            style={[styles.wordmark, !signingUp && styles.wordmarkLogin]}
+            style={[
+              styles.wordmark,
+              {
+                fontSize: fs(signingUp ? 36 : 34),
+                lineHeight: fs(signingUp ? 36 : 34),
+                includeFontPadding: false,
+              },
+            ]}
             onLayout={(e) => setTitleW(e.nativeEvent.layout.width)}
           >
             Arkane Aid
           </Text>
-          <Image
-            source={underline}
-            style={[styles.rule, !signingUp && styles.ruleLogin, { width: signingUp ? Math.max(titleW, 120) : titleW }]}
-            resizeMode="contain"
+          {/* Snug under the letters, same as PageHeader (no large gap). */}
+          <Rule
+            width={signingUp ? Math.max(titleW, s(120)) : titleW}
+            color={colors.rule}
+            style={{ marginTop: -s(4), marginBottom: s(signingUp ? 4 : 2) }}
           />
-          {signingUp ? <Text style={styles.step}>Create an account</Text> : null}
+          {signingUp ? <Text style={[styles.step, { fontSize: fs(15), marginTop: s(8) }]}>Create an account</Text> : null}
         </View>
 
-        <View style={{ width: formW, marginTop: signingUp ? 8 : 22 }}>
-          <Text style={styles.label}>{signingUp ? "Email" : "Email or mobile"}</Text>
-          <ImageBackground source={field} resizeMode="stretch" style={[styles.field, !signingUp && styles.fieldLogin]}>
+        <View style={{ width: formW, marginTop: s(signingUp ? 8 : 20) }}>
+          <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>
+            {signingUp ? "Email" : "Email or mobile"}
+          </Text>
+          <FieldBox height={fieldH} s={s}>
             <TextInput
-              style={[styles.input, !signingUp && styles.inputLogin]}
+              style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
               value={email}
               onChangeText={setEmail}
+              editable={!busy}
+              placeholderTextColor={colors.placeholder}
             />
-          </ImageBackground>
+          </FieldBox>
 
-          <Text style={[styles.label, { marginTop: 10 }]}>Password</Text>
-          <ImageBackground source={field} resizeMode="stretch" style={[styles.field, !signingUp && styles.fieldLogin]}>
+          <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Password</Text>
+          <FieldBox height={fieldH} s={s}>
             <TextInput
-              style={[styles.input, !signingUp && styles.inputLogin, signingUp ? styles.inputPad : styles.inputPadLogin]}
+              style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
               secureTextEntry={!showPassword}
+              textContentType={signingUp ? "newPassword" : "password"}
+              autoComplete={signingUp ? "password-new" : "password"}
               value={password}
               onChangeText={setPassword}
+              editable={!busy}
+              placeholderTextColor={colors.placeholder}
             />
-            <Pressable style={styles.eye} onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-              <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
+            <Pressable
+              style={[styles.eye, { right: s(12) }]}
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+            >
+              <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showPassword ? "Hide" : "Show"}</Text>
             </Pressable>
-          </ImageBackground>
+          </FieldBox>
 
           {signingUp ? (
             <>
-              <Text style={[styles.label, { marginTop: 10 }]}>Re-enter password</Text>
-              <ImageBackground source={field} resizeMode="stretch" style={styles.field}>
+              <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>
+                Re-enter password
+              </Text>
+              <FieldBox height={fieldH} s={s}>
                 <TextInput
-                  style={[styles.input, styles.inputPad]}
+                  style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
                   secureTextEntry={!showConfirm}
+                  textContentType="newPassword"
+                  autoComplete="password-new"
                   value={confirm}
                   onChangeText={setConfirm}
+                  editable={!busy}
+                  placeholderTextColor={colors.placeholder}
                 />
-                <Pressable style={styles.eye} onPress={() => setShowConfirm((v) => !v)} hitSlop={8}>
-                  <Text style={styles.eyeText}>{showConfirm ? "Hide" : "Show"}</Text>
+                <Pressable
+                  style={[styles.eye, { right: s(12) }]}
+                  onPress={() => setShowConfirm((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirm ? "Hide confirmation" : "Show confirmation"}
+                >
+                  <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showConfirm ? "Hide" : "Show"}</Text>
                 </Pressable>
-              </ImageBackground>
+              </FieldBox>
             </>
           ) : (
             <Pressable
@@ -178,64 +225,94 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 setNotice("Password reset is not wired yet.");
               }}
             >
-              <Text style={[styles.forgot, styles.forgotLogin]}>Forgot password?</Text>
-            </Pressable>
-          )}
-
-          {error ? <Text style={[styles.error, !signingUp && styles.messageLogin]}>{error}</Text> : null}
-          {notice ? <Text style={[styles.notice, !signingUp && styles.messageLogin]}>{notice}</Text> : null}
-
-          <Pressable style={[styles.loginBtn, !signingUp && styles.loginBtnLogin]} onPress={submit} disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color="#FEFCEB" />
-            ) : (
-              <Text style={[styles.loginText, !signingUp && styles.loginTextLogin]}>
-                {signingUp ? "CREATE ACCOUNT" : "Login"}
+              <Text style={[styles.forgot, { fontSize: fs(13), marginTop: s(6), marginBottom: s(14) }]}>
+                Forgot password?
               </Text>
-            )}
-          </Pressable>
-
-          {signingUp ? (
-            <Pressable style={styles.signUpBtn} onPress={() => switchMode("in")} disabled={busy}>
-              <Text style={styles.signUpText}>Back to login</Text>
-            </Pressable>
-          ) : (
-            <Pressable style={[styles.signUpBtn, styles.signUpBtnLogin]} onPress={() => switchMode("up")} disabled={busy}>
-              <Text style={styles.signUpText}>Sign up</Text>
             </Pressable>
           )}
 
-          {!signingUp ? (
+          {error ? (
+            <Text style={[styles.error, { fontSize: fs(13), marginTop: s(signingUp ? 12 : 0), marginBottom: s(signingUp ? 0 : 6) }]}>
+              {error}
+            </Text>
+          ) : null}
+          {notice ? (
+            <Text style={[styles.notice, { fontSize: fs(13), marginTop: s(signingUp ? 12 : 0), marginBottom: s(signingUp ? 0 : 6) }]}>
+              {notice}
+            </Text>
+          ) : null}
+
+          {/* Compact auth actions: ~44–48 dp tall, Login|Sign up in one row on login. */}
+          {signingUp ? (
+            <View style={{ marginTop: s(16), alignItems: "center", gap: s(10) }}>
+              <TornButton
+                label="Create account"
+                variant="red"
+                fullWidth={socialW}
+                height={btnH}
+                compact
+                onPress={submit}
+                busy={busy}
+                disabled={busy}
+              />
+              <Pressable
+                onPress={() => switchMode("in")}
+                disabled={busy}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Back to login"
+              >
+                <Text style={[styles.backLink, { fontSize: fs(14) }]}>Back to login</Text>
+              </Pressable>
+            </View>
+          ) : (
             <>
-              <View style={styles.orRow}>
+              <View style={{ marginTop: s(8), flexDirection: "row", justifyContent: "center", gap: s(12) }}>
+                <TornButton label="Login" variant="red" fullWidth={pairW} height={btnH} compact onPress={submit} busy={busy} disabled={busy} />
+                <TornButton
+                  label="Sign up"
+                  variant="parchment"
+                  fullWidth={pairW}
+                  height={btnH}
+                  compact
+                  onPress={() => switchMode("up")}
+                  disabled={busy}
+                />
+              </View>
+
+              <View style={[styles.orRow, { marginTop: s(14), marginBottom: s(10), gap: s(10) }]}>
                 <View style={styles.orLine} />
-                <Text style={styles.or}>or</Text>
+                <Text style={[styles.or, { fontSize: fs(13) }]}>or</Text>
                 <View style={styles.orLine} />
               </View>
 
-              <Pressable
-                style={styles.social}
-                onPress={() => setNotice("Google is not switched on in Supabase yet.")}
-              >
-                <GoogleMark />
-                <Text style={styles.socialText}>Continue with Google</Text>
-              </Pressable>
-              <Pressable
-                style={styles.social}
-                onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
-              >
-                <View style={styles.fb}>
-                  <Text style={styles.fbText}>f</Text>
-                </View>
-                <Text style={styles.socialText}>Continue with Facebook</Text>
-              </Pressable>
+              <View style={{ alignItems: "center", gap: s(8) }}>
+                <TornButton
+                  label="Continue with Google"
+                  variant="parchment"
+                  fullWidth={socialW}
+                  height={btnH}
+                  compact
+                  icon={googleIcon}
+                  onPress={() => setNotice("Google is not switched on in Supabase yet.")}
+                />
+                <TornButton
+                  label="Continue with Facebook"
+                  variant="parchment"
+                  fullWidth={socialW}
+                  height={btnH}
+                  compact
+                  icon={facebookIcon}
+                  onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
+                />
+              </View>
             </>
-          ) : null}
+          )}
 
           {onOpenDash ? (
-            <Pressable style={styles.dashBtn} onPress={onOpenDash}>
-              <Text style={styles.dashText}>Dashboard</Text>
-            </Pressable>
+            <View style={{ marginTop: s(10), alignItems: "center" }}>
+              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} height={btnH} compact onPress={onOpenDash} />
+            </View>
           ) : null}
         </View>
       </ScrollView>
@@ -243,20 +320,23 @@ export default function LoginScreen({ onOpenDash }: Props) {
   );
 }
 
-function GoogleMark() {
+/** Torn parchment field: Image only (no ImageBackground), transparent wrapper — no white box. */
+function FieldBox({ height, s, children }: { height: number; s: (n: number) => number; children: ReactNode }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 48 48">
-      <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
-      <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
-      <Path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8.1l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <Path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.2-3.5 5.7-6.7 7.2l6.3 5.3C37.4 38.3 44 33 44 24c0-1.3-.1-2.7-.4-3.5z" />
-    </Svg>
+    <View style={{ width: "100%", height, backgroundColor: "transparent", overflow: "visible" }}>
+      <Image
+        source={field}
+        style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, width: "100%", height }}
+        resizeMode="stretch"
+      />
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fallback: { flex: 1, backgroundColor: "#E8D7B8" },
-  root: { flex: 1, backgroundColor: "#E8D7B8" },
+  fallback: { flex: 1, backgroundColor: colors.wash },
+  root: { flex: 1, backgroundColor: colors.wash },
   parchment: {
     position: "absolute",
     top: 0,
@@ -268,170 +348,38 @@ const styles = StyleSheet.create({
     opacity: 0.28,
   },
   scroll: { flex: 1, backgroundColor: "transparent" },
-  page: {
-    alignItems: "center",
-    paddingBottom: 36,
-  },
+  page: { alignItems: "center" },
   hero: { alignItems: "center" },
   wordmark: {
     fontFamily: "CinzelDecorative_400Regular",
-    color: "#A33A3A",
-    fontSize: 36,
-    lineHeight: 44,
+    color: colors.wordmark,
     textAlign: "center",
+    ...inkText.red,
   },
-  wordmarkLogin: {
-    fontSize: 34,
-    lineHeight: 40,
-    opacity: 0.82,
-  },
-  rule: { height: 10, marginTop: 0 },
-  ruleLogin: { height: 8, marginTop: 2 },
-  step: {
-    marginTop: 10,
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#5A5348",
-    fontSize: 15,
-  },
-  label: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#A33A3A",
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  field: {
-    width: "100%",
-    height: 48,
-    justifyContent: "center",
-  },
-  fieldLogin: { height: 40 },
+  step: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.muted },
+  label: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.wordmark },
   input: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
-    paddingHorizontal: 14,
-    color: "#1A1816",
-    fontSize: 16,
-    height: 48,
+    color: colors.ink,
     paddingVertical: 0,
+    backgroundColor: "transparent",
   },
-  inputLogin: {
-    paddingHorizontal: 12,
-    height: 40,
-  },
-  inputPad: { paddingRight: 64 },
-  inputPadLogin: { paddingRight: 58 },
-  eye: { position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center" },
-  eyeText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: "#5A5348",
-    fontSize: 13,
-  },
+  eye: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
+  eyeText: { fontFamily: "AtkinsonHyperlegible_400Regular_Italic", color: colors.muted },
   forgot: {
     alignSelf: "flex-end",
-    marginTop: 8,
-    marginBottom: 4,
     fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: "#5A5348",
-    fontSize: 13,
+    color: colors.muted,
   },
-  forgotLogin: { marginTop: 6, marginBottom: 14 },
-  loginBtn: {
-    marginTop: 16,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: "#C44536",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginText: {
+  backLink: {
     fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#FEFCEB",
-    fontSize: 16,
-    letterSpacing: 1.2,
-  },
-  loginTextLogin: { letterSpacing: 0 },
-  loginBtnLogin: { marginTop: 0, height: 42 },
-  signUpBtnLogin: { marginTop: 8, height: 42 },
-  signUpBtn: {
-    marginTop: 10,
-    height: 48,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: "#A33A3A",
-    backgroundColor: "rgba(254,252,235,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signUpText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#A33A3A",
-    fontSize: 16,
-  },
-  orRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    marginBottom: 12,
-    gap: 10,
-  },
-  orLine: { flex: 1, height: 1, backgroundColor: "#1A1816", opacity: 0.45 },
-  or: {
-    fontFamily: "AtkinsonHyperlegible_400Regular_Italic",
-    color: "#5A5348",
-    fontSize: 13,
-  },
-  social: {
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#FFFcf6",
-    borderWidth: 1,
-    borderColor: "rgba(26,24,22,0.12)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  socialText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#1A1816",
-    fontSize: 15,
-  },
-  fb: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    backgroundColor: "#1877F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fbText: { color: "#fff", fontSize: 13, fontWeight: "700", marginTop: -1 },
-  dashBtn: {
-    marginTop: 6,
-    height: 42,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: "#1A1816",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dashText: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#1A1816",
-    fontSize: 16,
-  },
-  error: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#A33A3A",
+    color: colors.wordmark,
     textAlign: "center",
-    marginTop: 12,
-    fontSize: 13,
+    textDecorationLine: "underline",
   },
-  notice: {
-    fontFamily: "AtkinsonHyperlegible_400Regular",
-    color: "#5A5348",
-    textAlign: "center",
-    marginTop: 12,
-    fontSize: 13,
-  },
-  messageLogin: { marginTop: 0, marginBottom: 6 },
+  orRow: { flexDirection: "row", alignItems: "center" },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: colors.ink, opacity: 0.35 },
+  or: { fontFamily: "AtkinsonHyperlegible_400Regular_Italic", color: colors.muted },
+  error: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.wordmark, textAlign: "center" },
+  notice: { fontFamily: "AtkinsonHyperlegible_400Regular", color: colors.muted, textAlign: "center" },
 });

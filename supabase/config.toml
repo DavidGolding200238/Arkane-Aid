@@ -1,0 +1,7 @@
+# Supabase CLI settings for Arkane Aid. Only what differs from the CLI defaults.
+# No keys live here; secrets are set with `supabase secrets set` (see README).
+project_id = "arkane-aid"
+
+[functions.sage]
+# The gateway checks the player's Supabase session token; the function checks it again.
+verify_jwt = true
