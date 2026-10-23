@@ -26,7 +26,7 @@ import { useVoice, type VoiceId } from "../context/VoiceContext";
 import type { FlameColour } from "../components/flames/useFlameMotion";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
-import { askSage, type SageMode, type SagePersona } from "../lib/sage";
+import { askSage, type SageMode, type SagePersona, type SageTurn } from "../lib/sage";
 import { prepareDeviceVoices, speak, speechPace, stopSpeaking, type SpeakerVoice } from "../lib/voice";
 import { errorText } from "../lib/parties";
 import { colors, fonts, spacing, useAppFonts, useScale } from "../theme";
@@ -90,6 +90,12 @@ export default function SageScreen({ onBack }: Props) {
   const [persona, setPersona] = useState<SagePersona>("sage");
   const mode: SageMode = persona === "scribe" ? "scribe" : voice === "bard" ? "bard" : "sage";
   const speaker: SpeakerVoice = mode === "sage" ? (fancy ? "wizard" : "sage") : mode;
+  // Short memory so follow-ups work ("how long does it last?"): the last 3 exchanges with this
+  // voice. Kept in this screen only, so it is gone when the player leaves the Sage, switches
+  // Sage/Scribe or changes voice. Never saved. The Scribe gets none.
+  const memoryKey = `${mode}:${voice}`;
+  const [memory, setMemory] = useState<{ key: string; turns: SageTurn[] }>({ key: "", turns: [] });
+  const history = memory.key === memoryKey ? memory.turns : [];
   const [question, setQuestion] = useState("");
   const [asked, setAsked] = useState("");
   const [reply, setReply] = useState("");
@@ -147,6 +153,7 @@ export default function SageScreen({ onBack }: Props) {
 
   const changeMode = (next: SagePersona) => {
     setPersona(next);
+    setMemory({ key: "", turns: [] });
     setError("");
   };
 
@@ -182,6 +189,7 @@ export default function SageScreen({ onBack }: Props) {
         style: fancy ? "wizard" : "plain",
         sheet: brief,
         partyId,
+        history: mode === "scribe" ? [] : history,
       });
       const text = cleanReply(data.reply);
       if (!text) {
@@ -189,6 +197,7 @@ export default function SageScreen({ onBack }: Props) {
         return;
       }
       setReply(text);
+      if (mode !== "scribe") setMemory({ key: memoryKey, turns: [...history, { q: trimmed, a: text }].slice(-3) });
       if (persona === "scribe") {
         if (!partyId) {
           setError("Join a party first. The note needs a table to land in.");

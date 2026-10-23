@@ -23,7 +23,12 @@ export type SageReply = {
   corrections: { from: string; to: string }[];
   /** false when the question was outside the SRD (the reply says "Lore:" or "Homebrew idea:"). */
   grounded: boolean;
+  /** "hybrid" (keyword + meaning search), "keyword" (meaning search off or not seeded), "none" (small talk). */
+  retrieval?: "hybrid" | "keyword" | "none";
 };
+
+/** One earlier exchange in this Sage session, for follow-up questions. In memory only. */
+export type SageTurn = { q: string; a: string };
 
 export type SageRequest = {
   question: string;
@@ -33,6 +38,8 @@ export type SageRequest = {
   sheet?: string;
   /** Lets the Sage read the party's sheets for "what can we do" questions. */
   partyId?: string | null;
+  /** The last few exchanges of this session (the function uses at most 3, clipped). */
+  history?: SageTurn[];
 };
 
 export type SageErrorCode =
@@ -71,6 +78,7 @@ export async function askSage(request: SageRequest): Promise<SageReply> {
       style: request.style ?? "plain",
       sheet: request.sheet ?? "",
       partyId: request.partyId ?? undefined,
+      history: (request.history ?? []).slice(-3),
     },
   });
   if (error) throw await functionError(error, "The Sage could not answer just now.");
