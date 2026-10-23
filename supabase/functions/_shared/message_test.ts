@@ -5,7 +5,7 @@ import { PERSONAS, systemPrompt, type Mode } from "./personas.ts";
 import { isSmallTalk } from "./smalltalk.ts";
 import { srd } from "./srd.ts";
 
-for (const text of ["Hello", "hello!", "Hi there", "hey sage", "Thanks", "thank you so much", "Who are you?", "Good morning, Sage", "hi, who are you?", "Hail!", "cheers mate"]) {
+for (const text of ["Hello", "hello!", "Hi there", "hey sage", "Thanks", "thank you so much", "Who are you?", "Good morning, Arbiter", "hi, who are you?", "Hail!", "cheers mate"]) {
   Deno.test(`"${text}" is small talk`, () => assert(isSmallTalk(text)));
 }
 
@@ -56,7 +56,7 @@ Deno.test("spelling fixes are passed as guesses, never as fact", () => {
 });
 
 const voices: [Mode, "plain" | "wizard", string][] = [
-  ["sage", "plain", "you are the Sage"],
+  ["sage", "plain", "you are the Arbiter"],
   ["sage", "wizard", "old court mage"],
   ["bard", "plain", "you are the Bard"],
   ["scribe", "plain", "you are the Scribe"],
