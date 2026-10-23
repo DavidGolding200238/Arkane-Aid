@@ -11,7 +11,8 @@ export class GroqError extends Error {
   }
 }
 
-async function once(key: string, request: ChatRequest): Promise<string> {
+/** One Groq call, no fallback (the eval uses it to score the real model). */
+export async function once(key: string, request: ChatRequest): Promise<string> {
   const response = await fetch(URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },

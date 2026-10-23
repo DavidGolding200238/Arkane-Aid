@@ -6,3 +6,5 @@ dist/
 .env.local
 npm-debug.*
 .cache/
+# Eval scorecards (regenerate with npm run eval:search / eval:answers)
+evals/results/
