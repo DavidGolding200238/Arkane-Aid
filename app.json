@@ -4,8 +4,14 @@
     "slug": "arkane-aid",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/app-icon/icon.png",
     "userInterfaceStyle": "light",
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/app-icon/adaptive-foreground.png",
+        "backgroundImage": "./assets/images/app-icon/adaptive-background.png",
+        "backgroundColor": "#E8D7B8"
+      },
       "package": "za.co.openwindow.arkaneaid"
     },
     "plugins": [
