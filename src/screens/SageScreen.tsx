@@ -26,7 +26,7 @@ import type { FlameColour } from "../components/flames/useFlameMotion";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief, sheetData, type SheetData } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SageMode, type SagePersona, type SageTurn } from "../lib/sage";
-import { prepareDeviceVoices, speak, speechPace, stopSpeaking, type SpeakerVoice } from "../lib/voice";
+import { prepareDeviceVoices, speak, stopSpeaking, type SpeakerVoice } from "../lib/voice";
 import { errorText } from "../lib/parties";
 import { colors, fonts, spacing, useAppFonts, useScale } from "../theme";
 
@@ -47,15 +47,6 @@ function cleanReply(text: string) {
     .replace(/^\s*[-*]\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-// How fast the quill writes, in characters per second, so it roughly keeps pace with the
-// speech (see speechPace). Clamped so short replies don't crawl and long ones don't race.
-// When the speech finishes, the card completes anyway.
-function writingSpeed(text: string, voice: SpeakerVoice) {
-  const words = text.split(/\s+/).filter(Boolean).length || 1;
-  const seconds = words / speechPace(voice);
-  return Math.min(60, Math.max(20, text.length / seconds));
 }
 
 // One immersive line under the orb. It never changes height, so nothing below it moves.
@@ -106,7 +97,6 @@ export default function SageScreen({ onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const fontsLoaded = useAppFonts();
-  const [replyDone, setReplyDone] = useState(false);
   const [writing, setWriting] = useState(false);
   const scroll = useRef<ScrollView>(null);
   // Follow the quill down the page until the user scrolls by hand.
@@ -151,6 +141,24 @@ export default function SageScreen({ onBack }: Props) {
 
   const onWritingChange = useCallback((next: boolean) => setWriting(next), []);
 
+  // Follow the quill: the card is laid out full size at once (the unwritten rest is
+  // transparent), so scroll by how far the writing has got, never past the written line.
+  const cardBox = useRef({ y: 0, h: 0 });
+  const scrollY = useRef(0);
+  const onProgress = useCallback(
+    (fraction: number) => {
+      if (!follow.current || !scrollBox.h || !cardBox.current.h) return;
+      const written = cardBox.current.y + cardBox.current.h * fraction;
+      // Keep the line being written just above the bottom fade (same room as paddingBottom).
+      const target = Math.max(0, written + s(spacing.xl) + fs(25) - scrollBox.h);
+      if (target > scrollY.current + 1) {
+        scrollY.current = target;
+        scroll.current?.scrollTo({ y: target, animated: false });
+      }
+    },
+    [scrollBox.h, s, fs],
+  );
+
   // The status line breathes softly while the Sage is thinking or speaking.
   useEffect(() => {
     if (!busy && !speaking && !writing) {
@@ -185,7 +193,6 @@ export default function SageScreen({ onBack }: Props) {
     setError("");
     setReply("");
     setSource("");
-    setReplyDone(false);
     setNoted("");
     setSheetLine("");
     Keyboard.dismiss();
@@ -233,7 +240,7 @@ export default function SageScreen({ onBack }: Props) {
       }
       if (readAloudNow.current) {
         setSpeaking(true);
-        speak(text, speaker, { onEnd: () => setSpeaking(false), onDone: () => setReplyDone(true) });
+        speak(text, speaker, { onEnd: () => setSpeaking(false) });
       }
     } catch (err) {
       if (!mounted.current) return;
@@ -303,8 +310,9 @@ export default function SageScreen({ onBack }: Props) {
         onScrollBeginDrag={() => {
           follow.current = false;
         }}
-        onContentSizeChange={() => {
-          if (follow.current && reply) scroll.current?.scrollToEnd({ animated: true });
+        scrollEventThrottle={64}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
         }}
       >
         <SageOrb size={s(250)} flame={FLAME[voice]} mood={busy ? "thinking" : speaking ? "speaking" : "idle"} />
@@ -322,18 +330,22 @@ export default function SageScreen({ onBack }: Props) {
         </View>
 
         {reply ? (
-          <View style={[styles.full, { marginTop: s(spacing.xxl) }]}>
+          <View
+            style={[styles.full, { marginTop: s(spacing.xxl) }]}
+            onLayout={(e) => {
+              cardBox.current = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height };
+            }}
+          >
             <SageReplyCard
               text={reply}
               label={replyLabel}
               asked={asked}
               footNote={footNote}
               source={source}
-              cps={writingSpeed(reply, speaker)}
-              finished={replyDone}
               speaking={speaking}
               onToggleSpeech={readAloud ? toggleSpeech : undefined}
               onWritingChange={onWritingChange}
+              onProgress={onProgress}
             />
           </View>
         ) : null}

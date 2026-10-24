@@ -12,6 +12,7 @@ import {
 import CircleButton from "./CircleButton";
 import ParchmentPanel from "./ParchmentPanel";
 import Rule from "./Rule";
+import { revealCount } from "../lib/typing";
 import { colors, fonts, inkText, spacing, useScale } from "../theme";
 
 type Props = {
@@ -24,25 +25,18 @@ type Props = {
   footNote?: string;
   /** Where the ruling comes from, e.g. "Alignment, p. 21". Shown small under the reply, never spoken. */
   source?: string;
-  /** Writing speed in characters per second. */
-  cps: number;
-  /** Set true to finish the writing at once (e.g. the speech has ended). */
-  finished?: boolean;
   speaking: boolean;
   /** Play / stop the spoken reply. Left out when reading aloud is off on the Tome: no button. */
   onToggleSpeech?: () => void;
   /** Told when the quill starts and stops, so the screen can follow it. */
   onWritingChange?: (writing: boolean) => void;
+  /** How far the writing has got, 0 to 1, so the screen can scroll along with it. */
+  onProgress?: (fraction: number) => void;
 };
 
-const TICK = 40; // ms between writing steps
-
-// Next word end at or after `from`, so the reply appears whole word by whole word.
-function wordEnd(text: string, from: number) {
-  if (from >= text.length) return text.length;
-  const next = text.slice(from).search(/\s/);
-  return next === -1 ? text.length : from + next;
-}
+// Re-render at most about 30 times a second, a couple of letters at a time: smooth to the eye
+// and light on a phone. The letters themselves come from the clock (revealCount), not the frames.
+const MIN_STEP_MS = 32;
 
 function PlayGlyph({ size }: { size: number }) {
   const h = size * 0.38;
@@ -73,34 +67,34 @@ function PauseGlyph({ size, bar }: { size: number; bar: number }) {
 }
 
 // The Sage's reply on a torn Codex card that lifts off the page with a soft shadow.
-// The text writes itself out like a quill, word by word, with a blinking ink caret at
-// the end. Tap the card to skip to the full text. Reduce Motion shows it at once.
+// The text writes itself out letter by letter at a steady pace (src/lib/typing.ts), the same
+// for every persona and whether or not it is read aloud; it never waits on the speech. The
+// rest of the reply is already laid out in transparent ink, so lines never jump or re-wrap
+// as letters appear. Tap the card to skip to the full text. Reduce Motion shows it at once.
 export default function SageReplyCard({
   text,
   label,
   asked,
   footNote,
   source,
-  cps,
-  finished,
   speaking,
   onToggleSpeech,
   onWritingChange,
+  onProgress,
 }: Props) {
   const { s, fs } = useScale();
   const [shown, setShown] = useState(0);
-  const [caretOn, setCaretOn] = useState(true);
   const fade = useAnimatedValue(0);
   const writing = shown < text.length;
-  const cpsRef = useRef(cps);
+  const progressRef = useRef(onProgress);
   useEffect(() => {
-    cpsRef.current = cps;
-  }, [cps]);
+    progressRef.current = onProgress;
+  }, [onProgress]);
 
   // Fade and lift in when a new reply lands, then start writing.
   useEffect(() => {
     let live = true;
-    let id: ReturnType<typeof setInterval> | undefined;
+    let frame: number | undefined;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- restart the typewriter when a new reply arrives
     setShown(0);
     fade.setValue(0);
@@ -113,38 +107,38 @@ export default function SageReplyCard({
           setShown(text.length);
           return;
         }
-        let progress = 0;
-        id = setInterval(() => {
-          progress += (cpsRef.current * TICK) / 1000;
-          const next = wordEnd(text, Math.floor(progress));
-          setShown((current) => Math.max(current, next));
-          if (next >= text.length && id) clearInterval(id);
-        }, TICK);
+        const start = Date.now();
+        let last = 0;
+        let lastAt = start;
+        const step = () => {
+          if (!live) return;
+          const now = Date.now();
+          const next = revealCount(now - start, text.length, text);
+          if (next >= text.length || (next > last && (next - last >= 2 || now - lastAt >= MIN_STEP_MS))) {
+            last = next;
+            lastAt = now;
+            setShown((current) => Math.max(current, next));
+            progressRef.current?.(next / text.length);
+          }
+          if (next < text.length) frame = requestAnimationFrame(step);
+        };
+        frame = requestAnimationFrame(step);
       });
     return () => {
       live = false;
-      if (id) clearInterval(id);
+      if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [text, fade]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- jump to the full text when the parent marks it finished
-    if (finished) setShown(text.length);
-  }, [finished, text]);
 
   useEffect(() => {
     onWritingChange?.(writing);
   }, [writing, onWritingChange]);
 
-  // Ink caret blinks while the quill is writing.
-  useEffect(() => {
-    if (!writing) return;
-    const id = setInterval(() => setCaretOn((on) => !on), 420);
-    return () => clearInterval(id);
-  }, [writing]);
-
   const playSize = s(36);
-  const skip = () => setShown(text.length);
+  const skip = () => {
+    setShown(text.length);
+    onProgress?.(1);
+  };
 
   return (
     <Animated.View
@@ -184,7 +178,7 @@ export default function SageReplyCard({
             accessibilityLabel={text}
           >
             {text.slice(0, shown)}
-            {writing ? <Text style={[styles.caret, !caretOn && styles.caretOff]}>{" |"}</Text> : null}
+            {writing ? <Text style={styles.unwritten}>{text.slice(shown)}</Text> : null}
           </Text>
           {source && !writing ? (
             <Text
@@ -219,8 +213,8 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 1.2, ...inkText.red },
   asked: { fontFamily: fonts.bodyItalic, color: colors.muted },
   body: { fontFamily: fonts.body, color: colors.ink },
-  caret: { color: colors.wordmark, fontFamily: fonts.headingBold },
-  caretOff: { color: "transparent" },
+  // The not-yet-written rest: laid out but invisible, so the card is full size from the start.
+  unwritten: { color: "transparent" },
   source: { fontFamily: fonts.bodyItalic, color: colors.muted, opacity: 0.85 },
   noted: { fontFamily: fonts.bodyItalic, color: colors.panelStroke, textAlign: "right" },
   pauseBars: { flexDirection: "row", alignItems: "center" },
