@@ -153,7 +153,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
           <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>
             {signingUp ? "Email" : "Email or mobile"}
           </Text>
-          <FieldBox height={fieldH} s={s}>
+          <FieldBox height={fieldH}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
               autoCapitalize="none"
@@ -169,7 +169,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
           </FieldBox>
 
           <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Password</Text>
-          <FieldBox height={fieldH} s={s}>
+          <FieldBox height={fieldH}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
               secureTextEntry={!showPassword}
@@ -196,7 +196,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
               <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>
                 Re-enter password
               </Text>
-              <FieldBox height={fieldH} s={s}>
+              <FieldBox height={fieldH}>
                 <TextInput
                   style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
                   secureTextEntry={!showConfirm}
@@ -321,7 +321,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
 }
 
 /** Torn parchment field: Image only (no ImageBackground), transparent wrapper — no white box. */
-function FieldBox({ height, s, children }: { height: number; s: (n: number) => number; children: ReactNode }) {
+function FieldBox({ height, children }: { height: number; children: ReactNode }) {
   return (
     <View style={{ width: "100%", height, backgroundColor: "transparent", overflow: "visible" }}>
       <Image
