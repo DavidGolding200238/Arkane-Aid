@@ -5,11 +5,51 @@
 
 export type SplitReply = { text: string; source: string };
 
-// A last line like "Source: Alignment, p. 21" or "(Sources: Cover, p. 15; Prone, p. 190)".
-// It must follow the answer: on its own line, or after the last sentence on the same line.
-const SOURCE_LINE = /(?:\n|(?<=[.!?…"'”]) )[ \t]*[([]?\s*(?:sources?|srd)\s*:\s*([^\n]+?)\s*[)\]]?[ \t]*$/i;
+// A line that is only a source note, anywhere in the reply: "Source: Cover, p. 179",
+// "**Sources:** ...", "Source — ...", "(Source: ...)", "> SRD: ...". The model is asked for one
+// last line, but it sometimes bolds it, uses a dash, or puts a Bard's couplet after it.
+const SOURCE_ONLY_LINE = /^[ \t>*_~([•-]*(?:sources?|srd(?: ?5\.2(?:\.1)?)?)[ \t*_]*(?:[:：—–-]|,(?= ))[ \t*_]*([^\n]*?)[ \t*_)\].]*$/i;
+// The same note after the last sentence on the same line: "... cover. Source: Cover, p. 179".
+const SOURCE_AFTER = /([.!?…"'”)*_]|[ \t][—–-])[ \t]+[([]?[ \t*_]*(?:sources?|srd)[ \t*_]*[:：—–-][ \t*_]*([^\n]+?)[ \t*_)\]]*$/i;
 // "(SRD: ...)", "(SRD 5.2.1, ..., p. 21)", "(Source: ...)", "(... p. 21)" anywhere in the body.
 const INLINE = /\s*[([]\s*(?:(?:SRD|sources?)\b[^()[\]]*|[^()[\]]*\bpp?\.\s*\d+[^()[\]]*)[)\]]/gi;
+
+// "Source: none" is not a source.
+const NOT_A_SOURCE = /^(?:none|n\/?a|-+)$/i;
+
+/** Moves every source note out of the text. Kept free of regex lookbehind (Hermes). */
+function pullSources(reply: string): { text: string; found: string[] } {
+  const found: string[] = [];
+  const lines: string[] = [];
+  for (const line of reply.trim().split("\n")) {
+    const own = SOURCE_ONLY_LINE.exec(line);
+    if (own) {
+      if (own[1].trim()) found.push(own[1]);
+      continue;
+    }
+    lines.push(line);
+  }
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  // Nothing but a source note: leave it, rather than an empty reply.
+  if (!lines.some((l) => l.trim())) return { text: reply.trim(), found: [] };
+  if (lines.length) {
+    const last = lines[lines.length - 1];
+    const after = SOURCE_AFTER.exec(last);
+    if (after) {
+      found.push(after[2]);
+      // Keep the sentence's own full stop; drop a dash before "Source".
+      const keep = /[—–-]$/.test(after[1].trim()) ? 0 : after[1].length;
+      lines[lines.length - 1] = last.slice(0, after.index + keep).trimEnd();
+    }
+  }
+  let text = lines.join("\n");
+  text = text.replace(INLINE, (match) => {
+    found.push(match.trim().replace(/^[([]\s*|\s*[)\]]$/g, ""));
+    return "";
+  });
+  text = text.replace(/[ \t]+([.,;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return { text, found };
+}
 const MAX_SOURCES = 2;
 
 /** One short citation: "Step 4: Alignment, p. 21" from any breadcrumb form, without "SRD 5.2.1". */
@@ -29,7 +69,7 @@ function joinSources(items: string[]): string {
   const out: string[] = [];
   for (const item of items.flatMap((s) => s.split(/\s*;\s*/))) {
     const short = shortCitation(item);
-    if (!short || seen.has(short.toLowerCase())) continue;
+    if (!short || NOT_A_SOURCE.test(short) || seen.has(short.toLowerCase())) continue;
     seen.add(short.toLowerCase());
     out.push(short);
   }
@@ -37,17 +77,69 @@ function joinSources(items: string[]): string {
 }
 
 export function splitReply(reply: string): SplitReply {
-  let text = reply.trim();
-  const found: string[] = [];
-  const line = SOURCE_LINE.exec(text);
-  if (line) {
-    found.push(line[1]);
-    text = text.slice(0, line.index).trimEnd();
-  }
-  text = text.replace(INLINE, (match) => {
-    found.push(match.trim().replace(/^[([]\s*|\s*[)\]]$/g, ""));
-    return "";
-  });
-  text = text.replace(/[ \t]+([.,;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  const { text, found } = pullSources(reply);
   return { text, source: joinSources(found) };
+}
+
+const STOP = new Set(["the", "of", "and", "a", "an", "to", "in", "on", "for", "with", "your", "you", "level", "step", "or"]);
+
+function titleOf(citation: string): string {
+  return shortCitation(citation).replace(/,\s*p\.\s*\d+$/, "").trim();
+}
+
+function words(text: string): string[] {
+  return text.toLowerCase().replace(/[’']/g, "").split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w));
+}
+
+const stemWord = (w: string) => w.replace(/(?:es|s)$/, "");
+
+/**
+ * The footer for a rules answer. The model's own Source line is kept only where it names an
+ * extract it was given (so no page is ever made up). When it wrote none, the first extract whose
+ * title the answer actually talks about is used, so a real ruling always shows where it came from.
+ * Lore, homebrew and declines name no extract, so they get no footer.
+ */
+export function pickSource(modelSource: string, reply: string, hits: { citation: string }[]): string {
+  if (/^\W*(?:lore|homebrew idea)\s*:/i.test(reply)) return "";
+  const given = new Map(hits.map((h) => [titleOf(h.citation).toLowerCase(), shortCitation(h.citation)]));
+  const kept = modelSource
+    .split(/\s*;\s*/)
+    .map((s) => given.get(titleOf(s).toLowerCase()))
+    .filter((s): s is string => !!s);
+  if (kept.length) return [...new Set(kept)].slice(0, MAX_SOURCES).join("; ");
+  const said = new Set(words(reply).map(stemWord));
+  for (const hit of hits) {
+    const need = words(titleOf(hit.citation)).map(stemWord);
+    if (need.length && need.every((w) => said.has(w))) return shortCitation(hit.citation);
+  }
+  return "";
+}
+
+// Help-desk sign-offs that break the voice. An offer in character ("Shall we mend it together?") stays.
+const CLOSER =
+  /(?:let me know\b|happy to help|glad to help|feel free to|hope (?:this|that) helps|if you have any (?:other |more |further )?questions|(?:is there )?anything else (?:i can|you need|to)\b|don't hesitate to)/i;
+// A closer starts the sentence ("I am happy to help...") or follows ", and" / ", so" / ",".
+const LEAD = /^(?:(?:and|so|also|just|please|i am|i'm|i'd be|i would be|we are|we're|if you need anything(?: else)?,?)\s+)*/i;
+
+/** Drops a help-desk closing sentence or clause ("Let me know if there's anything else") from the end. */
+export function dropClosers(text: string): string {
+  let out = text.trim();
+  for (let i = 0; i < 2; i++) {
+    const m = /(^|[.!?…"”]\s+|\n)([^.!?…\n]*[.!?…]?["”]?)\s*$/.exec(out);
+    if (!m) break;
+    const sentence = m[2];
+    const hit = CLOSER.exec(sentence);
+    if (!hit) break;
+    const head = out.slice(0, m.index + m[1].trimEnd().length).trimEnd();
+    if (LEAD.exec(sentence)![0].length === hit.index) {
+      if (!head) break; // the whole reply is the closer: leave it
+      out = head;
+      continue;
+    }
+    // "Lower it to 20, and let me know if you need help." -> "Lower it to 20."
+    const clause = /,\s*(?:and\s+|so\s+)?(?:(?:i am|i'm|i'd be|please|just)\s+)?$/i.exec(sentence.slice(0, hit.index));
+    if (!clause) break;
+    out = `${head}${head ? " " : ""}${sentence.slice(0, clause.index).trim()}.`.trim();
+  }
+  return out;
 }

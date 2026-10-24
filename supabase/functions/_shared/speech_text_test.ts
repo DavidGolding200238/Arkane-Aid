@@ -19,7 +19,16 @@ Deno.test("speech never reads citations for the Wizard, the Arbiter or the Bard"
 });
 
 Deno.test("the app splits the same way as the function", () => {
-  for (const reply of [wizard, arbiter, bard, "Roll a d20 (with Advantage).", "Lore: Asmodeus rules the Nine Hells."]) {
+  const variants = [
+    "Half cover is +2 AC.\n**Source:** Cover, p. 179",
+    "Half cover is +2 AC.\nSources: Cover, p. 179; Prone, p. 190",
+    "Half cover is +2 AC.\nSource — Cover, p. 179",
+    "Half cover is +2 AC. — Source: Cover, p. 179",
+    "Duck!\nSource: Cover, p. 179\nA crate, a wall,\nshields one and all!",
+    "Source: Cover, p. 179",
+    "Source of the curse: a hag.",
+  ];
+  for (const reply of [wizard, arbiter, bard, "Roll a d20 (with Advantage).", "Lore: Asmodeus rules the Nine Hells.", ...variants]) {
     assertEquals(splitSource(reply), splitReply(reply), reply);
   }
 });
