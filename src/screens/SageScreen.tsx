@@ -120,15 +120,23 @@ export default function SageScreen({ onBack }: Props) {
   const [headerH, setHeaderH] = useState(() => Math.max(s(48), insets.top + s(8)) + s(44) + s(8));
   const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
+  // A reply can arrive after the player has left this screen or switched reading aloud off;
+  // ask() checks these refs after its awaits instead of the values it started with.
+  const mounted = useRef(true);
+  const readAloudNow = useRef(readAloud);
+
   useEffect(() => {
+    mounted.current = true;
     prepareDeviceVoices();
     return () => {
+      mounted.current = false;
       stopSpeaking();
     };
   }, []);
 
   // Switched off on the Tome while something was being read: stop and leave the speaking state.
   useEffect(() => {
+    readAloudNow.current = readAloud;
     if (readAloud) return;
     stopSpeaking();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- leave the speaking state when reading aloud is switched off
@@ -202,6 +210,8 @@ export default function SageScreen({ onBack }: Props) {
         history: mode === "scribe" ? [] : history,
       });
       const text = cleanReply(data.reply);
+      // Left the Sage while waiting: nothing to show, and no speech on another screen.
+      if (!mounted.current) return;
       if (!text) {
         setError("The Sage had nothing to say. Try asking another way.");
         return;
@@ -214,19 +224,21 @@ export default function SageScreen({ onBack }: Props) {
           setError("Join a party first. The note needs a table to land in.");
         } else {
           await addCodexEntry(partyId, "note", noteTitle(trimmed), text, "scribe");
+          if (!mounted.current) return;
           setNoted("Written to the Codex.");
         }
       }
-      if (readAloud) {
+      if (readAloudNow.current) {
         setSpeaking(true);
         speak(text, speaker, { onEnd: () => setSpeaking(false), onDone: () => setReplyDone(true) });
       }
     } catch (err) {
+      if (!mounted.current) return;
       setError(errorText(err));
       // Keep what they typed so they can try again.
       setQuestion(trimmed);
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   };
 
