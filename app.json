@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/app-icon/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#E8D7B8",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon/adaptive-foreground.png",
