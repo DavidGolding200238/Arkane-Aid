@@ -5,7 +5,7 @@ import { tidy } from "./groq.ts";
 import { reviewMessage, userMessage } from "./message.ts";
 import { PERSONAS, resolveMode, type SageStyle, systemPrompt, temperatureFor, voiceReminder } from "./personas.ts";
 import { type ChatKind, chatKind } from "./smalltalk.ts";
-import { dropClosers, pickSource, splitReply } from "./reply.ts";
+import { dropClosers, hasLabels, pickSource, splitReply } from "./reply.ts";
 import { checkSheet, findingsSource, labelledSheet, parseBrief, readSheet, type Severity } from "./sheet_check.ts";
 import { srd } from "./srd.ts";
 import { hybridSearch, type SemanticSearch } from "./hybrid.ts";
@@ -57,6 +57,8 @@ export type AskReply = {
   /** "hybrid" when meaning search took part, "keyword" when it was off or failed, "none" for small talk,
    *  "sheet" for a sheet review (the checker's findings, no SRD search). */
   retrieval: "hybrid" | "keyword" | "none" | "sheet";
+  /** True when the model wrote "Fix:" / "Suggestion:" labels and the safety net removed them (the evals fail on it). */
+  labelsStripped: boolean;
   /** A sheet review's findings from the checker; absent otherwise. */
   findings?: { severity: Severity; field: string; problem: string }[];
 };
@@ -87,7 +89,7 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
   const sheetData = structured ?? (sheet ? parseBrief(sheet) : null);
   const sheetText = structured ? labelledSheet(structured) : sheet;
   const review = !kind && !!sheetData && persona.mode !== "scribe" && isSheetReview(question);
-  const reminder = voiceReminder(persona.mode, style);
+  const reminder = voiceReminder(persona.mode, style, review);
   const finish = (content: string) => (reminder ? `${content}\n\n${reminder}` : content);
   const talk = async (content: string) =>
     tidy(
@@ -108,7 +110,9 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
     // The checker decides what is wrong; the model explains it. No SRD search, and the footer
     // comes from the findings, never from the model.
     const findings = checkSheet(sheetData!);
-    const reply = dropClosers(splitReply(await talk(reviewMessage(question, sheetText, findings))).text);
+    const raw = await talk(reviewMessage(question, sheetText, findings));
+    // splitReply also strips any "Fix:" / "Suggestion:" labels the model still wrote.
+    const reply = dropClosers(splitReply(raw).text);
     if (!reply) return { code: "empty_reply", error: "The Sage had nothing to say. Try asking another way." };
     const refs = [...new Map(findings.map((f) => [f.ref.title, f.ref])).values()];
     return {
@@ -122,6 +126,7 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
       smallTalk: false,
       chat: null,
       retrieval: "sheet",
+      labelsStripped: hasLabels(raw),
       findings: findings.map(({ severity, field, problem }) => ({ severity, field, problem })),
     };
   }
@@ -154,5 +159,6 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
     smallTalk: !found,
     chat: kind,
     retrieval: found?.retrieval ?? "none",
+    labelsStripped: hasLabels(raw),
   };
 }

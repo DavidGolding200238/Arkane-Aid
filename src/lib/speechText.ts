@@ -6,7 +6,7 @@
 // Mirrors supabase/functions/_shared/reply.ts (kept free of regex lookbehind for Hermes).
 // Pure functions, no React Native imports, so the function tests can check them with Deno.
 
-// Mirrors pullSources in supabase/functions/_shared/reply.ts word for word.
+// Mirrors dropLabels and pullSources in supabase/functions/_shared/reply.ts word for word.
 // A line that is only a source note, anywhere in the reply: "Source: Cover, p. 179",
 // "**Sources:** ...", "Source — ...", "(Source: ...)", "> SRD: ...". The model is asked for one
 // last line, but it sometimes bolds it, uses a dash, or puts a Bard's couplet after it.
@@ -19,11 +19,37 @@ const INLINE = /\s*[([]\s*(?:(?:SRD|sources?)\b[^()[\]]*|[^()[\]]*\bpp?\.\s*\d+[
 // "Source: none" is not a source.
 const NOT_A_SOURCE = /^(?:none|n\/?a|-+)$/i;
 
+// A checklist label at the start of a line: "Fix:", "**Suggestion:**", "- Fix (Strength):",
+// "1. Suggest -". Sheet reviews are asked for flowing prose; if a label still slips through, it is
+// removed so the card reads naturally and text to speech never says it.
+const LABEL = /^([ \t]*(?:[-•*][ \t]+|\d+[.)][ \t]+)?)[*_]*(?:fix(?:es)?|suggest(?:ions?)?)[*_]*(?:[ \t]*\([^)\n]*\))?[ \t]*[*_]*(?:[:：]|[ \t][—–-])[*_]*[ \t]*/i;
+
+/** True when any line of the reply starts with a "Fix:" / "Suggestion:" label. */
+export function hasLabels(reply: string): boolean {
+  return reply.split("\n").some((line) => LABEL.test(line));
+}
+
+/** Strips "Fix:" / "Suggestion:" labels from line starts; a line that was only a label goes. */
+export function dropLabels(reply: string): string {
+  const out: string[] = [];
+  for (const line of reply.split("\n")) {
+    const m = LABEL.exec(line);
+    if (!m) {
+      out.push(line);
+      continue;
+    }
+    const rest = line.slice(m[0].length).trim();
+    if (rest) out.push(`${m[1]}${rest[0].toUpperCase()}${rest.slice(1)}`);
+  }
+  return out.join("\n");
+}
+
 /** Moves every source note out of the text. Kept free of regex lookbehind (Hermes). */
 function pullSources(reply: string): { text: string; found: string[] } {
   const found: string[] = [];
   const lines: string[] = [];
-  for (const line of reply.trim().split("\n")) {
+  const unlabelled = dropLabels(reply);
+  for (const line of unlabelled.trim().split("\n")) {
     const own = SOURCE_ONLY_LINE.exec(line);
     if (own) {
       if (own[1].trim()) found.push(own[1]);
@@ -33,7 +59,7 @@ function pullSources(reply: string): { text: string; found: string[] } {
   }
   while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
   // Nothing but a source note: leave it, rather than an empty reply.
-  if (!lines.some((l) => l.trim())) return { text: reply.trim(), found: [] };
+  if (!lines.some((l) => l.trim())) return { text: unlabelled.trim(), found: [] };
   if (lines.length) {
     const last = lines[lines.length - 1];
     const after = SOURCE_AFTER.exec(last);
