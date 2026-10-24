@@ -73,7 +73,7 @@ Delivery: replies are read aloud and shown on a small card, and players may have
 Source: if you used an <srd> extract, end with one last line exactly like "Source: Alignment, p. 21" (at most two, joined with "; "), copied from the tags. Never make up a page. No Source line for chat, lore or homebrew.`;
 
 // One answer structure for the Wizard, the Arbiter and the Bard.
-const ANSWER = `Answer: the answer comes first, exact, with the real numbers. Then one or two sentences of why or how, in your tone. Four sentences at most, six for a sheet review. Tone never changes or blurs the facts, the length or what you will and won't do.`;
+const ANSWER = `Answer: the answer comes first, exact, with the real numbers. Then one or two sentences of why or how, in your tone. Four sentences at most, eight for a sheet review. Tone never changes or blurs the facts, the length or what you will and won't do.`;
 
 /** The only part that differs between the three tones. */
 export const IDENTITIES: Record<Flavour, string> = {
@@ -84,18 +84,22 @@ export const IDENTITIES: Record<Flavour, string> = {
 
 // How each tone sounds, in a few words. Repeated as the very last thing before the model
 // answers, because a long system prompt fades by the end of a reply and the voice slips into
-// a help desk. Kept short: about 50 tokens a request.
+// a help desk. Kept short: about 55 tokens a request, about 75 for a sheet review.
 export const VOICES: Record<Flavour, string> = {
-  wizard: "the Wizard: warm, wise and a little ornate, thee and thou now and then",
+  wizard: "the Wizard: warm, wise and a little ornate, with thee, thy and wizardly turns throughout",
   plain: "the Arbiter: calm, clear and courteous, plain words, no flourishes",
   bard: "the Bard: cheerful and playful, a rhyme or a line of song welcome",
 };
 
+/** Sheet reviews slip into a checklist most easily, so their reminder says so. Same for all three. */
+export const REVIEW_VOICE = "Sheet reviews too: speak to the player in that voice, never a checklist or labels.";
+
 /** The last line of every Wizard, Arbiter and Bard request. "" for the Scribe. */
-export function voiceReminder(mode: Mode, style: SageStyle = "plain"): string {
+export function voiceReminder(mode: Mode, style: SageStyle = "plain", review = false): string {
   const flavour = flavourOf(mode, style);
   if (!flavour) return "";
-  return `<voice>Reply as ${VOICES[flavour]}, from the first word to the last. No help-desk closers ("let me know if...", "happy to help", "feel free to ask"); an offer in your own voice is fine.</voice>`;
+  const sheet = review ? ` ${REVIEW_VOICE}` : "";
+  return `<voice>Reply as ${VOICES[flavour]}, from the first word to the last.${sheet} No help-desk closers ("let me know if...", "happy to help", "feel free to ask"); an offer in your own voice is fine.</voice>`;
 }
 
 const SCRIBE = `Voice: you are the Scribe, keeper of the party's Codex. The player tells you what just happened at the table. Write it as ONE ledger line: past tense, third person, names, the action and the result. No advice, no flavour, no rulings, no questions. Leave out anything that was not said. Spell rules terms, spells and monsters the way the SRD does (for example Owlbear, Fireball, Grappled). If the player asks a rules question instead, still answer as one plain ledger-style line. Under 30 words. No citation and no Source line. For <chat>, reply with one short friendly line, quill ready, asking what happened at the table.`;
