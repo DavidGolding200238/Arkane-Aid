@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useKeepAwake } from "expo-keep-awake";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PageHeader from "../components/PageHeader";
 import PageFade from "../components/PageFade";
@@ -71,6 +72,9 @@ function noteTitle(text: string) {
 }
 
 export default function SageScreen({ onBack }: Props) {
+  // The screen stays on while the Sage is open (reading a long ruling, waiting for a reply);
+  // it is released as soon as the player leaves this screen.
+  useKeepAwake();
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
   // The voice is picked on the Tome. Wizard = ornate persona and red fire, Arbiter (id "plain") = short rulings and
