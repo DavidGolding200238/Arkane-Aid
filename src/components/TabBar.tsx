@@ -5,6 +5,7 @@ import LogbookIcon from "../../assets/images/icons/tab-logbook.svg";
 import HatIcon from "../../assets/images/icons/tab-hat.svg";
 import GearIcon from "../../assets/images/icons/tab-gear.svg";
 import type { AppScreen } from "../navigation/screens";
+import { tapHaptic } from "../lib/haptics";
 import { colors, useScale } from "../theme";
 
 // Tab bar from Figma Group 6086 (2320:2385): #1a1816 bar with a faint texture,
@@ -67,7 +68,10 @@ export default function TabBar({
           <Pressable
             key={id}
             style={({ pressed }) => [styles.tab, { height: s(BAR_H) }, pressed && styles.pressed]}
-            onPress={() => onOpen(id)}
+            onPress={() => {
+              tapHaptic();
+              onOpen(id);
+            }}
             accessibilityRole="tab"
             accessibilityLabel={label}
             accessibilityState={{ selected: on }}

@@ -3,6 +3,7 @@ import CircleButton from "./CircleButton";
 import MicSvg from "../../assets/images/icons/icon-mic.svg";
 import QuillSvg from "../../assets/images/icons/icon-hand-quill.svg";
 import type { SagePersona } from "../lib/sage";
+import { tapHaptic } from "../lib/haptics";
 import { colors, fonts, useScale } from "../theme";
 
 type Mode = { id: SagePersona; label: string; hint: string; Icon: typeof MicSvg };
@@ -33,7 +34,10 @@ export default function SageModeButtons({ persona, onChange, gap = 96 }: Props) 
         return (
           <Pressable
             key={id}
-            onPress={() => onChange(id)}
+            onPress={() => {
+              tapHaptic();
+              onChange(id);
+            }}
             hitSlop={10}
             accessibilityRole="radio"
             accessibilityState={{ checked: on }}

@@ -1,4 +1,5 @@
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { tapHaptic } from "../lib/haptics";
 import { colors, fonts, useScale } from "../theme";
 
 // Torn parchment buttons from the Tome (Figma 2543:1170): textured paper, inked edge.
@@ -66,7 +67,10 @@ export default function TornButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityLabel={label}

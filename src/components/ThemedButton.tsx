@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { tapHaptic } from "../lib/haptics";
 import { colors, fonts, radius, useScale } from "../theme";
 
 type Props = {
@@ -28,7 +29,10 @@ export default function ThemedButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityLabel={label}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { tapHaptic } from "../lib/haptics";
 
 const circle = require("../../assets/images/buttons/btn-circle-red.png");
 
@@ -31,7 +32,10 @@ export default function CircleButton({ size, children, onPress, accessibilityLab
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       disabled={disabled}
       hitSlop={10}
       accessibilityRole="button"

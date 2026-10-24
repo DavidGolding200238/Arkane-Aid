@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Rule from "./Rule";
+import { tapHaptic } from "../lib/haptics";
 import { colors, fonts, useScale } from "../theme";
 
 // Hand-inked pieces for the paper sheets: an outline that wobbles like a pen line instead of a
@@ -434,7 +435,10 @@ export function InkButton({
   const slop = Math.max(4, Math.ceil((s(44) - height) / 2));
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityLabel={label}
