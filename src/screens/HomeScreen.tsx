@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
@@ -42,6 +43,12 @@ const GEM = 24;
 // Seal icon and label, slightly larger than before (icon 0.38 -> 0.44 of the seal, label 14 -> 15.4).
 const ICON = 0.44;
 const LABEL = 15.4;
+// The lowest point of the dial (the bottom seal's edge) in stage units: CY + 32 + SEAL_R + SEAL / 2.
+const DIAL_BOTTOM = CY + 32 + SEAL_R + SEAL / 2;
+// Keep the dial at least this far (dp) above the system nav bar, whether 3-button or gesture.
+const DIAL_MARGIN = 32;
+// Never lift the dial more than this (stage units), so the top seals stay clear of the wordmark rule.
+const MAX_LIFT = 40;
 
 type SealId = "sage" | "tome" | "codex";
 
@@ -68,7 +75,8 @@ function wrapDelta(delta: number) {
 
 export default function HomeScreen({ onOpen }: Props) {
   // fit = min(width / 360, height / 780), the same stage scale as before.
-  const { fit: s } = useScale();
+  const { fit: s, height } = useScale();
+  const insets = useSafeAreaInsets();
   const rot = useAnimatedValue(0);
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
@@ -85,7 +93,9 @@ export default function HomeScreen({ onOpen }: Props) {
   const gem = GEM * s;
   const wheel = 340 * s;
   const wx = (CX - 170) * s;
-  const wy = (CY - 170 + 32) * s;
+  // Lift only the dial (rings, die, seals, gems) when its bottom would sit within DIAL_MARGIN of the nav bar.
+  const lift = Math.min(MAX_LIFT * s, Math.max(0, DIAL_BOTTOM * s + DIAL_MARGIN - (height - insets.bottom)));
+  const wy = (CY - 170 + 32) * s - lift;
   const lx = wheel / 2;
   const ly = wheel / 2;
 
@@ -204,17 +214,17 @@ export default function HomeScreen({ onOpen }: Props) {
         <Image
           source={ring1}
           resizeMode="contain"
-          style={{ position: "absolute", left: 72 * s, top: 462 * s, width: 216 * s, height: 216 * s }}
+          style={{ position: "absolute", left: 72 * s, top: 462 * s - lift, width: 216 * s, height: 216 * s }}
         />
         <Image
           source={ring2}
           resizeMode="contain"
-          style={{ position: "absolute", left: 80 * s, top: 470 * s, width: 200 * s, height: 200 * s }}
+          style={{ position: "absolute", left: 80 * s, top: 470 * s - lift, width: 200 * s, height: 200 * s }}
         />
         <Image
           source={dieArt}
           resizeMode="contain"
-          style={{ position: "absolute", left: 116 * s, top: 519 * s, width: 128 * s, height: 102 * s, zIndex: 2 }}
+          style={{ position: "absolute", left: 116 * s, top: 519 * s - lift, width: 128 * s, height: 102 * s, zIndex: 2 }}
         />
 
         <View
