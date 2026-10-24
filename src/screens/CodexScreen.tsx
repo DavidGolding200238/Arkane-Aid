@@ -12,7 +12,6 @@ import {
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
-import ParchmentPanel from "../components/ParchmentPanel";
 import CircleButton from "../components/CircleButton";
 import Rule from "../components/Rule";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
@@ -20,10 +19,27 @@ import { CornerOrnaments, InkButton, InkOutline, InkStroke, RuledLines, INK_RADI
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
+// The Ledger sections' light paper (no torn edge: it is clipped off), so each note is its own small sheet.
+const notePaper = require("../../assets/images/panels/panel-ledger-cream-fill.jpg");
 
-// Solid cream-white paper for the note cards (#FBF6EA), whiter than the panel so they stand out. It is a
-// real backgroundColor, not an SVG fill, so it is opaque on every platform.
-const CARD_FILL = "#FBF6EA";
+// One note's sheet: the Ledger panel paper, drawn a little oversize and clipped so its baked border never
+// shows, edged in a fine hand-inked line with the Ledger's corner curls. Fills its parent.
+function NoteSheet({ seed }: { seed: number }) {
+  const { s } = useScale();
+  const bleed = s(6);
+  const clip = s(1.2);
+  return (
+    <>
+      <View pointerEvents="none" style={[styles.sheetClip, { top: clip, left: clip, right: clip, bottom: clip, borderRadius: s(INK_RADIUS) }]}>
+        <View style={{ position: "absolute", top: -bleed, left: -bleed, right: -bleed, bottom: -bleed }}>
+          <Image source={notePaper} style={styles.sheetPaper} resizeMode="cover" />
+        </View>
+      </View>
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} />
+      <CornerOrnaments size={s(12)} inset={s(4)} />
+    </>
+  );
+}
 
 // Printed section heading, as on the Ledger: red Cinzel with an illuminated first letter and a
 // drawn underline as wide as the text.
@@ -71,8 +87,6 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const [rows, setRows] = useState<CodexEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // Where the scrolling list sits inside the book, for its soft top and bottom fades.
-  const [listBox, setListBox] = useState({ y: 0, h: 0 });
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -145,26 +159,13 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   if (!fontsLoaded) return <View style={styles.root} />;
 
   const badge = s(38);
-  // Soft ends for the list: about one line of fade at the bottom (fading up from the chevron)
-  // and a shorter one under the tabs, both made of the book's own paper.
-  const bottomFade = fs(22);
-  const topFade = s(12);
-  const fades =
-    listBox.h > 0
-      ? [
-          { top: listBox.y, height: topFade, direction: "down" as const },
-          { top: listBox.y + listBox.h - bottomFade, height: bottomFade, direction: "up" as const },
-        ]
-      : undefined;
-
   // Text sits on faint ruled writing lines, like the Ledger's story boxes.
   const bodyLine = fs(21);
   const formLine = fs(24);
-  const bookPad = s(14);
-  // The Save button spans the book's inner width.
-  const saveW = Math.max(s(120), width - s(19) * 2 - bookPad * 2);
-  // The cream sits just inside the inked rim, so no paper shows outside the pen line.
-  const fillInset = s(1.2);
+  // No outer book any more: the heading, tabs and notes sit straight on the page, in the same margins.
+  const pagePad = s(19);
+  // The Save button spans the page's inner width.
+  const saveW = Math.max(s(120), width - pagePad * 2);
 
   return (
     <View style={styles.root}>
@@ -173,14 +174,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
 
       <PageHeader title="Codex" subtitle={selected?.party.name ?? "No party"} onBack={onBack} />
 
-      <ParchmentPanel
-        variant="ledger"
-        style={[styles.book, { marginHorizontal: s(19), marginTop: s(6), marginBottom: s(12) }]}
-        contentStyle={styles.bookInner}
-        fades={fades}
-      >
-        <CornerOrnaments size={s(16)} inset={s(5)} />
-        <View style={{ paddingHorizontal: bookPad, paddingTop: s(12), paddingBottom: s(8) }}>
+      <View style={[styles.book, { marginTop: s(6), marginBottom: s(12) }]}>
+        <View style={{ paddingHorizontal: pagePad, paddingTop: s(6), paddingBottom: s(8) }}>
           <View style={styles.sessionRow}>
             <SectionTitle size={fs(18)}>Session notes</SectionTitle>
             <InkButton
@@ -265,12 +260,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: s(12), paddingTop: s(4) + topFade, paddingBottom: s(16) + bottomFade, gap: s(12) }}
+          contentContainerStyle={{ paddingHorizontal: pagePad, paddingTop: s(10), paddingBottom: s(16), gap: s(12) }}
           keyboardShouldPersistTaps="handled"
-          onLayout={(e) => {
-            const { y, height } = e.nativeEvent.layout;
-            setListBox((box) => (Math.abs(box.y - y) > 0.5 || Math.abs(box.h - height) > 0.5 ? { y, h: height } : box));
-          }}
         >
           {!partyId ? (
             <Text style={[styles.empty, { fontSize: fs(14) }]}>
@@ -295,14 +286,9 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
               style={({ pressed }) => pressed && styles.cardPressed}
             >
               <View style={[styles.card, { minHeight: s(132), padding: s(14), paddingBottom: s(10) }]}>
-                <View
-                  style={[
-                    styles.cardFill,
-                    { top: fillInset, left: fillInset, right: fillInset, bottom: fillInset, borderRadius: s(INK_RADIUS) },
-                  ]}
-                />
-                <InkOutline seed={70 + i} radius={s(INK_RADIUS)} />
-                <CornerOrnaments size={s(12)} inset={s(4)} />
+                {/* Each note is its own light-paper sheet on the page, like the Ledger's Equipment and
+                    Traits sections: fine pen frame, corner curls, ruled lines. */}
+                <NoteSheet seed={70 + i} />
                 <View style={[styles.cardTop, { gap: s(8) }]}>
                   <Text style={[styles.cardTitle, { fontSize: fs(16), lineHeight: fs(21) }]} numberOfLines={2}>
                     {row.title || "Untitled"}
@@ -328,7 +314,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
         <View style={[styles.chevronWrap, { paddingTop: s(4), paddingBottom: s(10) }]} pointerEvents="none">
           <ChevronDownIcon width={s(32)} />
         </View>
-      </ParchmentPanel>
+      </View>
     </View>
   );
 }
@@ -346,7 +332,8 @@ const styles = StyleSheet.create({
     opacity: 0.28,
   },
   book: { flex: 1 },
-  bookInner: { flex: 1 },
+  sheetClip: { position: "absolute", overflow: "hidden" },
+  sheetPaper: { width: "100%", height: "100%" },
   sessionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   // Same printed heading as the Ledger's section titles.
   sectionTitle: { alignSelf: "flex-start", flexShrink: 1 },
@@ -377,7 +364,6 @@ const styles = StyleSheet.create({
   link: { color: colors.wordmark },
   cardPressed: { opacity: 0.85 },
   card: { justifyContent: "space-between" },
-  cardFill: { position: "absolute", backgroundColor: CARD_FILL },
   cardTop: { flexDirection: "row", alignItems: "flex-start" },
   cardTitle: { flex: 1, fontFamily: fonts.headingBold, ...inkText.heading },
   cardBodyWrap: { flexGrow: 1 },

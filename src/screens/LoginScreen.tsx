@@ -20,7 +20,7 @@ import {
 } from "@expo-google-fonts/atkinson-hyperlegible";
 import { useAuth } from "../context/AuthContext";
 import Rule from "../components/Rule";
-import TornButton from "../components/TornButton";
+import TornButton, { FineEdgeArt } from "../components/TornButton";
 import { colors, inkText, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
@@ -153,7 +153,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
           <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>
             {signingUp ? "Email" : "Email or mobile"}
           </Text>
-          <FieldBox height={fieldH}>
+          <FieldBox height={fieldH} width={formW} seed={12}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
               autoCapitalize="none"
@@ -169,7 +169,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
           </FieldBox>
 
           <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Password</Text>
-          <FieldBox height={fieldH}>
+          <FieldBox height={fieldH} width={formW} seed={13}>
             <TextInput
               style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
               secureTextEntry={!showPassword}
@@ -196,7 +196,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
               <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>
                 Re-enter password
               </Text>
-              <FieldBox height={fieldH}>
+              <FieldBox height={fieldH} width={formW} seed={14}>
                 <TextInput
                   style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
                   secureTextEntry={!showConfirm}
@@ -251,6 +251,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                 fullWidth={socialW}
                 height={btnH}
                 compact
+                fineEdge
                 onPress={submit}
                 busy={busy}
                 disabled={busy}
@@ -268,13 +269,14 @@ export default function LoginScreen({ onOpenDash }: Props) {
           ) : (
             <>
               <View style={{ marginTop: s(8), flexDirection: "row", justifyContent: "center", gap: s(12) }}>
-                <TornButton label="Login" variant="red" fullWidth={pairW} height={btnH} compact onPress={submit} busy={busy} disabled={busy} />
+                <TornButton label="Login" variant="red" fullWidth={pairW} height={btnH} compact fineEdge onPress={submit} busy={busy} disabled={busy} />
                 <TornButton
                   label="Sign up"
                   variant="parchment"
                   fullWidth={pairW}
                   height={btnH}
                   compact
+                  fineEdge
                   onPress={() => switchMode("up")}
                   disabled={busy}
                 />
@@ -293,6 +295,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                   fullWidth={socialW}
                   height={btnH}
                   compact
+                  fineEdge
                   icon={googleIcon}
                   onPress={() => setNotice("Google is not switched on in Supabase yet.")}
                 />
@@ -302,6 +305,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
                   fullWidth={socialW}
                   height={btnH}
                   compact
+                  fineEdge
                   icon={facebookIcon}
                   onPress={() => setNotice("Facebook is not switched on in Supabase yet.")}
                 />
@@ -311,7 +315,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
 
           {onOpenDash ? (
             <View style={{ marginTop: s(10), alignItems: "center" }}>
-              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} height={btnH} compact onPress={onOpenDash} />
+              <TornButton label="Dashboard" variant="parchment" fullWidth={formW} height={btnH} compact fineEdge onPress={onOpenDash} />
             </View>
           ) : null}
         </View>
@@ -320,15 +324,11 @@ export default function LoginScreen({ onOpenDash }: Props) {
   );
 }
 
-/** Torn parchment field: Image only (no ImageBackground), transparent wrapper — no white box. */
-function FieldBox({ height, children }: { height: number; children: ReactNode }) {
+/** Parchment field: the same paper art, its heavy torn border swapped for one fine ink line. */
+function FieldBox({ height, width, seed, children }: { height: number; width: number; seed: number; children: ReactNode }) {
   return (
     <View style={{ width: "100%", height, backgroundColor: "transparent", overflow: "visible" }}>
-      <Image
-        source={field}
-        style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, width: "100%", height }}
-        resizeMode="stretch"
-      />
+      <FineEdgeArt source={field} w={width} h={height} seed={seed} />
       {children}
     </View>
   );

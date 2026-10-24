@@ -1,6 +1,7 @@
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { tapHaptic } from "../lib/haptics";
 import { colors, fonts, useScale } from "../theme";
+import { INK_RADIUS, InkOutline } from "./Ink";
 
 // Torn parchment buttons from the Tome (Figma 2543:1170): textured paper, inked edge.
 // `parchment` = cream paper (secondary / social). `red` = brick-red paper (primary actions).
@@ -36,6 +37,11 @@ type Props = {
   compact?: boolean;
   /** Override the label colour (e.g. red text on parchment for Sign out). */
   labelColor?: string;
+  /**
+   * Keep the paper art but trade its heavy torn border for one fine hand-inked line (Login).
+   * The art is drawn a little oversize and clipped, so only its paper shows; the rim is InkOutline.
+   */
+  fineEdge?: boolean;
 };
 
 export default function TornButton({
@@ -53,6 +59,7 @@ export default function TornButton({
   icon,
   compact,
   labelColor,
+  fineEdge,
 }: Props) {
   const { s, fs } = useScale();
   const w = fullWidth ?? s(width);
@@ -84,7 +91,11 @@ export default function TornButton({
         style,
       ]}
     >
-      <Image source={ART[variant]} style={{ position: "absolute", width: w, height: h }} resizeMode="stretch" />
+      {fineEdge ? (
+        <FineEdgeArt source={ART[variant]} w={w} h={h} seed={label.length + (onRed ? 50 : 60)} />
+      ) : (
+        <Image source={ART[variant]} style={{ position: "absolute", width: w, height: h }} resizeMode="stretch" />
+      )}
       <View style={[styles.center, icon ? { flexDirection: "row", gap: s(10) } : null]}>
         {busy ? (
           <ActivityIndicator color={onRed ? colors.cream : colors.ink} />
@@ -108,6 +119,28 @@ export default function TornButton({
         )}
       </View>
     </Pressable>
+  );
+}
+
+/** The art's paper without its torn border, edged in a fine ink line instead. */
+export function FineEdgeArt({ source, w, h, seed }: { source: number; w: number; h: number; seed: number }) {
+  const { s } = useScale();
+  const bleed = s(5); // pushes the art's baked border outside the clip
+  const clip = s(1.2); // the paper stops just inside the pen line
+  return (
+    <>
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", top: clip, left: clip, width: w - clip * 2, height: h - clip * 2, overflow: "hidden", borderRadius: s(INK_RADIUS) }}
+      >
+        <Image
+          source={source}
+          style={{ position: "absolute", top: -bleed - clip, left: -bleed - clip, width: w + bleed * 2, height: h + bleed * 2 }}
+          resizeMode="stretch"
+        />
+      </View>
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} />
+    </>
   );
 }
 
