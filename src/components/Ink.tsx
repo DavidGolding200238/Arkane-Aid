@@ -42,9 +42,9 @@ export const INK_LINE = 1.1;
 export const INK_LINE_WAVER = 0.25;
 /** Stroke width in design dp of the corner ornaments on each section panel. */
 export const INK_CORNER = 0.9;
-/** Fill of the vitals holders: the cream panel paper, slightly see-through (David's pick, "variant B"). */
-// Warm cream sampled from panel-ledger-cream-fill (#F3E4C8), so holders read as paper, not white inputs.
-export const HOLDER_FILL = "rgba(243,230,200,0.9)";
+/** Fill of the Race/Class and vitals holders: solid panel cream (David's pick, "variant B"). */
+// Opaque, so the boxes paint cream on every platform instead of letting the paper show through.
+export const HOLDER_FILL = "#F3E6C8";
 // Slightly darker ink for small tap marks (the remove ×).
 export const INK_DARK = "#2E2920";
 
@@ -155,9 +155,13 @@ export function InkOutline({ color = INK_COLOR, fill = "none", radius = 2, strok
   const amp = INK_WOBBLE;
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]} onLayout={onLayout}>
+      {/* A plain View under the ink paints the fill too, so it shows even where the SVG fill does not (Android). */}
+      {fill !== "none" ? (
+        <View style={[StyleSheet.absoluteFill, { margin: inset + amp, borderRadius: radius, backgroundColor: fill }]} />
+      ) : null}
       {size.w > 0 ? (
-        <Svg width={size.w} height={size.h}>
-          <Path d={inkPath(size.w, size.h, radius, inset, amp, seed)} fill={fill} stroke="none" />
+        <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill}>
+          <Path d={inkPath(size.w, size.h, radius, inset, amp, seed)} fill={fill} fillOpacity={1} stroke="none" />
           {/* A second, lighter pass a hair off the first: the doubled edge a dip pen leaves. */}
           {INK_ECHO > 0 ? (
             <Path
