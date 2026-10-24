@@ -3,7 +3,7 @@
 import { assert, assertEquals, assertFalse, assertStringIncludes } from "jsr:@std/assert@1";
 import type { ChatRequest } from "./groq.ts";
 import { ask, type AskReply } from "./ask.ts";
-import { IDENTITIES, PERSONAS, systemPrompt, voiceReminder } from "./personas.ts";
+import { IDENTITIES, PERSONAS, REVIEW_VOICE, systemPrompt, temperatureFor, voiceReminder } from "./personas.ts";
 
 /** The last user message without the voice reminder, which is the one part that differs by voice. */
 const unvoiced = (content: string) => content.replace(/\n\n<voice>[^]*<\/voice>$/, "");
@@ -295,11 +295,14 @@ for (const [name, voice] of SAGE_VOICES) {
         character: DAVID,
       }]
     ) {
-      const { request } = await runReply({ ...body, ...voice }, "ok");
+      const { request, result } = await runReply({ ...body, ...voice }, "ok");
       const last = request.messages[request.messages.length - 1];
       assertEquals(last.role, "user");
-      const reminder = voiceReminder(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard");
+      const review = result.retrieval === "sheet";
+      const reminder = voiceReminder(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard", review);
       assert(last.content.endsWith(reminder), last.content.slice(-200));
+      // Sheet reviews get the extra "never a checklist" line; other answers stay lean.
+      assertEquals(reminder.includes(REVIEW_VOICE), review);
       assertStringIncludes(reminder, "let me know if");
       assertStringIncludes(reminder, "an offer in your own voice is fine");
     }
@@ -338,11 +341,17 @@ for (const [name, voice] of SAGE_VOICES) {
     const user = request.messages[1].content;
     assertFalse(user.includes("<srd>"));
     assertStringIncludes(user, "<findings>");
-    assertStringIncludes(user, "Fix (Strength)");
-    assertStringIncludes(user, "Fix (Traits)");
-    assertStringIncludes(user, "Fix (Gear)");
-    assertStringIncludes(user, "Fix (Features)");
-    assertStringIncludes(user, "Suggestion (Ability Scores): Charisma");
+    // A data table with neutral kinds, so there is no "Fix:" checklist to copy.
+    assertStringIncludes(user, "kind | field | what is off | remedy");
+    assertStringIncludes(user, "must change | Strength | Strength is 30");
+    assertStringIncludes(user, "must change | Traits |");
+    assertStringIncludes(user, "must change | Gear |");
+    assertStringIncludes(user, "must change | Features |");
+    assertStringIncludes(user, "optional | Ability Scores | Charisma");
+    assertFalse(/\bFix\b|Suggestion \(/.test(user.split("<sheet_review>")[0]), "no label words in the findings");
+    assertStringIncludes(user, "Write ONE short flowing reply in your voice");
+    assertStringIncludes(user, "Sentences only, no list.");
+    assertStringIncludes(user, 'No "Fix:" or "Suggestion:" labels');
     assertStringIncludes(
       user,
       "Only mention the findings listed; never call anything else wrong; never mention creatures or monsters; player characters only.",
@@ -380,10 +389,54 @@ for (const [name, voice] of SAGE_VOICES) {
       },
       "Mostly fine.",
     );
-    assertStringIncludes(request.messages[1].content, "Fix (Strength)");
+    assertStringIncludes(request.messages[1].content, "must change | Strength |");
     assertEquals(result.source, "Adjust Ability Scores, p. 21");
   });
+
+  Deno.test(`${name}: a checklist reply loses its "Fix:" / "Suggestion:" labels and is flagged`, async () => {
+    const checklist = [
+      "Fix: Strength 30 exceeds the maximum of 20 for any character; lower it to 20 or less.",
+      '**Fix:** Features list "Lol"; replace it with Bardic Inspiration and Spellcasting.',
+      '- Fix (Traits): traits list "Yes"; change it to your species traits.',
+      "Suggestion: Give thy character a name.",
+      "suggest - put thy best score in Charisma.",
+    ].join("\n");
+    const { result } = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, checklist);
+    assertFalse(/fix|suggest/i.test(result.reply), result.reply);
+    assertEquals(result.reply.split("\n"), [
+      "Strength 30 exceeds the maximum of 20 for any character; lower it to 20 or less.",
+      'Features list "Lol"; replace it with Bardic Inspiration and Spellcasting.',
+      'Traits list "Yes"; change it to your species traits.',
+      "Give thy character a name.",
+      "Put thy best score in Charisma.",
+    ]);
+    assert(result.labelsStripped);
+    const clean = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, "Ah, young one, thy Strength soars too high.");
+    assertFalse(clean.result.labelsStripped);
+  });
+
+  Deno.test(`${name}: sheet reviews keep the voice's own temperature`, async () => {
+    const review = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, "ok");
+    const rules = await runReply({ question: "how does grappling work", ...voice }, "ok");
+    assertEquals(review.request.temperature, rules.request.temperature);
+    assertEquals(review.request.temperature, temperatureFor(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard"));
+    assertEquals(review.request.maxTokens, rules.request.maxTokens);
+  });
 }
+
+Deno.test("more than four must-change items may be a short list, still without labels", async () => {
+  const broken = { ...DAVID, hp_max: 0, ac: 0 };
+  const { request } = await runReply({ question: "check my sheet", character: broken, mode: "sage", style: "wizard" }, "ok");
+  const user = request.messages[1].content;
+  assertStringIncludes(user, "a short plain list is allowed");
+  assertStringIncludes(user, 'No "Fix:" or "Suggestion:" labels');
+});
+
+Deno.test("the Wizard's reminder asks for thee, thy and wizardly turns throughout", () => {
+  const wizard = voiceReminder("sage", "wizard", true);
+  assertStringIncludes(wizard, "thee, thy and wizardly turns throughout");
+  assertStringIncludes(wizard, "never a checklist or labels");
+});
 
 Deno.test("wizard, arbiter and bard send the same chat and sheet-review messages", async () => {
   const sheet = { question: "Check my playersheet and tell me whats wrong", character: DAVID };

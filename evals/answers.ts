@@ -2,7 +2,7 @@
 //
 //   npm run eval:answers                      deployed sage function, Arbiter voice
 //   npm run eval:answers -- --voice wizard    another voice (wizard, arbiter, bard)
-//   npm run eval:answers -- --tone            also 3 questions in each of the three voices
+//   npm run eval:answers -- --tone            also the tone cases in the other two voices (each checked for its voice)
 //   npm run eval:answers -- --local           no deploy: same code path on this computer, Groq direct
 //   npm run eval:answers -- --rpm 2 --only typo-fireball,lore-hells
 //
@@ -20,7 +20,7 @@ import { ask, type AskReply } from "../supabase/functions/_shared/ask.ts";
 import { GroqError, once } from "../supabase/functions/_shared/groq.ts";
 import type { Turn } from "../supabase/functions/_shared/history.ts";
 import { cleanTitle } from "../supabase/functions/_shared/retrieval.ts";
-import { byId, CASES, checkReply, type EvalCase, type ReplyCheck, TONE_CASES, writeResults } from "./lib.ts";
+import { byId, CASES, checkReply, type EvalCase, type ReplyCheck, TONE_CASES, type Voice, writeResults } from "./lib.ts";
 
 const VOICES: Record<string, { mode: string; style: string }> = {
   wizard: { mode: "sage", style: "wizard" },
@@ -156,7 +156,14 @@ for (const [n, { c, voice: v }] of plan.entries()) {
     const body = { question: c.question, ...VOICES[v], history, sheet: c.sheet ?? "", ...(c.character ? { character: c.character } : {}) };
     const r = await withBackoff(asker, body);
     replies.set(`${v}:${c.id}`, r.reply);
-    const checks = checkReply(c, r.reply, { smallTalk: r.smallTalk, source: r.source ?? "", findings: r.findings });
+    // Tone cases are checked for their voice in every run, so all three voices get the same check.
+    const checks = checkReply(c, r.reply, {
+      smallTalk: r.smallTalk,
+      source: r.source ?? "",
+      findings: r.findings,
+      labelsStripped: r.labelsStripped,
+      voice: TONE_CASES.includes(c.id) ? v as Voice : undefined,
+    });
     if (c.expect?.length) {
       const want = c.expect.map(cleanTitle);
       checks.push({ name: `cites ${want.join(" / ")}`, pass: r.sources.some((s) => want.includes(s.title)) });
