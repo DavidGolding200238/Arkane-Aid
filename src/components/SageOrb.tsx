@@ -25,10 +25,12 @@ type Props = {
   flame: FlameColour;
   /** What the Sage is doing; sets the flames' pace, glow and embers. */
   mood?: FlameMood;
+  /** True while the Sage speaks or writes a reply: the orb pulses white rings. */
+  talking?: boolean;
 };
 
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
-function SageOrb({ size, flame, mood = "idle" }: Props) {
+function SageOrb({ size, flame, mood = "idle", talking = false }: Props) {
   const reduce = useReduceMotion();
   const { tint, under, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
@@ -46,7 +48,7 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
     <View style={{ width: fireW, height: stageH }}>
       <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} colour={flame} under={under} tint={tint} />
       <View style={[styles.halo, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}>
-        <SageAvatar size={size} />
+        <SageAvatar size={size} colour={flame} talking={talking} />
       </View>
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
         {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
@@ -62,7 +64,7 @@ function SageOrb({ size, flame, mood = "idle" }: Props) {
 }
 
 // Memoised: the screen re-renders on every keystroke, the flames only need to when
-// the size, colour or mood changes.
+// the size, colour, mood or talking changes.
 export default memo(SageOrb);
 
 const styles = StyleSheet.create({

@@ -1,5 +1,5 @@
-/* eslint-disable react/no-unknown-property -- three.js props on @react-three/fiber elements (object, args, intensity...) */
-import { useEffect, useRef, useState } from "react";
+/* eslint-disable react/no-unknown-property -- three.js props on @react-three/fiber elements (object, dispose) */
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Canvas, useFrame } from "@react-three/fiber/native";
 import { Asset } from "expo-asset";
@@ -7,6 +7,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from "three";
 import { colors } from "../theme";
+import { createOrbLook, fitSphere, ORB_PALETTES, ORB_VIEW_HALF, type OrbColour } from "./orb/orbLook";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro asset require
 const model = require("../../assets/models/sage-avatar.glb");
@@ -34,65 +35,6 @@ function createRenderer(defaults: THREE.WebGLRendererParameters) {
   return renderer;
 }
 
-const kept = new Set(["Sphere", "Core", "Ellipse", "Ellipse 2"]);
-
-function materialFor(name: string) {
-  if (name === "Core") {
-    return new THREE.MeshStandardMaterial({
-      color: colors.orbGlow,
-      emissive: colors.gold,
-      emissiveIntensity: 0.85,
-      roughness: 0.22,
-      metalness: 0.18,
-    });
-  }
-  if (name.startsWith("Ellipse")) {
-    return new THREE.MeshStandardMaterial({
-      color: colors.wordmark,
-      roughness: 0.4,
-      metalness: 0.05,
-      side: THREE.DoubleSide,
-    });
-  }
-  return new THREE.MeshStandardMaterial({
-    color: "#F7F1DE",
-    roughness: 0.08,
-    metalness: 0.05,
-    transparent: true,
-    opacity: 0.38,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-}
-
-function fitOrb(root: THREE.Object3D) {
-  root.updateMatrixWorld(true);
-  const group = new THREE.Group();
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh || !kept.has(mesh.name)) return;
-    const geo = mesh.geometry.clone();
-    geo.applyMatrix4(mesh.matrixWorld);
-    geo.computeVertexNormals();
-    const next = new THREE.Mesh(geo, materialFor(mesh.name));
-    next.name = mesh.name;
-    next.renderOrder = mesh.name === "Sphere" ? 2 : 1;
-    group.add(next);
-  });
-  if (group.children.length === 0) {
-    throw new Error("The model opened, but the orb meshes were not in it.");
-  }
-  const box = new THREE.Box3().setFromObject(group);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  group.position.sub(center);
-  const fitted = new THREE.Group();
-  fitted.add(group);
-  const max = Math.max(size.x, size.y, size.z) || 1;
-  fitted.scale.setScalar(1.85 / max);
-  return fitted;
-}
-
 function decodeBase64(input: string) {
   const clean = input.replace(/\s/g, "");
   const binary = atob(clean);
@@ -117,14 +59,15 @@ async function readModel() {
   });
   const buffer = decodeBase64(base64);
   const gltf = await new GLTFLoader().parseAsync(buffer, "");
-  return fitOrb(gltf.scene);
+  return fitSphere(gltf.scene);
 }
 
-// The parsed orb is kept for the life of the app: the splash starts loading it (see
+// The orb's Sphere is kept for the life of the app: the splash starts loading it (see
 // lib/preload), and every later visit to the Sage reuses it instead of reading and parsing
-// the 2 MB model again. R3F never disposes <primitive> objects, so sharing it is safe.
-let orbReady: THREE.Group | null = null;
-let orbLoading: Promise<THREE.Group> | null = null;
+// the 2 MB model again. Each Canvas builds its own materials around this shared geometry and
+// disposes only those (createOrbLook never disposes a geometry it was given).
+let orbReady: THREE.BufferGeometry | null = null;
+let orbLoading: Promise<THREE.BufferGeometry> | null = null;
 
 export function preloadSageOrb() {
   if (orbReady) return Promise.resolve(orbReady);
@@ -142,21 +85,29 @@ export function preloadSageOrb() {
   return orbLoading;
 }
 
-function Spinning({ object }: { object: THREE.Group }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_state: unknown, delta: number) => {
-    if (ref.current) ref.current.rotation.y += delta * 0.35;
-  });
-  return (
-    <group ref={ref}>
-      <primitive object={object} dispose={null} />
-    </group>
-  );
+function Orb({ sphere, colour, talking }: { sphere: THREE.BufferGeometry; colour: OrbColour; talking: boolean }) {
+  const [look] = useState(() => createOrbLook({ colour, sphere }));
+
+  useEffect(() => () => look.dispose(), [look]);
+  // A new personality fades in (on the first run this fades from the colour to itself).
+  useEffect(() => look.setColour(colour), [look, colour]);
+
+  // R3F keeps the latest callback, so this always sees the current talking prop.
+  useFrame((_state: unknown, delta: number) => look.update(delta, talking));
+  return <primitive object={look.group} dispose={null} />;
 }
 
-/** size is the orb diameter in dp (already scaled). Defaults to the old fixed 260. */
-export default function SageAvatar({ size = 260 }: { size?: number }) {
-  const [orb, setOrb] = useState<THREE.Group | null>(orbReady);
+type Props = {
+  /** Canvas diameter in dp (already scaled). The orb itself is ORB_FILL of it; the rest is backdrop. */
+  size?: number;
+  /** Personality colour: "red" Wizard, "blue" Arbiter, "green" Bard. */
+  colour?: OrbColour;
+  /** True while the Sage speaks or writes a reply: white rings pulse out. Still otherwise. */
+  talking?: boolean;
+};
+
+export default function SageAvatar({ size = 260, colour = "green", talking = false }: Props) {
+  const [sphere, setSphere] = useState<THREE.BufferGeometry | null>(orbReady);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -164,7 +115,7 @@ export default function SageAvatar({ size = 260 }: { size?: number }) {
     if (orbReady) return;
     preloadSageOrb()
       .then((next) => {
-        if (live) setOrb(next);
+        if (live) setSphere(next);
       })
       .catch((err: unknown) => {
         if (live) setError(err instanceof Error ? err.message : "Could not load the Sage model.");
@@ -174,16 +125,25 @@ export default function SageAvatar({ size = 260 }: { size?: number }) {
     };
   }, []);
 
+  // Orthographic, so the orb is exactly ORB_FILL of the canvas: zoom is dp per orb radius.
   return (
-    <View style={[styles.slot, { width: size, height: size, borderRadius: size / 2 }]} collapsable={false}>
-      <Canvas gl={createRenderer} style={{ width: size, height: size }} camera={{ position: [0, 0.1, 3.2], fov: 32, near: 0.01, far: 50 }}>
-        <color attach="background" args={[colors.orbBackdrop]} />
-        <ambientLight intensity={1.1} />
-        <directionalLight position={[2.2, 3, 2.4]} intensity={1.6} />
-        <pointLight position={[0, 0, 0.4]} intensity={1.3} color={colors.orbGlow} />
-        {orb ? <Spinning object={orb} /> : null}
+    <View
+      style={[
+        styles.slot,
+        // Until the model is ready, show the backdrop's darkest colour rather than a flash.
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: ORB_PALETTES[colour].bgDark },
+      ]}
+      collapsable={false}
+    >
+      <Canvas
+        gl={createRenderer}
+        style={{ width: size, height: size }}
+        orthographic
+        camera={{ position: [0, 0, 5], zoom: size / 2 / ORB_VIEW_HALF, near: 0.1, far: 50 }}
+      >
+        {sphere ? <Orb sphere={sphere} colour={colour} talking={talking} /> : null}
       </Canvas>
-      {!orb ? (
+      {!sphere ? (
         <Text style={styles.note}>{error || "Loading the orb…"}</Text>
       ) : null}
     </View>

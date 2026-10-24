@@ -316,7 +316,9 @@ export default function SageScreen({ onBack }: Props) {
           scrollY.current = e.nativeEvent.contentOffset.y;
         }}
       >
-        <SageOrb size={s(250)} flame={FLAME[voice]} mood={busy ? "thinking" : speaking ? "speaking" : "idle"} />
+        <SageOrb size={s(250)} flame={FLAME[voice]} mood={busy ? "thinking" : speaking ? "speaking" : "idle"}
+          talking={speaking || writing}
+        />
 
         <Animated.Text
           style={[styles.status, { fontSize: fs(16), lineHeight: fs(22), marginTop: s(spacing.md), opacity: glow }]}
