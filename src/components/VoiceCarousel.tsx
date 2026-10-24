@@ -160,7 +160,7 @@ export default function VoiceCarousel() {
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit
-        style={[styles.caption, { fontSize: fs(13), marginTop: s(6), minHeight: fs(18) }]}
+        style={[styles.caption, { fontSize: fs(13), marginTop: s(6), minHeight: fs(18), paddingHorizontal: s(3) }]}
       >
         {shown.available ? shown.blurb : `Coming soon · the Sage keeps ${savedLabel}`}
       </Text>
@@ -179,6 +179,7 @@ const styles = StyleSheet.create({
   nameBox: { alignItems: "center" },
   name: { fontFamily: fonts.heading, includeFontPadding: false, ...inkText.heading },
   nameSoon: { color: colors.muted },
-  // Muted italic serif, like the Ledger and Codex footnotes.
+  // Muted italic serif, like the Ledger and Codex footnotes. The side padding gives the italic
+  // overhang room inside the one-line clip so the last letter is never cut.
   caption: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted, textAlign: "center" },
 });

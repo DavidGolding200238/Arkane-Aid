@@ -254,7 +254,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               {profileError ? <Text style={[styles.error, { fontSize: fs(14) }]}>{profileError}</Text> : null}
             </View>
 
-            <Rule color={INK_COLOR} style={{ opacity: 0.55 }} />
+            <Rule color={INK_COLOR} />
 
             <View style={styles.headingRow}>
               <SectionTitle size={fs(18)}>Parties</SectionTitle>
