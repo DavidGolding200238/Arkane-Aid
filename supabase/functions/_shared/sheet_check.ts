@@ -356,10 +356,19 @@ export function labelledSheet(sheet: Sheet): string {
   return lines.filter(Boolean).join("\n");
 }
 
-/** The findings as the model reads them: one line each, fixes marked as such. */
+/** "must change" for a fix, "optional" for a suggestion: neutral words with nothing to copy as a label. */
+export const KIND_WORD: Record<Severity, string> = { fix: "must change", suggest: "optional" };
+
+const cell = (value: string) => value.replace(/\|/g, "/").replace(/\s+/g, " ").trim();
+
+/**
+ * The findings as the model reads them: a compact table, one row each, fixes first. It is data,
+ * not prose, so there are no "Fix:" lines for the model to echo back as a checklist.
+ */
 export function findingsText(findings: Finding[]): string {
   if (!findings.length) return "None. The sheet follows the creation rules.";
-  return findings.map((f) => `- ${f.severity === "fix" ? "Fix" : "Suggestion"} (${f.field}): ${f.problem} ${f.fix}`).join("\n");
+  const rows = findings.map((f) => [KIND_WORD[f.severity], f.field, f.problem, f.fix].map(cell).join(" | "));
+  return ["kind | field | what is off | remedy", ...rows].join("\n");
 }
 
 /** The card footer for a review, built from the findings: "Adjust Ability Scores, p. 21; ...". */

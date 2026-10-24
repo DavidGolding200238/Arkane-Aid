@@ -22,21 +22,29 @@ export function chatNote(kind: ChatKind, hasHistory: boolean): string {
 
 // Sheet reviews: the checker (sheet_check.ts) has already found what is wrong. The model only
 // explains those findings in its voice; it never hunts for errors itself and gets no SRD text.
+// The findings arrive as a data table, and the note asks for one flowing reply, so the model
+// writes to the player instead of echoing a "Fix: ... Suggestion: ..." checklist.
 const ONLY =
   "Only mention the findings listed; never call anything else wrong; never mention creatures or monsters; player characters only.";
-export const SHEET_REVIEW_NOTE =
-  "<sheet_review>The app's sheet checker found the findings above. Explain them kindly, fixes first: what is off and how to fix it, " +
-  `a short sentence or two each; suggestions are gentle and optional. ${ONLY} No Source line.</sheet_review>`;
+/** More must-change rows than this, and a short list is allowed (still without labels). */
+export const LIST_OVER = 4;
+export function sheetReviewNote(mustChange: number): string {
+  const form = mustChange > LIST_OVER ? "With this many, a short plain list is allowed." : "Sentences only, no list.";
+  return "<sheet_review>The findings are checker data, not text to copy. Write ONE short flowing reply in your voice: " +
+    "open in character, weave each must-change item into sentences (what is off, how to mend it), " +
+    `touch the optional ones gently, end with an offer in character. ${form} No "Fix:" or "Suggestion:" labels. ${ONLY} No Source line.</sheet_review>`;
+}
 export const SHEET_PRAISE_NOTE =
-  "<sheet_review>The app's sheet checker found nothing to fix. Praise the sheet briefly, two sentences at most, naming one thing that works. " +
+  "<sheet_review>The app's sheet checker found nothing to fix. Praise the sheet briefly in your voice, two sentences at most, naming one thing that works. " +
   `${ONLY} No Source line.</sheet_review>`;
 
 /** The user message for a sheet review: the labelled sheet, the findings, and how to explain them. */
 export function reviewMessage(question: string, sheet: string, findings: Finding[]): string {
+  const mustChange = findings.filter((f) => f.severity === "fix").length;
   return [
     `<sheet>\n${sheet}\n</sheet>`,
     `<findings>\n${findingsText(findings)}\n</findings>`,
-    findings.length ? SHEET_REVIEW_NOTE : SHEET_PRAISE_NOTE,
+    findings.length ? sheetReviewNote(mustChange) : SHEET_PRAISE_NOTE,
     `Question: ${question}`,
   ].join("\n\n");
 }
