@@ -6,10 +6,52 @@
 // Mirrors supabase/functions/_shared/reply.ts (kept free of regex lookbehind for Hermes).
 // Pure functions, no React Native imports, so the function tests can check them with Deno.
 
-// A last line, or a last sentence, starting "Source:" / "Sources:" / "SRD:".
-const SOURCE_LINE = /(\n|[.!?…"'”] )[ \t]*[([]?\s*(?:sources?|srd)\s*:\s*([^\n]+?)\s*[)\]]?[ \t]*$/i;
-// "(SRD: ...)", "(SRD 5.2.1, ..., p. 21)", "(Source: ...)", "(... p. 21)" anywhere in the text.
+// Mirrors pullSources in supabase/functions/_shared/reply.ts word for word.
+// A line that is only a source note, anywhere in the reply: "Source: Cover, p. 179",
+// "**Sources:** ...", "Source — ...", "(Source: ...)", "> SRD: ...". The model is asked for one
+// last line, but it sometimes bolds it, uses a dash, or puts a Bard's couplet after it.
+const SOURCE_ONLY_LINE = /^[ \t>*_~([•-]*(?:sources?|srd(?: ?5\.2(?:\.1)?)?)[ \t*_]*(?:[:：—–-]|,(?= ))[ \t*_]*([^\n]*?)[ \t*_)\].]*$/i;
+// The same note after the last sentence on the same line: "... cover. Source: Cover, p. 179".
+const SOURCE_AFTER = /([.!?…"'”)*_]|[ \t][—–-])[ \t]+[([]?[ \t*_]*(?:sources?|srd)[ \t*_]*[:：—–-][ \t*_]*([^\n]+?)[ \t*_)\]]*$/i;
+// "(SRD: ...)", "(SRD 5.2.1, ..., p. 21)", "(Source: ...)", "(... p. 21)" anywhere in the body.
 const INLINE = /\s*[([]\s*(?:(?:SRD|sources?)\b[^()[\]]*|[^()[\]]*\bpp?\.\s*\d+[^()[\]]*)[)\]]/gi;
+
+// "Source: none" is not a source.
+const NOT_A_SOURCE = /^(?:none|n\/?a|-+)$/i;
+
+/** Moves every source note out of the text. Kept free of regex lookbehind (Hermes). */
+function pullSources(reply: string): { text: string; found: string[] } {
+  const found: string[] = [];
+  const lines: string[] = [];
+  for (const line of reply.trim().split("\n")) {
+    const own = SOURCE_ONLY_LINE.exec(line);
+    if (own) {
+      if (own[1].trim()) found.push(own[1]);
+      continue;
+    }
+    lines.push(line);
+  }
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  // Nothing but a source note: leave it, rather than an empty reply.
+  if (!lines.some((l) => l.trim())) return { text: reply.trim(), found: [] };
+  if (lines.length) {
+    const last = lines[lines.length - 1];
+    const after = SOURCE_AFTER.exec(last);
+    if (after) {
+      found.push(after[2]);
+      // Keep the sentence's own full stop; drop a dash before "Source".
+      const keep = /[—–-]$/.test(after[1].trim()) ? 0 : after[1].length;
+      lines[lines.length - 1] = last.slice(0, after.index + keep).trimEnd();
+    }
+  }
+  let text = lines.join("\n");
+  text = text.replace(INLINE, (match) => {
+    found.push(match.trim().replace(/^[([]\s*|\s*[)\]]$/g, ""));
+    return "";
+  });
+  text = text.replace(/[ \t]+([.,;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return { text, found };
+}
 
 /** "Step 4: Alignment, p. 21" from any breadcrumb form, without "SRD 5.2.1". */
 export function shortCitation(raw: string): string {
@@ -23,24 +65,12 @@ export function shortCitation(raw: string): string {
 
 /** Splits a reply into the text to show and speak, and a short source note for the footer. */
 export function splitSource(reply: string): { text: string; source: string } {
-  let text = reply.trim();
-  const found: string[] = [];
-  const line = SOURCE_LINE.exec(text);
-  if (line) {
-    found.push(line[2]);
-    // Keep the sentence's own full stop; drop the newline or space before "Source:".
-    text = text.slice(0, line.index + (line[1] === "\n" ? 0 : 1)).trimEnd();
-  }
-  text = text.replace(INLINE, (match) => {
-    found.push(match.trim().replace(/^[([]\s*|\s*[)\]]$/g, ""));
-    return "";
-  });
-  text = text.replace(/[ \t]+([.,;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  const { text, found } = pullSources(reply);
   const seen = new Set<string>();
   const sources = found
     .flatMap((s) => s.split(/\s*;\s*/))
     .map(shortCitation)
-    .filter((s) => s && !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()));
+    .filter((s) => s && !NOT_A_SOURCE.test(s) && !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()));
   return { text, source: sources.slice(0, 2).join("; ") };
 }
 
