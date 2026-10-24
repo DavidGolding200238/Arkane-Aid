@@ -153,9 +153,10 @@ for (const [n, { c, voice: v }] of plan.entries()) {
     ? [{ q: previous.question, a: replies.get(`${v}:${previous.id}`)! }]
     : [];
   try {
-    const r = await withBackoff(asker, { question: c.question, ...VOICES[v], history, sheet: c.sheet ?? "" });
+    const body = { question: c.question, ...VOICES[v], history, sheet: c.sheet ?? "", ...(c.character ? { character: c.character } : {}) };
+    const r = await withBackoff(asker, body);
     replies.set(`${v}:${c.id}`, r.reply);
-    const checks = checkReply(c, r.reply, { smallTalk: r.smallTalk, source: r.source ?? "" });
+    const checks = checkReply(c, r.reply, { smallTalk: r.smallTalk, source: r.source ?? "", findings: r.findings });
     if (c.expect?.length) {
       const want = c.expect.map(cleanTitle);
       checks.push({ name: `cites ${want.join(" / ")}`, pass: r.sources.some((s) => want.includes(s.title)) });
