@@ -1,6 +1,6 @@
 // deno test supabase/functions/_shared/reply_test.ts
-import { assertEquals } from "jsr:@std/assert@1";
-import { dropClosers, pickSource, shortCitation, splitReply } from "./reply.ts";
+import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
+import { dropClosers, dropLabels, hasLabels, pickSource, shortCitation, splitReply } from "./reply.ts";
 
 Deno.test("the Wizard's old inline breadcrumb citations move out of the spoken text", () => {
   const raw = "Your sheet is missing an alignment. Those are the clear issues. " +
@@ -88,4 +88,41 @@ Deno.test("help-desk closers are dropped; in-character offers stay", () => {
   assertEquals(dropClosers("Thy sheet is fine. If thou needest more, I am here to help."), "Thy sheet is fine. If thou needest more, I am here to help.");
   assertEquals(dropClosers("Lower it to 20.\nShall we mend thy runes together?"), "Lower it to 20.\nShall we mend thy runes together?");
   assertEquals(dropClosers("Happy to help!"), "Happy to help!");
+});
+
+// ---- "Fix:" / "Suggestion:" labels: the safety net for checklist-style sheet reviews ----
+
+Deno.test("checklist labels are stripped in every form, any case, bold or not", () => {
+  const cases: [string, string][] = [
+    ["Fix: Strength 30 is too high.", "Strength 30 is too high."],
+    ["FIX: lower it to 20.", "Lower it to 20."],
+    ["**Fix:** lower it to 20.", "Lower it to 20."],
+    ["**Fix**: lower it to 20.", "Lower it to 20."],
+    ["__Suggestion:__ give thy hero a name.", "Give thy hero a name."],
+    ["Suggestion: Give thy character a name...", "Give thy character a name..."],
+    ["suggest: name them.", "Name them."],
+    ["Suggestions: name them.", "Name them."],
+    ["Fix (Strength): lower it.", "Lower it."],
+    ["**Fix (Gear):** add a lute.", "Add a lute."],
+    ["1. Fix: lower it.", "1. Lower it."],
+    ["  Suggest — name them.", "  Name them."],
+  ];
+  for (const [input, want] of cases) {
+    assertEquals(dropLabels(input), want, input);
+    assert(hasLabels(input), input);
+  }
+});
+
+Deno.test("a line that is only a label goes; prose about fixing stays", () => {
+  assertEquals(dropLabels("Ah, young one.\n**Fixes:**\nFix: lower Strength."), "Ah, young one.\nLower Strength.");
+  for (const keep of ["Fix the strap first.", "Fixing it is easy: lower it.", "Suggest a name to your DM.", "A quick fix: lower it.", "Fix-it charms are homebrew."]) {
+    assertEquals(dropLabels(keep), keep);
+    assertFalse(hasLabels(keep), keep);
+  }
+});
+
+Deno.test("splitReply strips labels and still finds the Source line", () => {
+  const split = splitReply("Fix: Strength 30 is too high.\nSuggestion: name thy hero.\nSource: Adjust Ability Scores, p. 21");
+  assertEquals(split.text, "Strength 30 is too high.\nName thy hero.");
+  assertEquals(split.source, "Adjust Ability Scores, p. 21");
 });

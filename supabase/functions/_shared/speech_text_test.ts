@@ -2,8 +2,8 @@
 // The app's own safety net (src/lib/speechText.ts): what expo-speech is given to read aloud.
 // It is plain TypeScript with no React Native imports, so it is tested here with the function tests.
 import { assertEquals, assertFalse } from "jsr:@std/assert@1";
-import { speakable, splitSource } from "../../../src/lib/speechText.ts";
-import { splitReply } from "./reply.ts";
+import { dropLabels as appDropLabels, hasLabels as appHasLabels, speakable, splitSource } from "../../../src/lib/speechText.ts";
+import { dropLabels, hasLabels, splitReply } from "./reply.ts";
 
 const wizard = "Thy sheet is missing an alignment. Thy Strength of 30 is beyond the usual range. Those are the clear issues. " +
   "(SRD: Creation > Create Your Character > Step 4: Alignment, p. 21; SRD: Creation > Create Your Character > Step 5: Character Creation Details, p. 22)";
@@ -35,4 +35,31 @@ Deno.test("the app splits the same way as the function", () => {
 
 Deno.test("markdown and line breaks become plain speech", () => {
   assertEquals(speakable("## Grappling\n- Use an **Unarmed Strike**\n- The target makes a save"), "Grappling. Use an Unarmed Strike. The target makes a save");
+});
+
+// David's Wizard review as it came back: a checklist. Old deployed functions still send it, so the
+// app strips the labels too, and they are never shown or spoken.
+const checklist = [
+  "Fix: Strength 30 exceeds the maximum of 20 for any character; lower it to 20 or less.",
+  '**Fix:** Features list "Lol"; replace it with Bardic Inspiration and Spellcasting.',
+  "Suggestion: Give thy character a name...",
+  "suggest - put thy best score in Charisma.",
+].join("\n");
+
+Deno.test("the app never shows or speaks Fix: / Suggestion: labels", () => {
+  const spoken = speakable(checklist);
+  assertFalse(/fix|suggest/i.test(spoken), spoken);
+  assertEquals(
+    spoken,
+    'Strength 30 exceeds the maximum of 20 for any character; lower it to 20 or less. Features list "Lol"; replace it with Bardic Inspiration and Spellcasting. Give thy character a name. Put thy best score in Charisma.',
+  );
+  assertFalse(/fix|suggest/i.test(splitSource(checklist).text));
+});
+
+Deno.test("the app strips labels exactly like the function", () => {
+  for (const reply of [checklist, "**Fix (Gear):** add a lute.", "Fix the strap first.", "A quick fix: lower it.", "Ah.\n**Fixes:**\nFix: lower it."]) {
+    assertEquals(appDropLabels(reply), dropLabels(reply), reply);
+    assertEquals(appHasLabels(reply), hasLabels(reply), reply);
+    assertEquals(splitSource(reply), splitReply(reply), reply);
+  }
 });
