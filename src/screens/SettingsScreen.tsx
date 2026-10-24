@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Animated,
   Easing,
@@ -16,8 +16,8 @@ import PageHeader from "../components/PageHeader";
 import CircleButton from "../components/CircleButton";
 import ParchmentPanel from "../components/ParchmentPanel";
 import { RefreshIcon } from "../components/icons";
+import { CornerOrnaments, Flourish, HOLDER_FILL, INK_COLOR, InkButton, InkOutline, InkStroke, INK_RADIUS } from "../components/Ink";
 import Rule from "../components/Rule";
-import TornButton from "../components/TornButton";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
@@ -29,6 +29,84 @@ import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 // Glowing d20 badge, Figma 2280:302. 280 x 281 px at 3x, glow included.
 const d20 = require("../../assets/images/tome/d20-badge.png");
+
+// Opaque cream-white card paper, as on the Codex note cards: a real backgroundColor, so it paints on
+// every platform, with the fine ink outline drawn over it.
+const CARD_FILL = "#FBF6EA";
+
+// Printed section heading, as on the Ledger and Codex: red Cinzel with an illuminated first letter
+// and a drawn underline as wide as the text.
+function SectionTitle({ children, size, center }: { children: string; size: number; center?: boolean }) {
+  return (
+    <View style={[styles.sectionTitle, center && styles.sectionCenter]}>
+      <Text style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}>
+        <Text style={[styles.dropCap, { fontSize: Math.round(size * 1.5) }]}>{children.charAt(0)}</Text>
+        {children.slice(1)}
+      </Text>
+      <Rule color={INK_COLOR} style={styles.sectionRule} />
+    </View>
+  );
+}
+
+// A cream card edged in fine ink with small corner curls (Codex note card look).
+function InkCard({ seed, children, style }: { seed: number; children: ReactNode; style?: object }) {
+  const { s } = useScale();
+  const inset = s(1.2);
+  return (
+    <View style={style}>
+      <View style={[styles.cardFill, { top: inset, left: inset, right: inset, bottom: inset, borderRadius: s(INK_RADIUS) }]} />
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} />
+      <CornerOrnaments size={s(12)} inset={s(4)} />
+      {children}
+    </View>
+  );
+}
+
+// ACCOUNT / GUIDANCE: cream paper edged in fine ink. While its section is open the button reads as
+// pressed in, like the Ledger quill: a second inked rim inside, a red label and a red pen mark under it.
+function SectionToggle({
+  label,
+  active,
+  onPress,
+  accessibilityHint,
+  seed,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  accessibilityHint: string;
+  seed: number;
+}) {
+  const { s, fs } = useScale();
+  const w = s(181);
+  const h = s(38);
+  const size = fs(14);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ expanded: active }}
+      hitSlop={{ top: Math.max(4, Math.ceil((s(44) - h) / 2)), bottom: Math.max(4, Math.ceil((s(44) - h) / 2)), left: 4, right: 4 }}
+      style={({ pressed }) => [{ width: w, height: h, alignItems: "center", justifyContent: "center" }, pressed && styles.togglePressed]}
+    >
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
+      {active ? <InkOutline seed={seed + 3} radius={s(INK_RADIUS)} style={{ margin: s(3.5) }} strokeWidth={s(0.6)} /> : null}
+      <Text
+        numberOfLines={1}
+        style={[styles.toggleLabel, { fontSize: size, lineHeight: Math.round(size * 1.2) }, active && styles.toggleOn]}
+      >
+        {label.toUpperCase()}
+      </Text>
+      {active ? (
+        <View style={{ width: s(52), marginTop: s(1) }}>
+          <InkStroke color={colors.wordmark} seed={seed} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
 type Section = "account" | "guidance" | null;
@@ -130,23 +208,26 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               numberOfLines={1}
               onLayout={(e) => setBoundW(Math.round(e.nativeEvent.layout.width))}
             >
-              Bound to : {boundTo}
+              <Text style={styles.boundLabel}>Bound to : </Text>
+              {boundTo}
             </Text>
-            {boundW > 0 ? <Rule width={boundW} thickness={1.5} color={colors.rule} style={{ marginTop: s(1) }} /> : null}
+            {boundW > 0 ? <Rule width={boundW} color={INK_COLOR} style={{ marginTop: s(2) }} /> : null}
           </View>
 
           <View style={{ marginTop: s(18), gap: s(17), alignItems: "center" }}>
-            <TornButton
+            <SectionToggle
               label="Account"
               active={open === "account"}
               onPress={() => toggle("account")}
               accessibilityHint="Shows your sign-in and parties"
+              seed={51}
             />
-            <TornButton
+            <SectionToggle
               label="Guidance"
               active={open === "guidance"}
               onPress={() => toggle("guidance")}
               accessibilityHint="Shows how to use Arkane Aid"
+              seed={57}
             />
           </View>
         </View>
@@ -157,6 +238,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             style={{ marginTop: s(18) }}
             contentStyle={{ paddingHorizontal: panelPad, paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
           >
+            <CornerOrnaments size={s(16)} inset={s(5)} />
             <View>
               <Text style={[styles.label, { fontSize: fs(13) }]}>Signed in</Text>
               <Text style={[styles.body, { fontSize: fs(15) }]} numberOfLines={1}>
@@ -166,10 +248,10 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               {profileError ? <Text style={[styles.error, { fontSize: fs(14) }]}>{profileError}</Text> : null}
             </View>
 
-            <Rule />
+            <Rule color={INK_COLOR} style={{ opacity: 0.55 }} />
 
             <View style={styles.headingRow}>
-              <Text style={[styles.heading, { fontSize: fs(18) }]}>Parties</Text>
+              <SectionTitle size={fs(18)}>Parties</SectionTitle>
               <CircleButton
                 size={s(32)}
                 onPress={refresh}
@@ -182,9 +264,9 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
                 </Animated.View>
               </CircleButton>
             </View>
-            {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, styles.footnote, { fontSize: fs(14) }]}>{error}</Text> : null}
             {memberships.length === 0 ? (
-              <Text style={[styles.meta, { fontSize: fs(14) }]}>None yet. Create one, or join with a code from your DM.</Text>
+              <Text style={[styles.footnote, { fontSize: fs(14) }]}>None yet. Create one, or join with a code from your DM.</Text>
             ) : null}
             {memberships.map((row, index) => {
               const on = selected?.party.id === row.party.id;
@@ -198,16 +280,14 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
                   accessibilityLabel={`${row.party.name}${on ? ", active party" : ""}`}
                   style={({ pressed }) => [!on && styles.cardIdle, pressed && styles.pressed]}
                 >
-                  <ParchmentPanel
-                    variant="card"
-                    contentStyle={{ paddingHorizontal: s(14), paddingVertical: s(12) }}
-                  >
+                  <InkCard seed={70 + index} style={{ paddingHorizontal: s(14), paddingVertical: s(12) }}>
                     <View style={styles.cardTop}>
                       <Text style={[styles.cardTitle, on && styles.cardTitleOn, { fontSize: fs(16) }]} numberOfLines={1}>
                         {row.party.name}
                       </Text>
                       {on ? (
-                        <View style={[styles.tag, { paddingHorizontal: s(8), paddingVertical: s(2), borderRadius: s(4) }]}>
+                        <View style={[styles.tag, { paddingHorizontal: s(8), paddingVertical: s(3) }]}>
+                          <InkOutline seed={90 + index} radius={s(INK_RADIUS)} fill={colors.primary} strokeWidth={s(0.7)} />
                           <Text style={[styles.tagText, { fontSize: fs(11) }]}>ACTIVE</Text>
                         </View>
                       ) : null}
@@ -224,23 +304,23 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
                     {!on ? (
                       <Text style={[styles.hint, { fontSize: fs(12), marginTop: s(4) }]}>Tap to make active</Text>
                     ) : null}
-                  </ParchmentPanel>
+                  </InkCard>
                 </Pressable>
               );
             })}
 
             <View style={[styles.row, { gap: pairGap, marginTop: s(4) }]}>
-              <TornButton label="Create party" variant="red" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("create")} />
-              <TornButton label="Join party" variant="parchment" fullWidth={pairW} height={s(40)} compact onPress={() => onOpen("join")} />
+              <InkButton label="Create party" variant="red" width={pairW} height={s(40)} seed={61} onPress={() => onOpen("create")} />
+              <InkButton label="Join party" variant="parchment" width={pairW} height={s(40)} seed={63} onPress={() => onOpen("join")} />
             </View>
             <View style={[styles.center, { marginTop: s(6) }]}>
-              <TornButton
+              <InkButton
                 label="Sign out"
                 variant="parchment"
                 labelColor={colors.wordmark}
-                fullWidth={s(128)}
+                width={s(128)}
                 height={s(40)}
-                compact
+                seed={65}
                 onPress={() => signOut()}
               />
             </View>
@@ -253,7 +333,8 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             style={{ marginTop: s(18) }}
             contentStyle={{ paddingHorizontal: s(16), paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
           >
-            <Text style={[styles.heading, { fontSize: fs(18) }]}>How to use the Tome</Text>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle size={fs(18)}>How to use the Tome</SectionTitle>
             {TIPS.map((tip, index) => (
               <View key={tip.title} style={[styles.row, { gap: s(10) }]}>
                 <Text style={[styles.tipNumber, { fontSize: fs(20), width: s(18) }]}>{index + 1}</Text>
@@ -266,23 +347,23 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           </ParchmentPanel>
         ) : null}
 
-        <Rule width={s(249)} thickness={2} color={colors.rule} style={{ marginTop: s(24) }} />
-        <Text style={[styles.voiceHeading, { fontSize: fs(20), marginTop: s(22), marginBottom: s(8) }]}>
-          Voice Personality
-        </Text>
+        <View style={[styles.center, { marginTop: s(22) }]}>
+          <Flourish width={s(84)} color={INK_COLOR} />
+        </View>
+        <View style={{ marginTop: s(12), marginBottom: s(4) }}>
+          <SectionTitle center size={fs(20)}>
+            Voice Personality
+          </SectionTitle>
+        </View>
         <VoiceCarousel />
 
         {/* Read replies aloud: on by default. Off = the Sage only writes its replies (for a DM who
             would rather read them out), and anything being read now stops. Saved on the device. */}
-        <ParchmentPanel
-          variant="ledger"
-          style={{ marginTop: s(18) }}
-          contentStyle={{ paddingHorizontal: s(16), paddingVertical: s(12) }}
-        >
+        <InkCard seed={81} style={{ marginTop: s(18), paddingHorizontal: s(16), paddingVertical: s(14) }}>
           <View style={[styles.headingRow, { gap: s(12) }]}>
             <View style={styles.flex}>
               <Text style={[styles.tipTitle, { fontSize: fs(16) }]}>Read replies aloud</Text>
-              <Text style={[styles.meta, { fontSize: fs(13), lineHeight: fs(18) }]}>
+              <Text style={[styles.footnote, styles.left, { fontSize: fs(13), lineHeight: fs(18), marginTop: 2 }]}>
                 {readAloud ? "The Sage speaks each reply." : "Silent. Replies are written only."}
               </Text>
             </View>
@@ -293,9 +374,11 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
               thumbColor={colors.cream}
               ios_backgroundColor={colors.portrait}
               accessibilityLabel="Read replies aloud"
+              // react-native-web colours the "on" thumb from activeThumbColor (teal by default); native ignores it.
+              {...({ activeThumbColor: colors.cream } as object)}
             />
           </View>
-        </ParchmentPanel>
+        </InkCard>
       </ScrollView>
     </View>
   );
@@ -316,26 +399,44 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   center: { alignItems: "center" },
   bound: { alignSelf: "center", maxWidth: "100%" },
-  boundText: { fontFamily: fonts.stat, color: colors.ink, textAlign: "center", includeFontPadding: false },
+  boundText: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center", includeFontPadding: false, letterSpacing: 0.3 },
+  boundLabel: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4 },
+  togglePressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  toggleLabel: {
+    fontFamily: fonts.headingBold,
+    color: colors.ink,
+    letterSpacing: 0.6,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+    textAlign: "center",
+  },
+  toggleOn: { color: colors.activeTab },
+  sectionTitle: { alignSelf: "flex-start", flexShrink: 1 },
+  sectionCenter: { alignSelf: "center" },
+  section: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
+  sectionRule: { marginTop: -3 },
+  dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
+  cardFill: { position: "absolute", backgroundColor: CARD_FILL },
+  // Muted italic serif, like the Ledger and Codex footnotes.
+  footnote: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted },
+  left: { textAlign: "left" },
   row: { flexDirection: "row", alignItems: "flex-start" },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   dim: { opacity: 0.6 },
   flex: { flex: 1 },
   label: { fontFamily: fonts.headingBold, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
-  heading: { fontFamily: fonts.headingBold, ...inkText.heading },
-  body: { fontFamily: fonts.body, color: colors.ink },
-  meta: { fontFamily: fonts.body, color: colors.muted, marginTop: 2 },
-  seat: { fontFamily: fonts.body, color: colors.ink },
-  hint: { fontFamily: fonts.body, color: colors.placeholder, fontStyle: "italic" },
+  body: { fontFamily: fonts.heading, color: colors.ink },
+  meta: { fontFamily: fonts.heading, color: colors.muted, marginTop: 2 },
+  seat: { fontFamily: fonts.heading, color: colors.ink },
+  hint: { fontFamily: fonts.heading, color: colors.muted, fontStyle: "italic" },
   error: { fontFamily: fonts.body, color: colors.wordmark },
   cardIdle: { opacity: 0.82 },
   pressed: { opacity: 0.7 },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardTitle: { flex: 1, fontFamily: fonts.headingBold, ...inkText.heading },
   cardTitleOn: { color: colors.activeTab },
-  tag: { backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.cardStroke },
+  tag: {},
   tagText: { fontFamily: fonts.headingBold, color: colors.cream, letterSpacing: 0.8 },
   tipNumber: { fontFamily: fonts.stat, color: colors.wordmark, textAlign: "center" },
   tipTitle: { fontFamily: fonts.headingBold, ...inkText.heading },
-  voiceHeading: { fontFamily: fonts.headingBold, textAlign: "center", ...inkText.heading },
 });
