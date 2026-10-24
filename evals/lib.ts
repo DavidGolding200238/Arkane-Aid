@@ -14,7 +14,16 @@ export type EvalCase = {
   sheet?: string;
   source?: string[];
   out_of_scope?: boolean;
+  /** The structured sheet the app sends with a sheet question (SageScreen sheetData). */
+  character?: Record<string, unknown>;
+  /** A sheet review: exactly these fields must come back as "fix" findings. */
+  fix_fields?: string[];
+  /** No Source footer allowed (chat, greetings, a clean sheet's praise). */
+  no_source?: boolean;
 };
+
+// Help-desk sign-offs break the voice; an in-character offer is fine.
+const HELP_DESK = /let me know if|happy to help|feel free to (?:ask|reach)|hope this helps|anything else i can/i;
 
 export const CASES = cases.cases as EvalCase[];
 export const TONE_CASES = cases.tone as string[];
@@ -40,7 +49,12 @@ export type ReplyCheck = { name: string; pass: boolean; detail?: string };
 export function checkReply(
   c: EvalCase,
   reply: string,
-  meta: { smallTalk?: boolean; sources?: { title: string }[]; source?: string } = {},
+  meta: {
+    smallTalk?: boolean;
+    sources?: { title: string }[];
+    source?: string;
+    findings?: { severity: string; field: string }[];
+  } = {},
 ): ReplyCheck[] {
   const text = reply.toLowerCase();
   const checks: ReplyCheck[] = [];
@@ -52,6 +66,13 @@ export function checkReply(
   }
   // The reply is read aloud: citations belong in the Source footer, never in the text.
   checks.push({ name: "no citation in the spoken text", pass: !/\bSRD\b|\bp\.\s*\d|^\s*sources?:/im.test(reply) });
+  checks.push({ name: "no help-desk closer", pass: !HELP_DESK.test(reply) });
+  checks.push({ name: "no creature or monster talk about a sheet", pass: !(c.kind === "sheet" && /creature|monster/i.test(reply)) });
+  if (c.no_source && meta.source !== undefined) checks.push({ name: "no Source footer", pass: meta.source === "" });
+  if (c.fix_fields && meta.findings) {
+    const fixes = meta.findings.filter((f) => f.severity === "fix").map((f) => f.field);
+    checks.push({ name: `checker fixes ${c.fix_fields.join(", ") || "nothing"}`, pass: fixes.join("|") === c.fix_fields.join("|"), detail: fixes.join(", ") });
+  }
   if (c.source?.length && meta.source !== undefined) {
     const note = meta.source.toLowerCase();
     checks.push({ name: `source names ${c.source.join(" / ")}`, pass: c.source.some((s) => note.includes(s.toLowerCase())) });
