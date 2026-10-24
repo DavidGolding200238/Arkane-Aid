@@ -38,10 +38,21 @@ import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
 import ParchmentPanel from "../components/ParchmentPanel";
 import CircleButton from "../components/CircleButton";
-import ThemedButton from "../components/ThemedButton";
 import Rule from "../components/Rule";
 import { QuillVectorIcon } from "../components/icons";
-import { CornerOrnaments, Flourish, InkOutline, InkRing, RuledLines } from "../components/Ink";
+import {
+  CornerOrnaments,
+  Flourish,
+  HOLDER_FILL,
+  INK_COLOR,
+  INK_RADIUS,
+  InkButton,
+  InkCross,
+  InkOutline,
+  InkRing,
+  InkStroke,
+  RuledLines,
+} from "../components/Ink";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 import { CLASSES, RACES } from "../lib/sheetLists";
 
@@ -416,6 +427,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   // Ability boxes: three per row, Figma proportions 91 x 90 with a 28 high header.
   const pageW = Math.min(width, MAX_SHEET);
   const pagePad = s(12);
+  // Save / Delete span the page.
+  const actionW = pageW - pagePad * 2;
   const sheetPad = s(16);
   const statGap = s(14);
   const boxW = Math.floor((pageW - pagePad * 2 - sheetPad * 2 - 2 - statGap * 2) / 3);
@@ -442,8 +455,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const flourishW = s(64);
   const holder = (seed: number, w: number, child: ReactNode) => (
     <View style={[styles.holder, { width: w, height: holderH }]}>
-      <InkOutline seed={seed} radius={s(2)} strokeWidth={1.1} />
-      {child}
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
+      {/* Its own layer, so the value always paints over the cream fill (web stacks absolute layers above inputs). */}
+      <View style={styles.holderBody}>{child}</View>
     </View>
   );
 
@@ -463,7 +477,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           },
         ]}
       >
-        <InkOutline fill="rgba(254,252,235,0.96)" color={colors.cardStroke} radius={s(3)} seed={field === "race" ? 21 : 23} />
+        <InkOutline fill="rgba(254,252,235,0.96)" radius={s(INK_RADIUS)} seed={field === "race" ? 21 : 23} />
         <SectionTitle center size={fs(15)}>
           {field === "race" ? "Race" : "Class"}
         </SectionTitle>
@@ -496,7 +510,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               placeholder={field === "race" ? "Custom race" : "Custom class"}
               placeholderTextColor={colors.placeholder}
             />
-            <Rule color={colors.rule} />
+            <InkStroke seed={field === "race" ? 5 : 6} />
           </View>
         ) : null}
       </View>
@@ -504,11 +518,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   };
 
   const listItem = (name: string, onRemove: () => void, key: string) => (
-    <Pressable key={key} onPress={() => (editing ? onRemove() : undefined)} disabled={!editing}>
-      <Text style={[styles.listItem, { fontSize: fs(16), lineHeight: listLine }]}>
-        {name}
-        {editing ? <Text style={[styles.remove, { fontSize: fs(16) }]}>{"  \u00d7"}</Text> : null}
-      </Text>
+    <Pressable key={key} onPress={() => (editing ? onRemove() : undefined)} disabled={!editing} style={styles.listRow}>
+      <Text style={[styles.listItem, { fontSize: fs(16), lineHeight: listLine }]}>{name}</Text>
+      {editing ? (
+        <View style={{ marginLeft: s(8), marginTop: (listLine - fs(11)) / 2 + fs(1) }}>
+          <InkCross size={fs(11)} seed={name.length} />
+        </View>
+      ) : null}
     </Pressable>
   );
 
@@ -516,15 +532,15 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     <View style={[styles.addRow, { marginTop: s(8), gap: s(8) }]}>
       <View style={styles.addField}>
         <TextInput
-          style={[styles.lineInput, { fontSize: fs(16), paddingVertical: s(6) }]}
+          style={[styles.lineInput, styles.serifInput, { fontSize: fs(16), paddingVertical: s(6) }]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
         />
-        <Rule color={colors.rule} />
+        <InkStroke seed={placeholder.length} />
       </View>
-      <ThemedButton size="small" label="Add" onPress={onAdd} />
+      <InkButton label="Add" variant="red" width={s(64)} height={s(34)} seed={placeholder.length + 40} onPress={onAdd} />
     </View>
   );
 
@@ -626,6 +642,12 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               }}
               style={editing && styles.editOn}
             >
+              {/* Editing: the red button reads as pressed in, with a dark inked ring inside its rim. */}
+              {editing ? (
+                <View style={[styles.editPressed, { width: edit, height: edit, borderRadius: edit / 2 }]}>
+                  <InkRing size={edit} color={colors.ink} strokeWidth={s(1.2)} seed={13} dots={false} />
+                </View>
+              ) : null}
               <QuillVectorIcon circleSize={edit} />
             </CircleButton>
           </View>
@@ -633,7 +655,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           <View style={[styles.portraitBox, { width: ring, height: ring, marginTop: s(6) }]}>
             {/* Second, finer ring with four studs: a framed portrait even before a picture is added. */}
             <View style={styles.portraitRing} pointerEvents="none">
-              <InkRing size={ring} color={colors.cardStroke} seed={9} />
+              <InkRing size={ring} seed={9} />
             </View>
             <Pressable
               onPress={pickPortrait}
@@ -684,7 +706,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               ];
               const inner = (
                 <>
-                  <InkOutline seed={field === "race" ? 3 : 7} radius={s(3)} />
+                  <InkOutline seed={field === "race" ? 3 : 7} radius={s(INK_RADIUS)} />
                   <FieldLabel size={fs(11)}>{field === "race" ? "Race" : "Class"}</FieldLabel>
                   <Text
                     style={[styles.meta, { fontSize: fs(15), marginTop: s(2) }, !value && styles.metaEmpty]}
@@ -898,8 +920,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                   >
                     <InkOutline
                       seed={60 + i}
-                      radius={99}
-                      color={on ? colors.wordmark : colors.cardStroke}
+                      radius={s(INK_RADIUS)}
+                      color={on ? colors.wordmark : INK_COLOR}
                       fill={on ? colors.primary : "rgba(254,252,235,0.7)"}
                     />
                     <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
@@ -963,8 +985,19 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
         {editing ? (
           <View style={[styles.actions, { marginTop: s(14), gap: s(10) }]}>
-            <ThemedButton label="Save sheet" onPress={persist} busy={busy} />
-            {row ? <ThemedButton label="Delete sheet" variant="outline" onPress={removeSheet} disabled={busy} /> : null}
+            <InkButton label="Save sheet" variant="red" width={actionW} height={s(44)} seed={33} onPress={persist} busy={busy} />
+            {row ? (
+              <InkButton
+                label="Delete sheet"
+                variant="parchment"
+                labelColor={colors.wordmark}
+                seed={35}
+                width={actionW}
+                height={s(44)}
+                onPress={removeSheet}
+                disabled={busy}
+              />
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -1009,7 +1042,8 @@ const styles = StyleSheet.create({
     color: colors.ink,
     textAlign: "center",
   },
-  editOn: { opacity: 0.75 },
+  editOn: { transform: [{ scale: 0.95 }] },
+  editPressed: { position: "absolute", top: 0, left: 0, backgroundColor: "rgba(26,24,22,0.16)" },
   portraitBox: {
     alignSelf: "center",
     alignItems: "center",
@@ -1036,6 +1070,7 @@ const styles = StyleSheet.create({
   vital: { flex: 1, alignItems: "center" },
   vitalMid: { alignSelf: "stretch", justifyContent: "flex-end" },
   holder: { alignItems: "center", justifyContent: "center" },
+  holderBody: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
   vitalValue: {
     fontFamily: fonts.stat,
     color: colors.ink,
@@ -1123,12 +1158,13 @@ const styles = StyleSheet.create({
   chip: {},
   chipText: { fontFamily: fonts.heading, color: colors.ink },
   chipTextOn: { color: colors.cream },
-  listItem: { fontFamily: fonts.heading, color: colors.ink, textAlign: "left" },
-  // Dark ink, so the remove mark reads as a pen stroke rather than an alarm.
-  remove: { fontFamily: fonts.body, color: colors.ink },
+  listItem: { fontFamily: fonts.heading, color: colors.ink, textAlign: "left", flexShrink: 1 },
+  listRow: { flexDirection: "row", alignItems: "flex-start" },
+  serifInput: { fontFamily: fonts.heading },
   addRow: { flexDirection: "row", alignItems: "center" },
   addField: { flex: 1, minWidth: 0 },
-  note: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
+  // Muted italic serif, like a scribe's note at the foot of the page.
+  note: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted, textAlign: "center" },
   link: { color: colors.wordmark },
   error: {
     fontFamily: fonts.body,
