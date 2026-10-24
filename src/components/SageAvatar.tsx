@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unknown-property -- three.js props on @react-three/fiber elements (object, dispose) */
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Canvas, useFrame } from "@react-three/fiber/native";
+import { Canvas, useFrame, useThree } from "@react-three/fiber/native";
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import { GLTFLoader } from "three-stdlib";
@@ -87,13 +87,21 @@ export function preloadSageOrb() {
 
 function Orb({ sphere, colour, talking }: { sphere: THREE.BufferGeometry; colour: OrbColour; talking: boolean }) {
   const [look] = useState(() => createOrbLook({ colour, sphere }));
+  const invalidate = useThree((state) => state.invalidate);
 
   useEffect(() => () => look.dispose(), [look]);
   // A new personality fades in (on the first run this fades from the colour to itself).
   useEffect(() => look.setColour(colour), [look, colour]);
+  // The Canvas only draws on demand: ask for a frame when the orb appears, the colour changes or
+  // talking starts or stops. useFrame below keeps asking for as long as anything is moving.
+  useEffect(() => invalidate(), [invalidate, look, colour, talking]);
 
-  // R3F keeps the latest callback, so this always sees the current talking prop.
-  useFrame((_state: unknown, delta: number) => look.update(delta, talking));
+  // R3F keeps the latest callback, so this always sees the current talking prop. Once update
+  // reports everything is still (idle, rings gone, fade done) no more frames are requested, so an
+  // idle orb costs nothing; that last frame already shows the still orb.
+  useFrame((state, delta: number) => {
+    if (look.update(delta, talking)) state.invalidate();
+  });
   return <primitive object={look.group} dispose={null} />;
 }
 
@@ -137,6 +145,7 @@ export default function SageAvatar({ size = 260, colour = "green", talking = fal
     >
       <Canvas
         gl={createRenderer}
+        frameloop="demand"
         style={{ width: size, height: size }}
         orthographic
         camera={{ position: [0, 0, 5], zoom: size / 2 / ORB_VIEW_HALF, near: 0.1, far: 50 }}
