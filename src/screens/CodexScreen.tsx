@@ -21,9 +21,9 @@ import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 
-// Solid cream paper for the note cards, the same cream as the Ledger's holders (#F3E6C8). It is a
+// Solid cream-white paper for the note cards (#FBF6EA), whiter than the panel so they stand out. It is a
 // real backgroundColor, not an SVG fill, so it is opaque on every platform.
-const CARD_FILL = "#F3E6C8";
+const CARD_FILL = "#FBF6EA";
 
 // Printed section heading, as on the Ledger: red Cinzel with an illuminated first letter and a
 // drawn underline as wide as the text.
