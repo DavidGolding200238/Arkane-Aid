@@ -12,7 +12,10 @@
         "backgroundImage": "./assets/images/app-icon/adaptive-background.png",
         "backgroundColor": "#E8D7B8"
       },
-      "package": "za.co.openwindow.arkaneaid"
+      "package": "za.co.openwindow.arkaneaid",
+      "blockedPermissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       "expo-dev-client",
