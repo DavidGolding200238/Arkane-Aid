@@ -19,6 +19,12 @@
     "scheme": "arkaneaid",
     "ios": {
       "bundleIdentifier": "za.co.openwindow.arkaneaid"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4e0800b5-e2f3-4740-883b-0e033cb7ab6e"
+      }
+    },
+    "owner": "brohammer"
   }
 }
