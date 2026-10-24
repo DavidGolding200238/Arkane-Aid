@@ -37,13 +37,19 @@ const CARD_FILL = "#FBF6EA";
 // Printed section heading, as on the Ledger and Codex: red Cinzel with an illuminated first letter
 // and a drawn underline as wide as the text.
 function SectionTitle({ children, size, center }: { children: string; size: number; center?: boolean }) {
+  // Measured, so the underline spans the whole heading on Android too ("100%" inside a shrink-wrapped
+  // title collapsed to a short dash under the middle letters on device).
+  const [textW, setTextW] = useState(0);
   return (
     <View style={[styles.sectionTitle, center && styles.sectionCenter]}>
-      <Text style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}>
+      <Text
+        style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
+        onLayout={(e) => setTextW(Math.round(e.nativeEvent.layout.width))}
+      >
         <Text style={[styles.dropCap, { fontSize: Math.round(size * 1.5) }]}>{children.charAt(0)}</Text>
         {children.slice(1)}
       </Text>
-      <Rule color={INK_COLOR} style={styles.sectionRule} />
+      {textW > 0 ? <Rule width={textW} color={INK_COLOR} style={styles.sectionRule} /> : null}
     </View>
   );
 }
