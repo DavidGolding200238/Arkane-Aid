@@ -143,6 +143,57 @@ export function needsSheet(question: string) {
   return SHEET_WORDS.test(question);
 }
 
+/** The full sheet as fields, for the Sage's deterministic sheet checker (supabase/functions/_shared/sheet_check.ts). */
+export type SheetData = {
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  hp_current: number;
+  hp_max: number;
+  ac: number;
+  speed: number;
+  str: number;
+  dex: number;
+  con: number;
+  int: number;
+  wis: number;
+  cha: number;
+  skills: string[];
+  languages: string;
+  features: string;
+  traits: string[];
+  gear: string[];
+};
+
+// Keeps one-per-line lists apart once clip folds the whitespace: "Rage\nWeapon Mastery" -> "Rage; Weapon Mastery".
+const lines = (value: string | null) => (value ?? "").replace(/\s*\n+\s*/g, "; ");
+
+export function sheetData(character: Character | null, gear: Equipment[], traits: Trait[] = []): SheetData | null {
+  if (!character) return null;
+  return {
+    name: clip(character.name, 40),
+    race: clip(character.race, 30),
+    class: clip(character.class, 30),
+    level: character.level,
+    hp_current: character.hp_current,
+    hp_max: character.hp_max,
+    ac: character.ac,
+    speed: character.speed,
+    str: character.str,
+    dex: character.dex,
+    con: character.con,
+    int: character.int,
+    wis: character.wis,
+    cha: character.cha,
+    skills: (character.skills ?? []).slice(0, 18),
+    languages: clip(lines(character.languages), 200),
+    features: clip(lines(character.features), 400),
+    traits: traits.slice(0, 8).map((t) => clip(t.name, 40)).filter(Boolean),
+    gear: gear.slice(0, 12).map((g) => clip(g.name, 40)).filter(Boolean),
+  };
+}
+
 export function sheetBrief(character: Character | null, gear: Equipment[], traits: Trait[] = []): string {
   if (!character) return "";
   const name = clip(character.name, 24) || "Unnamed";
