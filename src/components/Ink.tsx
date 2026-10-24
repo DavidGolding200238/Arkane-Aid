@@ -44,7 +44,7 @@ export const INK_LINE_WAVER = 0.25;
 export const INK_CORNER = 0.9;
 /** Fill of the Race/Class and vitals holders: solid panel cream (David's pick, "variant B"). */
 // Opaque, so the boxes paint cream on every platform instead of letting the paper show through.
-export const HOLDER_FILL = "#F3E6C8";
+export const HOLDER_FILL = "#FBF6EA";
 // Slightly darker ink for small tap marks (the remove ×).
 export const INK_DARK = "#2E2920";
 
