@@ -108,6 +108,9 @@ const styles = StyleSheet.create({
   fire: { position: "absolute", zIndex: 2, elevation: 16 },
   // Embers float over the fire and the orb; no background, so no shadow either.
   embers: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 3, elevation: 17 },
-  // Transparent touch target over the orb; above the embers so a touch always reaches it.
-  hold: { position: "absolute", zIndex: 4, elevation: 18 },
+  // Transparent touch target over the orb. zIndex only, NO elevation: with borderRadius set, Android
+  // gives the view a circular outline and draws an elevation shadow for it, which showed through the
+  // transparent view as a dark ring with an octagonal hole over the orb. Touch order follows zIndex
+  // (and the fire and embers never take touches), so elevation is not needed for the hold to work.
+  hold: { position: "absolute", zIndex: 4 },
 });
