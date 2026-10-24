@@ -43,7 +43,10 @@ export const INK_LINE_WAVER = 0.25;
 /** Stroke width in design dp of the corner ornaments on each section panel. */
 export const INK_CORNER = 0.9;
 /** Fill of the vitals holders: the cream panel paper, slightly see-through (David's pick, "variant B"). */
-export const HOLDER_FILL = "rgba(254,252,235,0.9)";
+// Warm cream sampled from panel-ledger-cream-fill (#F3E4C8), so holders read as paper, not white inputs.
+export const HOLDER_FILL = "rgba(243,230,200,0.9)";
+// Slightly darker ink for small tap marks (the remove ×).
+export const INK_DARK = "#2E2920";
 
 /** The scaled fine-pen width for an outline: s(INK_STROKE), never above INK_STROKE_MAX. */
 export function useInkWidth() {

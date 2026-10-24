@@ -45,6 +45,7 @@ import {
   Flourish,
   HOLDER_FILL,
   INK_COLOR,
+  INK_DARK,
   INK_RADIUS,
   InkButton,
   InkCross,
@@ -477,7 +478,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           },
         ]}
       >
-        <InkOutline fill="rgba(254,252,235,0.96)" radius={s(INK_RADIUS)} seed={field === "race" ? 21 : 23} />
+        <InkOutline fill={HOLDER_FILL} radius={s(INK_RADIUS)} seed={field === "race" ? 21 : 23} />
         <SectionTitle center size={fs(15)}>
           {field === "race" ? "Race" : "Class"}
         </SectionTitle>
@@ -521,8 +522,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     <Pressable key={key} onPress={() => (editing ? onRemove() : undefined)} disabled={!editing} style={styles.listRow}>
       <Text style={[styles.listItem, { fontSize: fs(16), lineHeight: listLine }]}>{name}</Text>
       {editing ? (
-        <View style={{ marginLeft: s(8), marginTop: (listLine - fs(11)) / 2 + fs(1) }}>
-          <InkCross size={fs(11)} seed={name.length} />
+        <View style={{ marginLeft: s(8), marginTop: (listLine - fs(12.5)) / 2 + fs(1) }}>
+          <InkCross size={fs(12.5)} color={INK_DARK} seed={name.length} />
         </View>
       ) : null}
     </Pressable>
@@ -706,7 +707,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               ];
               const inner = (
                 <>
-                  <InkOutline seed={field === "race" ? 3 : 7} radius={s(INK_RADIUS)} />
+                  <InkOutline seed={field === "race" ? 3 : 7} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
                   <FieldLabel size={fs(11)}>{field === "race" ? "Race" : "Class"}</FieldLabel>
                   <Text
                     style={[styles.meta, { fontSize: fs(15), marginTop: s(2) }, !value && styles.metaEmpty]}
