@@ -22,27 +22,27 @@ import { colors, fonts, useScale } from "../theme";
 /** Ink colour for outlines, underlines and the remove mark: warm brown-black, not pure black. */
 export const INK_COLOR = "#443D31";
 /** Outline stroke in design dp (360-wide frame), scaled with s(): 0.875 is 1.0 dp at 412 wide. */
-export const INK_STROKE = 0.875;
+const INK_STROKE = 0.875;
 /** Hard cap on any scaled outline stroke, in dp, so big screens stay fine-pen. */
-export const INK_STROKE_MAX = 1.2;
+const INK_STROKE_MAX = 1.2;
 /** Opacity of the main stroke; just under 1 so the edge reads soft, like ink in paper. */
-export const INK_OPACITY = 0.92;
+const INK_OPACITY = 0.92;
 /** Peak drift in dp of an outline either side of true (0.4 => at most ~0.8 dp peak-to-peak, std ~0.25-0.3). */
-export const INK_WOBBLE = 0.4;
+const INK_WOBBLE = 0.4;
 /** dp of line per radian of drift: the undulation repeats every ~30-55 dp, so no kinks within ~20 dp. */
-export const INK_WOBBLE_LENGTH = 9;
+const INK_WOBBLE_LENGTH = 9;
 /** Corner radius in design dp for inked boxes (holders, Race/Class, pickers, chips, buttons): nearly square. */
 export const INK_RADIUS = 2;
 /** Extra weight on the right and bottom strokes (quill pressure), as a share of the stroke. 0 turns it off. */
-export const INK_PRESS = 0.12;
+const INK_PRESS = 0.12;
 /** Opacity of the faint second pen pass beside each outline, which softens the edge. 0 turns it off. */
-export const INK_ECHO = 0.12;
+const INK_ECHO = 0.12;
 /** Peak width of a hand-drawn underline in design dp (add-fields, custom inputs); it tapers at the ends. */
-export const INK_LINE = 1.1;
+const INK_LINE = 1.1;
 /** Sideways drift in dp of a hand-drawn underline or ×. */
-export const INK_LINE_WAVER = 0.25;
+const INK_LINE_WAVER = 0.25;
 /** Stroke width in design dp of the corner ornaments on each section panel. */
-export const INK_CORNER = 0.9;
+const INK_CORNER = 0.9;
 /** Fill of the Race/Class and vitals holders: solid panel cream (David's pick, "variant B"). */
 // Opaque, so the boxes paint cream on every platform instead of letting the paper show through.
 export const HOLDER_FILL = "#FBF6EA";
@@ -50,7 +50,7 @@ export const HOLDER_FILL = "#FBF6EA";
 export const INK_DARK = "#2E2920";
 
 /** The scaled fine-pen width for an outline: s(INK_STROKE), never above INK_STROKE_MAX. */
-export function useInkWidth() {
+function useInkWidth() {
   const { s } = useScale();
   return Math.min(INK_STROKE_MAX, s(INK_STROKE));
 }
