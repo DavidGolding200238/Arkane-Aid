@@ -41,6 +41,7 @@ import ThemedButton from "../components/ThemedButton";
 import Rule from "../components/Rule";
 import { QuillIcon } from "../components/icons";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
+import { CLASSES, RACES } from "../lib/sheetLists";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
@@ -123,32 +124,6 @@ const STATS = [
 
 type StatKey = (typeof STATS)[number][0];
 
-const RACES = [
-  "Dragonborn",
-  "Dwarf",
-  "Elf",
-  "Gnome",
-  "Goliath",
-  "Halfling",
-  "Human",
-  "Orc",
-  "Tiefling",
-];
-
-const CLASSES = [
-  "Barbarian",
-  "Bard",
-  "Cleric",
-  "Druid",
-  "Fighter",
-  "Monk",
-  "Paladin",
-  "Ranger",
-  "Rogue",
-  "Sorcerer",
-  "Warlock",
-  "Wizard",
-];
 
 const EMPTY: CharacterDraft = {
   name: "",
