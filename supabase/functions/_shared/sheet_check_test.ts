@@ -178,3 +178,18 @@ Deno.test("old app brief: David's sheet still gets the same fixes, without guess
   const odd = checkSheet(parseBrief("Brakka Half-Orc Barbarian L1. AC14 SPD30 PB+2 HP 15/15. STR30 DEX14 CON16 INT8 WIS12 CHA10")!);
   assertEquals(fixes(odd).map((f) => f.field), ["Strength"]);
 });
+
+Deno.test("findings reach the model as a data table with neutral kinds, never Fix/Suggestion labels", () => {
+  const text = findingsText(checkSheet(readSheet(DAVID)!));
+  const lines = text.split("\n");
+  assertEquals(lines[0], "kind | field | what is off | remedy");
+  assert(lines[1].startsWith("must change | Strength | Strength is 30"), lines[1]);
+  assert(lines[lines.length - 1].startsWith("optional | Ability Scores |"), lines[lines.length - 1]);
+  assert(!/\bfix\b|suggestion/i.test(text), text);
+});
+
+Deno.test("a pipe in the player's own text cannot break the findings table", () => {
+  const text = findingsText(check({ race: "Elf | Orc" }));
+  assert(text.includes("Elf / Orc"), text);
+  for (const row of text.split("\n")) assertEquals(row.split(" | ").length, 4, row);
+});
