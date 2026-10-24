@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import {
   Animated,
   Easing,
@@ -13,11 +13,11 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import Svg, { Circle, Path } from "react-native-svg";
 import PageHeader from "../components/PageHeader";
 import CircleButton from "../components/CircleButton";
-import ParchmentPanel from "../components/ParchmentPanel";
 import { RefreshIcon } from "../components/icons";
-import { CornerOrnaments, Flourish, HOLDER_FILL, INK_COLOR, InkButton, InkOutline, InkStroke, INK_RADIUS } from "../components/Ink";
+import { CornerOrnaments, Flourish, INK_COLOR, InkButton, InkOutline, INK_RADIUS } from "../components/Ink";
 import Rule from "../components/Rule";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
@@ -31,9 +31,34 @@ const parchment = require("../../assets/images/backgrounds/parchment.png");
 // Glowing d20 badge, Figma 2280:302. 280 x 281 px at 3x, glow included.
 const d20 = require("../../assets/images/tome/d20-badge.png");
 
-// Opaque cream-white card paper, as on the Codex note cards: a real backgroundColor, so it paints on
-// every platform, with the fine ink outline drawn over it.
-const CARD_FILL = "#FBF6EA";
+// The Ledger sections' light paper, as on the Codex note sheets, in place of the old cream white, so the
+// Tome shows two papers (the page and this one), not three. Its baked torn border is drawn oversize and
+// clipped off, so only paper shows inside each box's ink rim.
+const sheetPaper = require("../../assets/images/panels/panel-ledger-cream-fill.jpg");
+
+// Light paper filling its parent, stopping just inside the fine ink rim drawn over it.
+function SheetPaper() {
+  const { s } = useScale();
+  const bleed = s(6);
+  const clip = s(1.2);
+  return (
+    <View pointerEvents="none" style={[styles.sheetClip, { top: clip, left: clip, right: clip, bottom: clip, borderRadius: s(INK_RADIUS) }]}>
+      <View style={{ position: "absolute", top: -bleed, left: -bleed, right: -bleed, bottom: -bleed }}>
+        <Image source={sheetPaper} style={styles.sheetImage} resizeMode="cover" />
+      </View>
+    </View>
+  );
+}
+
+// A paper InkButton: the same button, its fill swapped for the light paper.
+function PaperButton(props: Omit<ComponentProps<typeof InkButton>, "fill">) {
+  return (
+    <View style={{ width: props.width, height: props.height }}>
+      <SheetPaper />
+      <InkButton {...props} fill="none" />
+    </View>
+  );
+}
 
 // Printed section heading, as on the Ledger and Codex: red Cinzel with an illuminated first letter
 // and a drawn underline as wide as the text.
@@ -64,13 +89,12 @@ function SectionTitle({ children, size, center }: { children: string; size: numb
   );
 }
 
-// A cream card edged in fine ink with small corner curls (Codex note card look).
+// A light-paper card edged in fine ink with small corner curls (Codex note card look).
 function InkCard({ seed, children, style }: { seed: number; children: ReactNode; style?: object }) {
   const { s } = useScale();
-  const inset = s(1.2);
   return (
     <View style={style}>
-      <View style={[styles.cardFill, { top: inset, left: inset, right: inset, bottom: inset, borderRadius: s(INK_RADIUS) }]} />
+      <SheetPaper />
       <InkOutline seed={seed} radius={s(INK_RADIUS)} />
       <CornerOrnaments size={s(12)} inset={s(4)} />
       {children}
@@ -78,25 +102,44 @@ function InkCard({ seed, children, style }: { seed: number; children: ReactNode;
   );
 }
 
-// ACCOUNT / GUIDANCE: cream paper edged in fine ink. While its section is open the button reads as
-// pressed in, like the Ledger quill: a second inked rim inside, a red label and a red pen mark under it.
-function SectionToggle({
+// The dotted leader of a book index, running from an entry to its marker at the right margin.
+function Leader() {
+  const { s } = useScale();
+  const [w, setW] = useState(0);
+  const h = s(6);
+  const gap = s(4.5);
+  const dots = w > s(8) ? Math.floor((w - s(8)) / gap) + 1 : 0;
+  return (
+    <View pointerEvents="none" style={[styles.flex, { height: h }]} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
+      {w > 0 ? (
+        <Svg width={w} height={h}>
+          {Array.from({ length: dots }, (_, i) => (
+            <Circle key={i} cx={s(4) + i * gap} cy={h / 2} r={s(0.65)} fill={INK_COLOR} fillOpacity={0.65} />
+          ))}
+        </Svg>
+      ) : null}
+    </View>
+  );
+}
+
+// One entry of the Tome's index: a red page numeral, the section's name in the serif, a dotted leader
+// and a fine ink chevron that turns down while the section hangs open beneath it. While open the
+// name is inked red, as the old toggle's label was.
+function IndexEntry({
+  numeral,
   label,
   active,
   onPress,
   accessibilityHint,
-  seed,
 }: {
+  numeral: string;
   label: string;
   active: boolean;
   onPress: () => void;
   accessibilityHint: string;
-  seed: number;
 }) {
   const { s, fs } = useScale();
-  const w = s(181);
-  const h = s(38);
-  const size = fs(14);
+  const c = s(5); // half the chevron
   return (
     <Pressable
       onPress={onPress}
@@ -104,22 +147,23 @@ function SectionToggle({
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ expanded: active }}
-      hitSlop={{ top: Math.max(4, Math.ceil((s(44) - h) / 2)), bottom: Math.max(4, Math.ceil((s(44) - h) / 2)), left: 4, right: 4 }}
-      style={({ pressed }) => [{ width: w, height: h, alignItems: "center", justifyContent: "center" }, pressed && styles.togglePressed]}
+      style={({ pressed }) => [styles.entry, { minHeight: s(48), gap: s(10) }, pressed && styles.pressed]}
     >
-      <InkOutline seed={seed} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
-      {active ? <InkOutline seed={seed + 3} radius={s(INK_RADIUS)} style={{ margin: s(3.5) }} strokeWidth={s(0.6)} /> : null}
-      <Text
-        numberOfLines={1}
-        style={[styles.toggleLabel, { fontSize: size, lineHeight: Math.round(size * 1.2) }, active && styles.toggleOn]}
-      >
-        {label.toUpperCase()}
+      <Text style={[styles.entryNumeral, { fontSize: fs(14), width: s(30) }]}>{numeral}</Text>
+      <Text numberOfLines={1} style={[styles.entryLabel, { fontSize: fs(18) }, active && styles.toggleOn]}>
+        {label}
       </Text>
-      {active ? (
-        <View style={{ width: s(52), marginTop: s(1) }}>
-          <InkStroke color={colors.wordmark} seed={seed} />
-        </View>
-      ) : null}
+      <Leader />
+      <Svg width={c * 2 + 2} height={c * 2 + 2} style={{ transform: [{ rotate: active ? "90deg" : "0deg" }] }}>
+        <Path
+          d={`M${1 + c * 0.6} 1L${1 + c * 1.5} ${1 + c}L${1 + c * 0.6} ${1 + c * 2}`}
+          stroke={active ? colors.activeTab : INK_COLOR}
+          strokeWidth={1}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </Pressable>
   );
 }
@@ -135,9 +179,10 @@ const TIPS = [
   { title: "Scribe the Codex", body: "Keep session notes, quests and lore in the Codex so the whole party sees the same story." },
 ];
 
-// "Tome": the settings screen. Account and party tools sit behind ACCOUNT,
-// quick how-to tips behind GUIDANCE, and the Sage's voice is picked below
-// (Wizard, Arbiter or Bard, saved in VoiceContext and read by the Sage screen).
+// "Tome": the settings screen. Under the d20 and "Bound to" sits an index page, like an old book's:
+// Account (sign-in and parties) and Guidance (quick how-to tips) each drop open beneath their entry,
+// one at a time. The Sage's voice is picked below the index (Wizard, Arbiter or Bard, saved in
+// VoiceContext and read by the Sage screen).
 export default function SettingsScreen({ onBack, onOpen }: Props) {
   const fontsLoaded = useAppFonts();
   const { s, fs, width } = useScale();
@@ -197,6 +242,10 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   // Create | Join share one row inside the parties panel, equal width.
   const pairGap = s(10);
   const pairW = Math.floor((width - pagePad * 2 - panelPad * 2 - pairGap) / 2) - s(2);
+  // The index page reaches indexBleed past the page margin; its padding keeps the dropdowns' contents
+  // where the old panels' contents were (page margin + panel padding).
+  const indexBleed = s(12);
+  const indexPad = indexBleed + panelPad;
 
   return (
     <View style={styles.root}>
@@ -229,139 +278,142 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
             </Text>
             {boundW > 0 ? <Rule width={boundW} color={INK_COLOR} style={{ marginTop: s(2) }} /> : null}
           </View>
-
-          <View style={{ marginTop: s(18), gap: s(17), alignItems: "center" }}>
-            <SectionToggle
-              label="Account"
-              active={open === "account"}
-              onPress={() => toggle("account")}
-              accessibilityHint="Shows your sign-in and parties"
-              seed={51}
-            />
-            <SectionToggle
-              label="Guidance"
-              active={open === "guidance"}
-              onPress={() => toggle("guidance")}
-              accessibilityHint="Shows how to use Arkane Aid"
-              seed={57}
-            />
-          </View>
         </View>
 
-        {open === "account" ? (
-          <ParchmentPanel
-            variant="ledger"
-            style={{ marginTop: s(18) }}
-            contentStyle={{ paddingHorizontal: panelPad, paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
-          >
-            <CornerOrnaments size={s(16)} inset={s(5)} />
-            <View>
-              <Text style={[styles.label, { fontSize: fs(13) }]}>Signed in</Text>
-              <Text style={[styles.body, { fontSize: fs(15) }]} numberOfLines={1}>
-                {user?.email}
-              </Text>
-              <Text style={[styles.meta, { fontSize: fs(13) }]}>{profile?.display_name ?? "No profile row yet"}</Text>
-              {profileError ? <Text style={[styles.error, { fontSize: fs(14) }]}>{profileError}</Text> : null}
-            </View>
+        {/* The index page: the light paper leaf, edged in fine ink with corner curls. It reaches a little
+            wider than the page margin so every section's contents keep their old width and place. */}
+        <View style={[styles.indexPage, { marginTop: s(20), marginHorizontal: -indexBleed, paddingHorizontal: indexPad, paddingTop: s(12), paddingBottom: s(16) }]}>
+          <SheetPaper />
+          <InkOutline seed={47} radius={s(INK_RADIUS)} />
+          <CornerOrnaments size={s(16)} inset={s(5)} />
+          <View style={{ marginBottom: s(6) }}>
+            <SectionTitle center size={fs(20)}>
+              Index
+            </SectionTitle>
+          </View>
 
-            <Rule color={INK_COLOR} />
-
-            <View style={styles.headingRow}>
-              <SectionTitle size={fs(18)}>Parties</SectionTitle>
-              <CircleButton
-                size={s(32)}
-                onPress={refresh}
-                disabled={loading}
-                accessibilityLabel="Reload parties"
-                style={loading ? styles.dim : undefined}
-              >
-                <Animated.View style={{ transform: [{ rotate: turn }] }}>
-                  <RefreshIcon circleSize={s(32)} />
-                </Animated.View>
-              </CircleButton>
-            </View>
-            {error ? <Text style={[styles.error, styles.footnote, { fontSize: fs(14) }]}>{error}</Text> : null}
-            {memberships.length === 0 ? (
-              <Text style={[styles.footnote, { fontSize: fs(14) }]}>None yet. Create one, or join with a code from your DM.</Text>
-            ) : null}
-            {memberships.map((row, index) => {
-              const on = selected?.party.id === row.party.id;
-              const mine = seats[row.party.id]?.find((seat) => seat.user_id === row.user_id)?.name;
-              return (
-                <Pressable
-                  key={`${row.party.id}-${row.role}-${index}`}
-                  onPress={() => select(row.party.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${row.party.name}${on ? ", active party" : ""}`}
-                  style={({ pressed }) => [!on && styles.cardIdle, pressed && styles.pressed]}
-                >
-                  <InkCard seed={70 + index} style={{ paddingHorizontal: s(14), paddingVertical: s(12) }}>
-                    <View style={styles.cardTop}>
-                      <Text style={[styles.cardTitle, on && styles.cardTitleOn, { fontSize: fs(16) }]} numberOfLines={1}>
-                        {row.party.name}
-                      </Text>
-                      {on ? (
-                        <View style={[styles.tag, { paddingHorizontal: s(8), paddingVertical: s(3) }]}>
-                          <InkOutline seed={90 + index} radius={s(INK_RADIUS)} fill={colors.primary} strokeWidth={s(0.7)} />
-                          <Text style={[styles.tagText, { fontSize: fs(11) }]}>ACTIVE</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.meta, { fontSize: fs(13) }]}>
-                      {row.party.code} · {row.role}
-                      {mine ? ` · ${mine}` : ""}
-                    </Text>
-                    {(seats[row.party.id] ?? []).map((seat) => (
-                      <Text key={seat.user_id} style={[styles.seat, { fontSize: fs(13), marginTop: s(3) }]}>
-                        {seat.name} · {seat.role}
-                      </Text>
-                    ))}
-                    {!on ? (
-                      <Text style={[styles.hint, { fontSize: fs(12), marginTop: s(4) }]}>Tap to make active</Text>
-                    ) : null}
-                  </InkCard>
-                </Pressable>
-              );
-            })}
-
-            <View style={[styles.row, { gap: pairGap, marginTop: s(4) }]}>
-              <InkButton label="Create party" variant="red" width={pairW} height={s(40)} seed={61} onPress={() => onOpen("create")} />
-              <InkButton label="Join party" variant="parchment" width={pairW} height={s(40)} seed={63} onPress={() => onOpen("join")} />
-            </View>
-            <View style={[styles.center, { marginTop: s(6) }]}>
-              <InkButton
-                label="Sign out"
-                variant="parchment"
-                labelColor={colors.wordmark}
-                width={s(128)}
-                height={s(40)}
-                seed={65}
-                onPress={() => signOut()}
-              />
-            </View>
-          </ParchmentPanel>
-        ) : null}
-
-        {open === "guidance" ? (
-          <ParchmentPanel
-            variant="ledger"
-            style={{ marginTop: s(18) }}
-            contentStyle={{ paddingHorizontal: s(16), paddingTop: s(14), paddingBottom: s(16), gap: s(10) }}
-          >
-            <CornerOrnaments size={s(16)} inset={s(5)} />
-            <SectionTitle size={fs(18)}>How to use the Tome</SectionTitle>
-            {TIPS.map((tip, index) => (
-              <View key={tip.title} style={[styles.row, { gap: s(10) }]}>
-                <Text style={[styles.tipNumber, { fontSize: fs(20), width: s(18) }]}>{index + 1}</Text>
-                <View style={styles.flex}>
-                  <Text style={[styles.tipTitle, { fontSize: fs(15) }]}>{tip.title}</Text>
-                  <Text style={[styles.body, { fontSize: fs(14), lineHeight: fs(20) }]}>{tip.body}</Text>
+          <IndexEntry
+            numeral="I."
+            label="Account"
+            active={open === "account"}
+            onPress={() => toggle("account")}
+            accessibilityHint="Shows your sign-in and parties"
+          />
+          {open === "account" ? (
+            <View style={[styles.dropdown, { paddingTop: s(4), paddingBottom: s(16), gap: s(10) }]}>
+                <View>
+                  <Text style={[styles.label, { fontSize: fs(13) }]}>Signed in</Text>
+                  <Text style={[styles.body, { fontSize: fs(15) }]} numberOfLines={1}>
+                    {user?.email}
+                  </Text>
+                  <Text style={[styles.meta, { fontSize: fs(13) }]}>{profile?.display_name ?? "No profile row yet"}</Text>
+                  {profileError ? <Text style={[styles.error, { fontSize: fs(14) }]}>{profileError}</Text> : null}
                 </View>
-              </View>
-            ))}
-          </ParchmentPanel>
-        ) : null}
+
+                <Rule color={INK_COLOR} />
+
+                <View style={styles.headingRow}>
+                  <SectionTitle size={fs(18)}>Parties</SectionTitle>
+                  <CircleButton
+                    size={s(32)}
+                    onPress={refresh}
+                    disabled={loading}
+                    accessibilityLabel="Reload parties"
+                    style={loading ? styles.dim : undefined}
+                  >
+                    <Animated.View style={{ transform: [{ rotate: turn }] }}>
+                      <RefreshIcon circleSize={s(32)} />
+                    </Animated.View>
+                  </CircleButton>
+                </View>
+                {error ? <Text style={[styles.error, styles.footnote, { fontSize: fs(14) }]}>{error}</Text> : null}
+                {memberships.length === 0 ? (
+                  <Text style={[styles.footnote, { fontSize: fs(14) }]}>None yet. Create one, or join with a code from your DM.</Text>
+                ) : null}
+                {memberships.map((row, index) => {
+                  const on = selected?.party.id === row.party.id;
+                  const mine = seats[row.party.id]?.find((seat) => seat.user_id === row.user_id)?.name;
+                  return (
+                    <Pressable
+                      key={`${row.party.id}-${row.role}-${index}`}
+                      onPress={() => select(row.party.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={`${row.party.name}${on ? ", active party" : ""}`}
+                      style={({ pressed }) => [!on && styles.cardIdle, pressed && styles.pressed]}
+                    >
+                      <InkCard seed={70 + index} style={{ paddingHorizontal: s(14), paddingVertical: s(12) }}>
+                        <View style={styles.cardTop}>
+                          <Text style={[styles.cardTitle, on && styles.cardTitleOn, { fontSize: fs(16) }]} numberOfLines={1}>
+                            {row.party.name}
+                          </Text>
+                          {on ? (
+                            <View style={[styles.tag, { paddingHorizontal: s(8), paddingVertical: s(3) }]}>
+                              <InkOutline seed={90 + index} radius={s(INK_RADIUS)} fill={colors.primary} strokeWidth={s(0.7)} />
+                              <Text style={[styles.tagText, { fontSize: fs(11) }]}>ACTIVE</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text style={[styles.meta, { fontSize: fs(13) }]}>
+                          {row.party.code} · {row.role}
+                          {mine ? ` · ${mine}` : ""}
+                        </Text>
+                        {(seats[row.party.id] ?? []).map((seat) => (
+                          <Text key={seat.user_id} style={[styles.seat, { fontSize: fs(13), marginTop: s(3) }]}>
+                            {seat.name} · {seat.role}
+                          </Text>
+                        ))}
+                        {!on ? (
+                          <Text style={[styles.hint, { fontSize: fs(12), marginTop: s(4) }]}>Tap to make active</Text>
+                        ) : null}
+                      </InkCard>
+                    </Pressable>
+                  );
+                })}
+
+                <View style={[styles.row, { gap: pairGap, marginTop: s(4) }]}>
+                  <InkButton label="Create party" variant="red" width={pairW} height={s(40)} seed={61} onPress={() => onOpen("create")} />
+                  <PaperButton label="Join party" variant="parchment" width={pairW} height={s(40)} seed={63} onPress={() => onOpen("join")} />
+                </View>
+                <View style={[styles.center, { marginTop: s(6) }]}>
+                  <PaperButton
+                    label="Sign out"
+                    variant="parchment"
+                    labelColor={colors.wordmark}
+                    width={s(128)}
+                    height={s(40)}
+                    seed={65}
+                    onPress={() => signOut()}
+                  />
+                </View>
+            </View>
+          ) : null}
+          <Rule color={INK_COLOR} />
+
+          <IndexEntry
+            numeral="II."
+            label="Guidance"
+            active={open === "guidance"}
+            onPress={() => toggle("guidance")}
+            accessibilityHint="Shows how to use Arkane Aid"
+          />
+          {open === "guidance" ? (
+            <View style={[styles.dropdown, { paddingTop: s(4), paddingBottom: s(16), gap: s(10) }]}>
+                <SectionTitle size={fs(18)}>How to use the Tome</SectionTitle>
+                {TIPS.map((tip, index) => (
+                  <View key={tip.title} style={[styles.row, { gap: s(10) }]}>
+                    <Text style={[styles.tipNumber, { fontSize: fs(20), width: s(18) }]}>{index + 1}</Text>
+                    <View style={styles.flex}>
+                      <Text style={[styles.tipTitle, { fontSize: fs(15) }]}>{tip.title}</Text>
+                      <Text style={[styles.body, { fontSize: fs(14), lineHeight: fs(20) }]}>{tip.body}</Text>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          ) : null}
+          <Rule color={INK_COLOR} />
+
+        </View>
 
         <View style={[styles.center, { marginTop: s(22) }]}>
           <Flourish width={s(84)} color={INK_COLOR} />
@@ -417,15 +469,11 @@ const styles = StyleSheet.create({
   bound: { alignSelf: "center", maxWidth: "100%" },
   boundText: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center", includeFontPadding: false, letterSpacing: 0.3 },
   boundLabel: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4 },
-  togglePressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  toggleLabel: {
-    fontFamily: fonts.headingBold,
-    color: colors.ink,
-    letterSpacing: 0.6,
-    includeFontPadding: false,
-    textAlignVertical: "center",
-    textAlign: "center",
-  },
+  indexPage: { alignSelf: "stretch" },
+  entry: { flexDirection: "row", alignItems: "center" },
+  entryNumeral: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
+  entryLabel: { fontFamily: fonts.heading, color: colors.ink, letterSpacing: 0.3, includeFontPadding: false, flexShrink: 1 },
+  dropdown: {},
   toggleOn: { color: colors.activeTab },
   sectionTitle: { alignSelf: "flex-start", flexShrink: 1 },
   sectionCenter: { alignSelf: "center" },
@@ -434,7 +482,8 @@ const styles = StyleSheet.create({
   section: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
   sectionRule: { marginTop: -3 },
   dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
-  cardFill: { position: "absolute", backgroundColor: CARD_FILL },
+  sheetClip: { position: "absolute", overflow: "hidden" },
+  sheetImage: { width: "100%", height: "100%" },
   // Muted italic serif, like the Ledger and Codex footnotes.
   footnote: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted },
   left: { textAlign: "left" },

@@ -414,6 +414,8 @@ type ButtonProps = {
   busy?: boolean;
   disabled?: boolean;
   seed?: number;
+  /** Override the paper inside the rim, e.g. "none" so a button on a paper sheet shows that sheet. */
+  fill?: string;
 };
 
 // A paper button edged in fine ink: the Login buttons' red / parchment look and caps label,
@@ -428,6 +430,7 @@ export function InkButton({
   busy,
   disabled,
   seed = 31,
+  fill,
 }: ButtonProps) {
   const { s, fs } = useScale();
   const onRed = variant === "red";
@@ -449,7 +452,7 @@ export function InkButton({
         pressed && buttonStyles.pressed,
       ]}
     >
-      <InkOutline seed={seed} radius={s(INK_RADIUS)} fill={onRed ? colors.primary : HOLDER_FILL} />
+      <InkOutline seed={seed} radius={s(INK_RADIUS)} fill={fill ?? (onRed ? colors.primary : HOLDER_FILL)} />
       {busy ? (
         <ActivityIndicator color={onRed ? colors.cream : INK_COLOR} />
       ) : (
