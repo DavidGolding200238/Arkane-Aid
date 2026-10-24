@@ -202,8 +202,12 @@ export type OrbLook = {
   group: THREE.Group;
   /** Change personality colour (fades over COLOUR_FADE unless instant). */
   setColour: (colour: OrbColour, instant?: boolean) => void;
-  /** Advance by dt seconds. talking: Sage is speaking or writing a reply. */
-  update: (dt: number, talking: boolean) => void;
+  /**
+   * Advance by dt seconds. talking: Sage is speaking or writing a reply. Returns true while
+   * anything is still moving (talking, rings fading, the inside settling, a colour fade), so the
+   * caller can stop drawing frames once it returns false: the orb is then completely still.
+   */
+  update: (dt: number, talking: boolean) => boolean;
   dispose: () => void;
 };
 
@@ -303,7 +307,7 @@ export function createOrbLook(opts: { colour: OrbColour; sphere?: THREE.BufferGe
 
     // The light inside drifts round (about a 5 s loop in the clip) and breathes while talking.
     talk += ((talking ? 1 : 0) - talk) * Math.min(1, step / (SETTLE / 3));
-    if (Math.abs(talk) < 1e-4 && !talking) talk = 0;
+    if (talk < 1e-3 && !talking) talk = 0;
     if (talk > 0) clock += step;
     const energy = IDLE_ENERGY + 0.4 * Math.sin(clock * 1.3) * 0.6 + 0.4 * Math.sin(clock * 0.53 + 1.1) * 0.4;
     sphereMat.uniforms.uEnergy.value = IDLE_ENERGY + (Math.min(1, Math.max(0, energy)) - IDLE_ENERGY) * talk;
@@ -311,6 +315,7 @@ export function createOrbLook(opts: { colour: OrbColour; sphere?: THREE.BufferGe
       0.18 * Math.sin(clock * 1.25) * talk,
       -0.16 * Math.cos(clock * 1.25) * talk,
     );
+    return talking || rings.length > 0 || untilEcho >= 0 || talk > 0 || fade < 1;
   }
 
   function setColour(colour: OrbColour, instant = false) {
