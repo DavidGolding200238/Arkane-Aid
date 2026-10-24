@@ -224,7 +224,7 @@ assets/
                         tab-home/logbook/hat/gear.svg (tab bar, currentColor),
                         icon-mic.svg, icon-hand-quill.svg (Sage and Scribe mode buttons, currentColor)
     tabbar/             tab-bar-texture@3x.jpg, tab-active@3x.png (red active square, transparent)
-    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-codex-cream and panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) are the ones in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger sources are in art-source/panels/
+    panels/             torn-paper panels as frame (PNG, transparent) + fill (JPEG) pairs, 3x; panel-ledger-cream (paper blended toward #FFF6E2 by scripts/build-cream-panels.py, outlines untouched) is the one in use for the Codex book, Ledger, Tome sections and Sage box; the tan panel-codex/panel-ledger sources are in art-source/panels/
     dashboard/          skull-dragon, seal-parchment, ring-outer/inner, die-d20, gem-red/green/blue (3x PNG, transparent)
     sage/               fire-red-loop.webp, fire-blue-loop.webp, fire-green-loop.webp (animated orb fire, 72 frames at 24 fps); fire-red-1, fire-blue-1, fire-green-1 (3x PNG Reduce Motion stills; red and blue with keyframes 2..8 in art-source/sage/ are the Figma keyframes the loops are built from; green is the red fire recoloured by the build script)
     tome/               d20-badge, voice-orb-wizard/plain/bard (orb discs), orb-shadow, arrow-left/right (PNG, transparent; orbs from scripts/build-tome-orbs.py)

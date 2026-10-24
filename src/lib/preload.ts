@@ -57,8 +57,6 @@ const DASHBOARD = [
 const PAGES = [
   require("../../assets/images/panels/panel-ledger-cream-frame.png"),
   require("../../assets/images/panels/panel-ledger-cream-fill.jpg"),
-  require("../../assets/images/panels/panel-codex-cream-frame.png"),
-  require("../../assets/images/panels/panel-codex-cream-fill.jpg"),
   require("../../assets/images/panels/card-codex-frame.png"),
   require("../../assets/images/panels/card-codex-fill.jpg"),
   require("../../assets/images/ledger/stat-header.png"),

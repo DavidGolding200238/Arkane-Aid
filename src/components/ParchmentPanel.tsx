@@ -31,13 +31,6 @@ const LEDGER_CREAM = {
 };
 
 const ART = {
-  // Codex book, Figma 2242:596 (cream)
-  codex: {
-    frame: require("../../assets/images/panels/panel-codex-cream-frame.png"),
-    fill: require("../../assets/images/panels/panel-codex-cream-fill.jpg"),
-    width: 963 / 3,
-    height: 1818 / 3,
-  },
   // Codex note card, Figma 2242:605. Sits on the book, so it keeps its own paper.
   card: {
     frame: require("../../assets/images/panels/card-codex-frame.png"),
@@ -199,7 +192,7 @@ function PanelFade({ spec, art, size, inset }: { spec: PanelFadeSpec; art: Art; 
 }
 
 type Props = {
-  /** codex = Codex book, card = Codex note card, ledger = Ledger sheet and sections, input = Sage typing box (cream). */
+  /** ledger = Codex book, Ledger sheet and sections, Tome sections; card = Codex note card; input = Sage typing box (all cream). */
   variant?: keyof typeof ART;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -208,7 +201,7 @@ type Props = {
   fades?: PanelFadeSpec[];
 };
 
-export default function ParchmentPanel({ variant = "codex", children, style, contentStyle, fades }: Props) {
+export default function ParchmentPanel({ variant = "ledger", children, style, contentStyle, fades }: Props) {
   const art: Art = ART[variant];
   const [size, setSize] = useState<Size | null>(null);
 
