@@ -451,7 +451,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const vitalValue: StyleProp<TextStyle> = [styles.vitalValue, { fontSize: fs(20) }];
   const vitalInput: StyleProp<TextStyle> = [styles.vitalInput, { fontSize: fs(20) }];
   const holderW = s(66);
-  const hpW = holderW;
+  // HP is wider so the largest value, 999/999, fits in view and edit.
+  const hpW = s(92);
   const holderH = s(30);
   const flourishW = s(64);
   const holder = (seed: number, w: number, child: ReactNode) => (
@@ -795,7 +796,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                     />
                   </View>
                 ) : (
-                  <Text style={vitalValue}>
+                  <Text style={vitalValue} numberOfLines={1} adjustsFontSizeToFit>
                     {draft.hp_current}/{draft.hp_max}
                   </Text>
                 ),
