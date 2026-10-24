@@ -101,10 +101,15 @@ const stemWord = (w: string) => w.replace(/(?:es|s)$/, "");
  */
 export function pickSource(modelSource: string, reply: string, hits: { citation: string }[]): string {
   if (/^\W*(?:lore|homebrew idea)\s*:/i.test(reply)) return "";
-  const given = new Map(hits.map((h) => [titleOf(h.citation).toLowerCase(), shortCitation(h.citation)]));
+  const given = hits.map((h) => shortCitation(h.citation));
   const kept = modelSource
     .split(/\s*;\s*/)
-    .map((s) => given.get(titleOf(s).toLowerCase()))
+    .map((s) => {
+      // Same title can sit on two pages (Alignment, p. 21 and p. 254): keep the page the model named.
+      const title = titleOf(s).toLowerCase();
+      const same = given.filter((g) => titleOf(g).toLowerCase() === title);
+      return same.find((g) => g.toLowerCase() === s.trim().toLowerCase()) ?? same[0];
+    })
     .filter((s): s is string => !!s);
   if (kept.length) return [...new Set(kept)].slice(0, MAX_SOURCES).join("; ");
   const said = new Set(words(reply).map(stemWord));
@@ -116,8 +121,7 @@ export function pickSource(modelSource: string, reply: string, hits: { citation:
 }
 
 // Help-desk sign-offs that break the voice. An offer in character ("Shall we mend it together?") stays.
-const CLOSER =
-  /(?:let me know\b|happy to help|glad to help|feel free to|hope (?:this|that) helps|if you have any (?:other |more |further )?questions|(?:is there )?anything else (?:i can|you need|to)\b|don't hesitate to)/i;
+const CLOSER = /(?:let me know\b|happy to help|glad to help|feel free to|hope (?:this|that) helps|if you have any (?:other |more |further )?questions|(?:is there )?anything else (?:i can|you need|to)\b|don't hesitate to)/i;
 // A closer starts the sentence ("I am happy to help...") or follows ", and" / ", so" / ",".
 const LEAD = /^(?:(?:and|so|also|just|please|i am|i'm|i'd be|i would be|we are|we're|if you need anything(?: else)?,?)\s+)*/i;
 

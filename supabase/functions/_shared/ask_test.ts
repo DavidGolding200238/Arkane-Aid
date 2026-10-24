@@ -3,7 +3,10 @@
 import { assert, assertEquals, assertFalse, assertStringIncludes } from "jsr:@std/assert@1";
 import type { ChatRequest } from "./groq.ts";
 import { ask, type AskReply } from "./ask.ts";
-import { IDENTITIES, PERSONAS, systemPrompt } from "./personas.ts";
+import { IDENTITIES, PERSONAS, systemPrompt, voiceReminder } from "./personas.ts";
+
+/** The last user message without the voice reminder, which is the one part that differs by voice. */
+const unvoiced = (content: string) => content.replace(/\n\n<voice>[^]*<\/voice>$/, "");
 
 async function run(body: Record<string, unknown>) {
   const sent: ChatRequest[] = [];
@@ -58,14 +61,18 @@ Deno.test("wizard, arbiter and bard get the same model, budget and SRD passages"
   for (const other of [arbiter, bard]) {
     assertEquals(other.model, wizard.model);
     assertEquals(other.maxTokens, wizard.maxTokens);
-    assertEquals(other.messages[1].content, wizard.messages[1].content);
+    assertEquals(unvoiced(other.messages[1].content), unvoiced(wizard.messages[1].content));
   }
   assertEquals(PERSONAS.sage.srdLimit, PERSONAS.bard.srdLimit);
   assertEquals(PERSONAS.sage.srdLimit, 4);
 });
 
 Deno.test("wizard, arbiter and bard prompts differ only in the identity block", () => {
-  const prompts = { wizard: systemPrompt("sage", "wizard"), plain: systemPrompt("sage", "plain"), bard: systemPrompt("bard") };
+  const prompts = {
+    wizard: systemPrompt("sage", "wizard"),
+    plain: systemPrompt("sage", "plain"),
+    bard: systemPrompt("bard"),
+  };
   const base = prompts.wizard.replace(IDENTITIES.wizard, "");
   for (const flavour of ["plain", "bard"] as const) {
     assert(prompts[flavour].endsWith(IDENTITIES[flavour]));
@@ -76,6 +83,9 @@ Deno.test("wizard, arbiter and bard prompts differ only in the identity block", 
   assertStringIncludes(base, "Manner: a warm, kind companion");
   assertStringIncludes(base, "never errors");
   assertStringIncludes(base, "can't go above 20");
+  assertFalse(/creature|monster/i.test(base));
+  assertStringIncludes(base, "Never use help-desk lines");
+  assertFalse(base.includes("then offer to help"));
   assertStringIncludes(base, "Source: Alignment, p. 21");
   assertStringIncludes(base, "the answer comes first");
   assertFalse(/Alex|Jack/.test(base));
@@ -141,7 +151,10 @@ Deno.test("a fresh question does not borrow the previous one", async () => {
 });
 
 Deno.test("meaning search failing still answers from keyword search", async () => {
-  const { result } = await runWith({ question: "how does grappling work", mode: "sage" }, () => Promise.reject(new Error("down")));
+  const { result } = await runWith(
+    { question: "how does grappling work", mode: "sage" },
+    () => Promise.reject(new Error("down")),
+  );
   assertEquals(result.retrieval, "keyword");
   assert(result.sources.length > 0);
 });
@@ -149,7 +162,44 @@ Deno.test("meaning search failing still answers from keyword search", async () =
 // ---- Chat, tone and sources: the same for the Wizard, the Arbiter and the Bard ----
 
 const SAGE_VOICES = clients.filter(([n]) => ["wizard", "arbiter", "bard"].includes(n));
-const sheetRuling = [{ q: "Check my playersheet and tell me whats wrong", a: "Thy Strength of 30 is above the 20 a player character may have. Lower it to 20 or less." }];
+// David's sheet, exactly as the app sends it (SageScreen): STR 30, Traits "Yes", Features "Lol", Gear "Lol".
+const DAVID = {
+  name: "David",
+  race: "Human",
+  class: "Bard",
+  level: 1,
+  hp_current: 9,
+  hp_max: 9,
+  ac: 12,
+  speed: 30,
+  str: 30,
+  dex: 10,
+  con: 10,
+  int: 10,
+  wis: 10,
+  cha: 10,
+  skills: "",
+  languages: "Common",
+  features: "Lol",
+  traits: ["Yes"],
+  gear: ["Lol"],
+};
+const CLEAN = {
+  ...DAVID,
+  str: 8,
+  dex: 14,
+  con: 12,
+  int: 10,
+  wis: 13,
+  cha: 15,
+  features: "Bardic Inspiration, Spellcasting",
+  traits: ["Resourceful", "Skillful", "Versatile"],
+  gear: ["Lute", "Leather Armor", "Dagger"],
+};
+const sheetRuling = [{
+  q: "Check my playersheet and tell me whats wrong",
+  a: "Thy Strength of 30 is above the 20 a player character may have. Lower it to 20 or less.",
+}];
 
 async function runReply(body: Record<string, unknown>, modelReply: string) {
   const sent: ChatRequest[] = [];
@@ -171,7 +221,10 @@ async function runReply(body: Record<string, unknown>, modelReply: string) {
 for (const [name, voice] of SAGE_VOICES) {
   for (const question of ["Damn", "damn!", "wow", "ok", "lol", "hmm", "nice", "ugh", "oh no", "fuck", "damn ok"]) {
     Deno.test(`${name}: "${question}" after a ruling is chat with memory, not a greeting`, async () => {
-      const { request, result, searched } = await runReply({ question, history: sheetRuling, ...voice }, "Aye, harsh news.");
+      const { request, result, searched } = await runReply(
+        { question, history: sheetRuling, ...voice },
+        "Aye, harsh news.",
+      );
       assertEquals(searched, []);
       assertEquals(request.messages.length, 4);
       assertEquals(request.messages[2].content, sheetRuling[0].a);
@@ -205,11 +258,66 @@ for (const [name, voice] of SAGE_VOICES) {
     const { result } = await runReply({ question: "how does alignment work", ...voice }, model);
     assertFalse(/SRD|p\. ?\d|>/.test(result.reply), result.reply);
     assertEquals(result.reply, "Thy sheet lacks an alignment. Strength 30 is too high for a player character.");
-    assertEquals(result.source, "Alignment, p. 21; Adjust Ability Scores, p. 21");
+    // Only extracts the model was actually given make the footer.
+    assertEquals(result.source, "Alignment, p. 21");
+  });
+
+  Deno.test(`${name}: no Source line still gets a footer when the reply uses a passage`, async () => {
+    const { result } = await runReply(
+      { question: "how much damage does fireball do", ...voice },
+      "Fireball deals 8d6 Fire damage in a 20-foot sphere.",
+    );
+    assertEquals(result.source, "Fireball, p. 131");
+  });
+
+  Deno.test(`${name}: a made-up Source is dropped`, async () => {
+    const { result } = await runReply(
+      { question: "how much damage does fireball do", ...voice },
+      "It deals 8d6.\nSource: Dragon Magic, p. 999",
+    );
+    assertEquals(result.reply, "It deals 8d6.");
+    assertEquals(result.source, "");
+  });
+
+  Deno.test(`${name}: out-of-scope declines get no footer even if the model adds one`, async () => {
+    const { result } = await runReply(
+      { question: "who won the football last night", ...voice },
+      "That lies outside my tome.\nSource: Fireball, p. 131",
+    );
+    assertEquals(result.reply, "That lies outside my tome.");
+    assertEquals(result.source, "");
+  });
+
+  Deno.test(`${name}: the voice reminder is the very last thing the model reads`, async () => {
+    for (
+      const body of [{ question: "how does grappling work" }, { question: "Damn", history: sheetRuling }, {
+        question: "what do you think of my sheet",
+        character: DAVID,
+      }]
+    ) {
+      const { request } = await runReply({ ...body, ...voice }, "ok");
+      const last = request.messages[request.messages.length - 1];
+      assertEquals(last.role, "user");
+      const reminder = voiceReminder(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard");
+      assert(last.content.endsWith(reminder), last.content.slice(-200));
+      assertStringIncludes(reminder, "let me know if");
+      assertStringIncludes(reminder, "an offer in your own voice is fine");
+    }
+  });
+
+  Deno.test(`${name}: help-desk closers are trimmed from the reply`, async () => {
+    const { result } = await runReply(
+      { question: "how does grappling work", ...voice },
+      "Make an Unarmed Strike to grapple. Let me know if there's anything else I can help with!",
+    );
+    assertEquals(result.reply, "Make an Unarmed Strike to grapple.");
   });
 
   Deno.test(`${name}: a Source line is moved to the footer`, async () => {
-    const { result } = await runReply({ question: "how much damage does fireball do", ...voice }, "Fireball deals 8d6 Fire damage.\nSource: Fireball, p. 131");
+    const { result } = await runReply(
+      { question: "how much damage does fireball do", ...voice },
+      "Fireball deals 8d6 Fire damage.\nSource: Fireball, p. 131",
+    );
     assertEquals(result.reply, "Fireball deals 8d6 Fire damage.");
     assertEquals(result.source, "Fireball, p. 131");
   });
@@ -220,26 +328,73 @@ for (const [name, voice] of SAGE_VOICES) {
     assertEquals(result.reply, "My pleasure.");
   });
 
-  Deno.test(`${name}: a sheet review searches the creation rules and asks for a kind review`, async () => {
+  Deno.test(`${name}: David's sheet review sends only the checker's findings, no SRD`, async () => {
+    const { request, result, searched } = await runReply(
+      { question: "What you think of my chatacter sheet", sheet: "old brief", character: DAVID, ...voice },
+      "Thy Strength of 30 is beyond any mortal hero.\nSource: Ability Scores, p. 255",
+    );
+    assertEquals(searched, []);
+    assertEquals(request.messages.length, 2);
+    const user = request.messages[1].content;
+    assertFalse(user.includes("<srd>"));
+    assertStringIncludes(user, "<findings>");
+    assertStringIncludes(user, "Fix (Strength)");
+    assertStringIncludes(user, "Fix (Traits)");
+    assertStringIncludes(user, "Fix (Gear)");
+    assertStringIncludes(user, "Fix (Features)");
+    assertStringIncludes(user, "Suggestion (Ability Scores): Charisma");
+    assertStringIncludes(
+      user,
+      "Only mention the findings listed; never call anything else wrong; never mention creatures or monsters; player characters only.",
+    );
+    assertStringIncludes(user, "Speed: 30 ft");
+    assertFalse(/\bSPD\b|\bSTR\b|old brief/.test(user));
+    assertFalse(/creature|monster/i.test(request.messages[0].content));
+    assertEquals(result.retrieval, "sheet");
+    assertEquals(result.reply, "Thy Strength of 30 is beyond any mortal hero.");
+    assertEquals(result.source, "Adjust Ability Scores, p. 21; Record Class Features, p. 22");
+    assertEquals(result.findings?.filter((f) => f.severity === "fix").map((f) => f.field), [
+      "Strength",
+      "Features",
+      "Traits",
+      "Gear",
+    ]);
+  });
+
+  Deno.test(`${name}: a clean sheet gets brief praise and no footer`, async () => {
     const { request, result } = await runReply(
-      { question: "Check my playersheet and tell me whats wrong", sheet: "Brakka Human Fighter L1\nSTR30 DEX12 CON14 INT8 WIS10 CHA10", ...voice },
+      { question: "is my sheet ok?", character: CLEAN, ...voice },
+      "A fine bard indeed.",
+    );
+    assertStringIncludes(request.messages[1].content, "found nothing to fix");
+    assertStringIncludes(request.messages[1].content, "None.");
+    assertEquals(result.source, "");
+  });
+
+  Deno.test(`${name}: an old app's brief is still reviewed by the checker`, async () => {
+    const { request, result } = await runReply(
+      {
+        question: "Check my playersheet and tell me whats wrong",
+        sheet: "Brakka Human Fighter L1\nSTR30 DEX12 CON14 INT8 WIS10 CHA10",
+        ...voice,
+      },
       "Mostly fine.",
     );
-    const user = request.messages[1].content;
-    assertStringIncludes(user, "<sheet_review>");
-    assertStringIncludes(user, "how to fix it");
-    assertStringIncludes(user, "[Adjust Ability Scores, p. 21]");
-    assert(result.sources.some((s) => s.title === "Adjust Ability Scores"));
+    assertStringIncludes(request.messages[1].content, "Fix (Strength)");
+    assertEquals(result.source, "Adjust Ability Scores, p. 21");
   });
 }
 
 Deno.test("wizard, arbiter and bard send the same chat and sheet-review messages", async () => {
-  const sheet = { question: "Check my playersheet and tell me whats wrong", sheet: "STR30" };
+  const sheet = { question: "Check my playersheet and tell me whats wrong", character: DAVID };
   const chat = { question: "Damn", history: sheetRuling };
   for (const body of [sheet, chat]) {
     const sent = await Promise.all(SAGE_VOICES.map(([, v]) => runReply({ ...body, ...v }, "ok")));
     for (const other of sent.slice(1)) {
-      assertEquals(other.request.messages.slice(1), sent[0].request.messages.slice(1));
+      assertEquals(
+        other.request.messages.slice(1).map((m) => unvoiced(m.content)),
+        sent[0].request.messages.slice(1).map((m) => unvoiced(m.content)),
+      );
       assertEquals(other.request.maxTokens, sent[0].request.maxTokens);
     }
   }
@@ -291,7 +446,10 @@ for (const [name, voice] of SAGE_VOICES) {
   }
   for (const question of ODD_BUT_IN_SCOPE) {
     Deno.test(`${name}: "${question}" is a real question: searched and answered`, async () => {
-      const { request, result, searched } = await runReply({ question, ...voice }, "Roll Charisma.\nSource: Falling, p. 179");
+      const { request, result, searched } = await runReply(
+        { question, ...voice },
+        "Roll Charisma.\nSource: Falling, p. 179",
+      );
       assertEquals(result.chat, null);
       assert(searched.length > 0);
       assertStringIncludes(request.messages[request.messages.length - 1].content, "<srd>");
@@ -305,7 +463,10 @@ Deno.test("out-of-scope and odd questions reach all three voices as the same mes
   for (const question of [...OUT_OF_SCOPE, ...ODD_BUT_IN_SCOPE]) {
     const sent = await Promise.all(SAGE_VOICES.map(([, v]) => runReply({ question, ...v }, "ok")));
     for (const other of sent.slice(1)) {
-      assertEquals(other.request.messages.slice(1), sent[0].request.messages.slice(1));
+      assertEquals(
+        other.request.messages.slice(1).map((m) => unvoiced(m.content)),
+        sent[0].request.messages.slice(1).map((m) => unvoiced(m.content)),
+      );
       assertEquals(other.request.maxTokens, sent[0].request.maxTokens);
     }
   }
