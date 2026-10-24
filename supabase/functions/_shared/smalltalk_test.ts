@@ -40,6 +40,12 @@ const cases: [string, string | null][] = [
   ["wow can I cast fireball twice", null],
   ["is hell a plane", null],
   ["ok what does prone do", null],
+  // Emoji or punctuation only is a reaction; another script is still a question.
+  ["👍👍", "chat"],
+  ["😂😂😂", "chat"],
+  ["?!?", "chat"],
+  ["", null],
+  ["Как работает захват?", null],
 ];
 
 for (const [text, kind] of cases) {

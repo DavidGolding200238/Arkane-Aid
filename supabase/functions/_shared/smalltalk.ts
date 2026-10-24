@@ -48,7 +48,10 @@ const KIND_ORDER: ChatKind[] = ["greeting", "farewell", "thanks", "chat"];
  *  "hail of thorns" and "hi, how does grappling work?" are not. */
 export function chatKind(question: string): ChatKind | null {
   let rest = normalize(question);
-  if (!rest || rest.length > 80) return null;
+  // Only emoji or punctuation ("👍👍", "?!"): a reaction, not a rules question. Letters in another
+  // script (normalize keeps a-z only) are still a question.
+  if (!rest) return question.trim() && !/[\p{L}\p{N}]/u.test(question) ? "chat" : null;
+  if (rest.length > 80) return null;
   const seen = new Set<ChatKind>();
   for (let guard = 0; guard < 12 && rest; guard++) {
     // Longest match first, so "hell yeah" is not read as "hell" then "yeah" and "good morning" beats "good".
