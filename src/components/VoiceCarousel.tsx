@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { INK_COLOR } from "./Ink";
 import Rule from "./Rule";
 import FireLoop from "./flames/FireLoop";
 import { useFlameTint, useReduceMotion } from "./flames/useFlameMotion";
@@ -154,7 +155,7 @@ export default function VoiceCarousel() {
 
       <View style={[styles.nameBox, { marginTop: s(2) }]}>
         <Text style={[styles.name, !shown.available && styles.nameSoon, { fontSize: fs(20) }]}>{shown.label}</Text>
-        <Rule width={s(82)} thickness={1.5} color={colors.rule} style={{ marginTop: s(2) }} />
+        <Rule width={s(82)} color={INK_COLOR} style={{ marginTop: s(2) }} />
       </View>
       <Text
         numberOfLines={1}
@@ -178,5 +179,6 @@ const styles = StyleSheet.create({
   nameBox: { alignItems: "center" },
   name: { fontFamily: fonts.heading, includeFontPadding: false, ...inkText.heading },
   nameSoon: { color: colors.muted },
-  caption: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
+  // Muted italic serif, like the Ledger and Codex footnotes.
+  caption: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted, textAlign: "center" },
 });
