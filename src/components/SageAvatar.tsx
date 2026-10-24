@@ -85,7 +85,17 @@ export function preloadSageOrb() {
   return orbLoading;
 }
 
-function Orb({ sphere, colour, talking }: { sphere: THREE.BufferGeometry; colour: OrbColour; talking: boolean }) {
+function Orb({
+  sphere,
+  colour,
+  talking,
+  listening,
+}: {
+  sphere: THREE.BufferGeometry;
+  colour: OrbColour;
+  talking: boolean;
+  listening: boolean;
+}) {
   const [look] = useState(() => createOrbLook({ colour, sphere }));
   const invalidate = useThree((state) => state.invalidate);
 
@@ -93,14 +103,14 @@ function Orb({ sphere, colour, talking }: { sphere: THREE.BufferGeometry; colour
   // A new personality fades in (on the first run this fades from the colour to itself).
   useEffect(() => look.setColour(colour), [look, colour]);
   // The Canvas only draws on demand: ask for a frame when the orb appears, the colour changes or
-  // talking starts or stops. useFrame below keeps asking for as long as anything is moving.
-  useEffect(() => invalidate(), [invalidate, look, colour, talking]);
+  // talking or listening starts or stops. useFrame below keeps asking for as long as anything is moving.
+  useEffect(() => invalidate(), [invalidate, look, colour, talking, listening]);
 
-  // R3F keeps the latest callback, so this always sees the current talking prop. Once update
+  // R3F keeps the latest callback, so this always sees the current talking and listening props. Once update
   // reports everything is still (idle, rings gone, fade done) no more frames are requested, so an
   // idle orb costs nothing; that last frame already shows the still orb.
   useFrame((state, delta: number) => {
-    if (look.update(delta, talking)) state.invalidate();
+    if (look.update(delta, talking, listening)) state.invalidate();
   });
   return <primitive object={look.group} dispose={null} />;
 }
@@ -112,9 +122,11 @@ type Props = {
   colour?: OrbColour;
   /** True while the Sage speaks or writes a reply: white rings pulse out. Still otherwise. */
   talking?: boolean;
+  /** True while the orb is held to speak: the rim glow brightens and breathes. */
+  listening?: boolean;
 };
 
-export default function SageAvatar({ size = 260, colour = "green", talking = false }: Props) {
+export default function SageAvatar({ size = 260, colour = "green", talking = false, listening = false }: Props) {
   const [sphere, setSphere] = useState<THREE.BufferGeometry | null>(orbReady);
   const [error, setError] = useState("");
 
@@ -150,7 +162,7 @@ export default function SageAvatar({ size = 260, colour = "green", talking = fal
         orthographic
         camera={{ position: [0, 0, 5], zoom: size / 2 / ORB_VIEW_HALF, near: 0.1, far: 50 }}
       >
-        {sphere ? <Orb sphere={sphere} colour={colour} talking={talking} /> : null}
+        {sphere ? <Orb sphere={sphere} colour={colour} talking={talking} listening={listening} /> : null}
       </Canvas>
       {!sphere ? (
         <Text style={styles.note}>{error || "Loading the orb…"}</Text>

@@ -11,6 +11,7 @@
 //  2. Sphere: the glb's Sphere mesh with a fresnel shader: dim soft centre, deep band, neon rim.
 // Idle is completely still. While talking, bursts of rings run out from the rim and the light
 // inside the sphere drifts and breathes; when talking stops, the last rings finish and it settles.
+// While listening (the orb is held to speak), the rim glow brightens and widens and breathes softly.
 import * as THREE from "three";
 
 export type OrbColour = "red" | "blue" | "green";
@@ -84,6 +85,8 @@ const COLOUR_FADE = 0.6;
 const SETTLE = 0.8;
 /** Resting sphere energy (0 = dimmest seen in the clip, 1 = brightest). */
 const IDLE_ENERGY = 0.45;
+/** How fast the listening glow comes up and fades, seconds. */
+const LISTEN_EASE = 0.18;
 
 const backdropVertex = /* glsl */ `
   varying vec2 vP;
@@ -103,6 +106,8 @@ const backdropFragment = /* glsl */ `
   uniform vec3 uLobe;
   uniform vec3 uRim;
   uniform float uGlow;
+  // 0..1: how far the listening glow is up (brighter, wider rim halo).
+  uniform float uListen;
   // x: kind (0 = off, 1 = A, 2 = B), y: progress 0..1
   uniform vec2 uRings[${MAX_RINGS}];
 
@@ -119,7 +124,7 @@ const backdropFragment = /* glsl */ `
     vec2 ds = p - vec2(0.8, -0.7);
     vec2 dl = p - vec2(-2.6, 2.2);
     vec3 col = uDark + uSpot * exp(-dot(ds, ds) / 6.2) + uLobe * exp(-dot(dl, dl) / 5.5);
-    col += uRim * uGlow * exp(-max(r - 1.0, 0.0) / 0.06);
+    col += uRim * (uGlow * exp(-max(r - 1.0, 0.0) / 0.06) + 0.55 * uListen * exp(-max(r - 1.0, 0.0) / 0.16));
     float a = 0.0;
     for (int i = 0; i < ${MAX_RINGS}; i++) {
       vec2 g = uRings[i];
@@ -203,11 +208,12 @@ export type OrbLook = {
   /** Change personality colour (fades over COLOUR_FADE unless instant). */
   setColour: (colour: OrbColour, instant?: boolean) => void;
   /**
-   * Advance by dt seconds. talking: Sage is speaking or writing a reply. Returns true while
-   * anything is still moving (talking, rings fading, the inside settling, a colour fade), so the
-   * caller can stop drawing frames once it returns false: the orb is then completely still.
+   * Advance by dt seconds. talking: Sage is speaking or writing a reply. listening: the orb is
+   * held to speak. Returns true while anything is still moving (talking, listening, rings fading,
+   * the inside settling, a colour fade), so the caller can stop drawing frames once it returns
+   * false: the orb is then completely still.
    */
-  update: (dt: number, talking: boolean) => boolean;
+  update: (dt: number, talking: boolean, listening?: boolean) => boolean;
   dispose: () => void;
 };
 
@@ -236,6 +242,7 @@ export function createOrbLook(opts: { colour: OrbColour; sphere?: THREE.BufferGe
       uLobe: { value: now.bgLobe },
       uRim: { value: now.rim },
       uGlow: { value: 0.04 },
+      uListen: { value: 0 },
       uRings: { value: ringSlots },
     },
     depthTest: false,
@@ -268,13 +275,15 @@ export function createOrbLook(opts: { colour: OrbColour; sphere?: THREE.BufferGe
   let untilEcho = -1;
   let talk = 0; // 0 still .. 1 fully talking
   let clock = 0; // runs only while talking, so idle never moves
+  let listen = 0; // 0 off .. 1 listening glow fully up
+  let listenClock = 0; // drives the soft breathing while listening
 
   function spawn(kind: 1 | 2) {
     if (rings.length >= MAX_RINGS) rings.shift();
     rings.push({ kind, age: 0, life: kind === 1 ? RING_A.life : RING_B.life });
   }
 
-  function update(dt: number, talking: boolean) {
+  function update(dt: number, talking: boolean, listening = false) {
     const step = Math.min(Math.max(dt, 0), 0.1);
 
     if (fade < 1) {
@@ -315,7 +324,12 @@ export function createOrbLook(opts: { colour: OrbColour; sphere?: THREE.BufferGe
       0.18 * Math.sin(clock * 1.25) * talk,
       -0.16 * Math.cos(clock * 1.25) * talk,
     );
-    return talking || rings.length > 0 || untilEcho >= 0 || talk > 0 || fade < 1;
+    // Listening: the rim glow eases up and breathes gently (~1.6 s) until the orb is let go.
+    listen += ((listening ? 1 : 0) - listen) * Math.min(1, step / (LISTEN_EASE / 3));
+    if (listen < 1e-3 && !listening) listen = 0;
+    listenClock = listening ? listenClock + step : 0;
+    backdropMat.uniforms.uListen.value = listen * (0.85 + 0.15 * Math.cos(listenClock * 4));
+    return talking || listening || rings.length > 0 || untilEcho >= 0 || talk > 0 || listen > 0 || fade < 1;
   }
 
   function setColour(colour: OrbColour, instant = false) {

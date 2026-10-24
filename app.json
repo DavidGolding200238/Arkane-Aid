@@ -14,7 +14,14 @@
       "expo-font",
       "expo-sqlite",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Arkane Aid uses the microphone while you hold the Sage orb, so you can speak your question or note instead of typing it.",
+          "speechRecognitionPermission": "Arkane Aid turns what you say into text while you hold the Sage orb."
+        }
+      ]
     ],
     "scheme": "arkaneaid",
     "ios": {

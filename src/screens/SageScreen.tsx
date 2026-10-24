@@ -30,6 +30,7 @@ import { addCodexEntry } from "../lib/codex";
 import { askSage, type SageMode, type SagePersona, type SageTurn } from "../lib/sage";
 import { prepareDeviceVoices, speak, stopSpeaking, type SpeakerVoice } from "../lib/voice";
 import { errorText } from "../lib/parties";
+import { useHoldToTalk } from "../lib/holdToTalk";
 import { colors, fonts, spacing, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
@@ -52,7 +53,12 @@ function cleanReply(text: string) {
 }
 
 // One immersive line under the orb. It never changes height, so nothing below it moves.
-function statusLine(mode: SageMode, busy: boolean, speaking: boolean, fancy: boolean) {
+function statusLine(mode: SageMode, busy: boolean, speaking: boolean, fancy: boolean, listening: boolean) {
+  if (listening) {
+    if (mode === "scribe") return "The Scribe listens, quill raised...";
+    if (mode === "bard") return "The Bard is listening...";
+    return fancy ? "The Sage is listening..." : "The Arbiter is listening...";
+  }
   if (mode === "scribe") {
     if (busy) return "The quill scratches across the page...";
     return speaking ? "The Scribe reads it back..." : "The Scribe's quill is ready...";
@@ -103,6 +109,8 @@ export default function SageScreen({ onBack }: Props) {
   const [speaking, setSpeaking] = useState(false);
   const fontsLoaded = useAppFonts();
   const [writing, setWriting] = useState(false);
+  // A quick tap on the orb briefly shows how to talk to it.
+  const [holdHint, setHoldHint] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   // Follow the quill down the page until the user scrolls by hand.
   const follow = useRef(false);
@@ -187,8 +195,9 @@ export default function SageScreen({ onBack }: Props) {
     setError("");
   };
 
-  const ask = async () => {
-    const trimmed = question.trim();
+  // spoken: the words heard while the orb was held; otherwise what is typed in the box.
+  const ask = async (spoken?: string) => {
+    const trimmed = (spoken ?? question).trim();
     if (trimmed.length < 3) {
       setError(persona === "sage" ? "Ask a real question. Three characters at least." : "Write a little more. Three characters at least.");
       return;
@@ -257,6 +266,39 @@ export default function SageScreen({ onBack }: Props) {
     }
   };
 
+  // Hold the orb to talk. What is heard appears live in the typing box; letting go sends it
+  // through ask(), so the Sage answers it or the Scribe writes it down, exactly like typed text.
+  const { listening, start: startListening, release: stopListening } = useHoldToTalk({
+    getBase: () => question,
+    canStart: () => {
+      if (!busy) return true;
+      setError("The Sage is still answering. Hold the orb again in a moment.");
+      return false;
+    },
+    onStart: () => {
+      stopSpeaking();
+      setSpeaking(false);
+      Keyboard.dismiss();
+      setError("");
+      setHoldHint(false);
+    },
+    onTranscript: setQuestion,
+    onFinal: (text) => {
+      setQuestion(text);
+      ask(text);
+    },
+    onMessage: (message) => {
+      if (mounted.current) setError(message);
+    },
+  });
+
+  const showHoldHint = useCallback(() => setHoldHint(true), []);
+  useEffect(() => {
+    if (!holdHint) return;
+    const t = setTimeout(() => setHoldHint(false), 2200);
+    return () => clearTimeout(t);
+  }, [holdHint]);
+
   const toggleSpeech = () => {
     if (speaking) {
       stopSpeaking();
@@ -283,7 +325,15 @@ export default function SageScreen({ onBack }: Props) {
   const dockTop = scrollBox.y + scrollBox.h; // where the scroll area ends and the typing box area begins
   const bottomFadeTop = dockTop - bottomFade;
   const bottomFadeH = scrollBox.h > 0 && screen.h > 0 ? screen.h - bottomFadeTop : 0;
-  const status = writing && !speaking ? (sage ? "The quill writes..." : "The Scribe writes it down...") : statusLine(mode, busy, speaking, fancy);
+  const status = listening
+    ? statusLine(mode, busy, speaking, fancy, true)
+    : holdHint && !busy
+      ? "Hold the orb and speak..."
+      : writing && !speaking
+        ? sage
+          ? "The quill writes..."
+          : "The Scribe writes it down..."
+        : statusLine(mode, busy, speaking, fancy, false);
 
   return (
     <KeyboardAvoidingView
@@ -310,6 +360,8 @@ export default function SageScreen({ onBack }: Props) {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        // A held orb must not turn into a scroll halfway through speaking.
+        scrollEnabled={!listening}
         showsVerticalScrollIndicator={false}
         onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         onScrollBeginDrag={() => {
@@ -320,8 +372,15 @@ export default function SageScreen({ onBack }: Props) {
           scrollY.current = e.nativeEvent.contentOffset.y;
         }}
       >
-        <SageOrb size={s(250)} flame={FLAME[voice]} mood={busy ? "thinking" : speaking ? "speaking" : "idle"}
+        <SageOrb
+          size={s(250)}
+          flame={FLAME[voice]}
+          mood={busy ? "thinking" : speaking ? "speaking" : "idle"}
           talking={speaking || writing}
+          listening={listening}
+          onHoldStart={startListening}
+          onHoldEnd={stopListening}
+          onTap={showHoldHint}
         />
 
         <Animated.Text
@@ -401,7 +460,7 @@ export default function SageScreen({ onBack }: Props) {
             setQuestion(text);
             if (error) setError("");
           }}
-          onSend={ask}
+          onSend={() => ask()}
           busy={busy}
         />
       </View>

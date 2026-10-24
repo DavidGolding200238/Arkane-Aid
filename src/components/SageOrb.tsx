@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import SageAvatar from "./SageAvatar";
 import FireLoop from "./flames/FireLoop";
 import { colors } from "../theme";
@@ -27,10 +27,21 @@ type Props = {
   mood?: FlameMood;
   /** True while the Sage speaks or writes a reply: the orb pulses white rings. */
   talking?: boolean;
+  /** True while the orb is held to speak: the rim glows brighter. */
+  listening?: boolean;
+  /** Held past HOLD_MS: start listening. Without it the orb is not pressable. */
+  onHoldStart?: () => void;
+  /** The finger left the orb (or the press was cancelled, e.g. by a scroll). */
+  onHoldEnd?: () => void;
+  /** A quick tap that never reached the hold. */
+  onTap?: () => void;
 };
 
+/** How long the orb must be held before it starts listening, ms. */
+const HOLD_MS = 250;
+
 /** The 3D orb with its animated fire, sized so the flames wrap the orb's lower edge. */
-function SageOrb({ size, flame, mood = "idle", talking = false }: Props) {
+function SageOrb({ size, flame, mood = "idle", talking = false, listening = false, onHoldStart, onHoldEnd, onTap }: Props) {
   const reduce = useReduceMotion();
   const { tint, under, glow, emberGapMs } = useFlameMotion(mood, flame, reduce);
   const k = size / (ORB_R * 2); // dp per art pixel
@@ -48,8 +59,22 @@ function SageOrb({ size, flame, mood = "idle", talking = false }: Props) {
     <View style={{ width: fireW, height: stageH }}>
       <FlameGlow cx={orbCx} cy={orbCy} orbRadius={size / 2} glow={glow} colour={flame} under={under} tint={tint} />
       <View style={[styles.halo, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}>
-        <SageAvatar size={size} colour={flame} talking={talking} />
+        <SageAvatar size={size} colour={flame} talking={talking} listening={listening} />
       </View>
+      {onHoldStart ? (
+        // Hold-to-talk target: just the orb's circle, above the fire and embers (which never take touches).
+        <Pressable
+          style={[styles.hold, { left: orbLeft, top: orbTop, width: size, height: size, borderRadius: size / 2 }]}
+          delayLongPress={HOLD_MS}
+          onLongPress={onHoldStart}
+          onPressOut={onHoldEnd}
+          onPress={onTap}
+          accessibilityRole="button"
+          accessibilityLabel="Sage orb"
+          accessibilityHint="Hold to speak, let go to send"
+          accessibilityState={{ busy: listening }}
+        />
+      ) : null}
       <View pointerEvents="none" style={[styles.fire, { width: fireW, height: fireH, left: 0, top: fireTop }]}>
         {/* One fire, never scaled or faded, so the orb edge stays covered exactly as aligned. */}
         <FireLoop width={fireW} height={fireH} colour={flame} under={under} still={reduce} />
@@ -64,7 +89,7 @@ function SageOrb({ size, flame, mood = "idle", talking = false }: Props) {
 }
 
 // Memoised: the screen re-renders on every keystroke, the flames only need to when
-// the size, colour, mood or talking changes.
+// the size, colour, mood, talking or listening changes (the hold handlers must be stable).
 export default memo(SageOrb);
 
 const styles = StyleSheet.create({
@@ -83,4 +108,6 @@ const styles = StyleSheet.create({
   fire: { position: "absolute", zIndex: 2, elevation: 16 },
   // Embers float over the fire and the orb; no background, so no shadow either.
   embers: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 3, elevation: 17 },
+  // Transparent touch target over the orb; above the embers so a touch always reaches it.
+  hold: { position: "absolute", zIndex: 4, elevation: 18 },
 });
