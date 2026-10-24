@@ -3,6 +3,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,12 +40,21 @@ const CARD_FILL = "#FBF6EA";
 function SectionTitle({ children, size, center }: { children: string; size: number; center?: boolean }) {
   // Measured, so the underline spans the whole heading on Android too ("100%" inside a shrink-wrapped
   // title collapsed to a short dash under the middle letters on device).
+  // Centred titles stretch full width with centred text instead of shrink-wrapping: a box exactly as
+  // wide as the measured line came out a sub-pixel short on Android, so "Personality" wrapped onto a
+  // clipped second line and only "VOICE" showed. The underline then takes the drawn line's width.
   const [textW, setTextW] = useState(0);
+  const stretch = center && Platform.OS !== "web";
   return (
-    <View style={[styles.sectionTitle, center && styles.sectionCenter]}>
+    <View style={[styles.sectionTitle, center && (stretch ? styles.sectionStretch : styles.sectionCenter)]}>
       <Text
-        style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
-        onLayout={(e) => setTextW(Math.round(e.nativeEvent.layout.width))}
+        style={[styles.section, stretch && styles.sectionTextCenter, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
+        onLayout={stretch ? undefined : (e) => setTextW(Math.round(e.nativeEvent.layout.width))}
+        onTextLayout={
+          stretch
+            ? (e) => setTextW(Math.ceil(Math.max(0, ...e.nativeEvent.lines.map((l) => l.width))))
+            : undefined
+        }
       >
         <Text style={[styles.dropCap, { fontSize: Math.round(size * 1.5) }]}>{children.charAt(0)}</Text>
         {children.slice(1)}
@@ -419,6 +429,8 @@ const styles = StyleSheet.create({
   toggleOn: { color: colors.activeTab },
   sectionTitle: { alignSelf: "flex-start", flexShrink: 1 },
   sectionCenter: { alignSelf: "center" },
+  sectionStretch: { alignSelf: "stretch" },
+  sectionTextCenter: { textAlign: "center" },
   section: { fontFamily: fonts.title, color: colors.wordmark, letterSpacing: 0.4, ...inkText.red },
   sectionRule: { marginTop: -3 },
   dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
