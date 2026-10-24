@@ -1,4 +1,5 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import type { SheetData } from "./character";
 import { splitSource } from "./speechText";
 import { supabase } from "./supabase";
 
@@ -28,7 +29,9 @@ export type SageReply = {
   /** false when the question was outside the SRD (the reply says "Lore:" or "Homebrew idea:"). */
   grounded: boolean;
   /** "hybrid" (keyword + meaning search), "keyword" (meaning search off or not seeded), "none" (small talk). */
-  retrieval?: "hybrid" | "keyword" | "none";
+  retrieval?: "hybrid" | "keyword" | "none" | "sheet";
+  /** Sheet reviews only: what the sheet checker found ("fix" or "suggest"). */
+  findings?: { severity: "fix" | "suggest"; field: string; problem: string }[];
 };
 
 /** One earlier exchange in this Sage session, for follow-up questions. In memory only. */
@@ -40,6 +43,8 @@ export type SageRequest = {
   style?: SageStyle;
   /** The asker's own sheet, short form (see sheetBrief). */
   sheet?: string;
+  /** The same sheet as fields, so the function's checker can review it exactly. */
+  character?: SheetData | null;
   /** Lets the Sage read the party's sheets for "what can we do" questions. */
   partyId?: string | null;
   /** The last few exchanges of this session (the function uses at most 3, clipped). */
@@ -81,6 +86,7 @@ export async function askSage(request: SageRequest): Promise<SageReply> {
       mode: request.mode ?? "sage",
       style: request.style ?? "plain",
       sheet: request.sheet ?? "",
+      character: request.character ?? undefined,
       partyId: request.partyId ?? undefined,
       history: (request.history ?? []).slice(-3),
     },

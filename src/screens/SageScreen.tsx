@@ -23,7 +23,7 @@ import SageModeButtons from "../components/SageModeButtons";
 import { useParty } from "../context/PartyContext";
 import { useVoice, type VoiceId } from "../context/VoiceContext";
 import type { FlameColour } from "../components/flames/useFlameMotion";
-import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief } from "../lib/character";
+import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief, sheetData, type SheetData } from "../lib/character";
 import { addCodexEntry } from "../lib/codex";
 import { askSage, type SageMode, type SagePersona, type SageTurn } from "../lib/sage";
 import { prepareDeviceVoices, speak, speechPace, stopSpeaking, type SpeakerVoice } from "../lib/voice";
@@ -194,11 +194,13 @@ export default function SageScreen({ onBack }: Props) {
     setBusy(true);
     try {
       let brief = "";
+      let fields: SheetData | null = null;
       if (mode !== "scribe" && needsSheet(trimmed)) {
         const character = await loadCharacter(partyId);
         const gear = character ? await loadEquipment(character.id) : [];
         const traits = character ? await loadTraits(character.id) : [];
         brief = sheetBrief(character, gear, traits);
+        fields = sheetData(character, gear, traits);
         setSheetLine(brief ? "Sheet attached." : "No sheet yet.");
       }
       const data = await askSage({
@@ -206,6 +208,7 @@ export default function SageScreen({ onBack }: Props) {
         mode,
         style: fancy ? "wizard" : "plain",
         sheet: brief,
+        character: fields,
         partyId,
         history: mode === "scribe" ? [] : history,
       });
