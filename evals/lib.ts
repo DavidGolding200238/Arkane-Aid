@@ -20,7 +20,29 @@ export type EvalCase = {
   fix_fields?: string[];
   /** No Source footer allowed (chat, greetings, a clean sheet's praise). */
   no_source?: boolean;
+  /** No "Fix:" / "Suggestion:" checklist labels, in the reply or stripped by the safety net. */
+  no_labels?: boolean;
 };
+
+/** The three voices an eval can run in. */
+export type Voice = "wizard" | "arbiter" | "bard";
+
+// A "Fix:" / "Suggestion:" label at a line start, bold or bulleted or not.
+const LABELLED = /^[ \t]*(?:[-•*][ \t]+|\d+[.)][ \t]+)?[*_]*(?:fix(?:es)?|suggest(?:ions?)?)\b[^\n:]{0,30}:/im;
+const ARCHAIC = /\b(?:thee|thy|thine|thou|hath|doth)\b/i;
+
+/**
+ * Does the reply sound like its voice? A rough check, but it catches the flat help-desk tone:
+ * the Wizard says thee or thy, the Arbiter never does and never sings, the Bard is playful.
+ */
+export function voiceCheck(voice: Voice, reply: string): ReplyCheck {
+  if (voice === "wizard") return { name: "sounds like the Wizard (thee/thy)", pass: ARCHAIC.test(reply) };
+  if (voice === "arbiter") return { name: "sounds like the Arbiter (plain, no thee/thy or song)", pass: !ARCHAIC.test(reply) && !/[♪♫]/.test(reply) };
+  return {
+    name: "sounds like the Bard (playful)",
+    pass: /[!♪♫]|\b(?:sing|song|tune|verse|rhyme|lute|ballad|melod\w*|tale|tavern|encore|bard)\b/i.test(reply),
+  };
+}
 
 // Help-desk sign-offs break the voice; an in-character offer is fine.
 const HELP_DESK = /let me know if|happy to help|feel free to (?:ask|reach)|hope this helps|anything else i can/i;
@@ -54,6 +76,9 @@ export function checkReply(
     sources?: { title: string }[];
     source?: string;
     findings?: { severity: string; field: string }[];
+    labelsStripped?: boolean;
+    /** Set for the tone cases: the reply must sound like this voice. */
+    voice?: Voice;
   } = {},
 ): ReplyCheck[] {
   const text = reply.toLowerCase();
@@ -68,6 +93,10 @@ export function checkReply(
   checks.push({ name: "no citation in the spoken text", pass: !/\bSRD\b|\bp\.\s*\d|^\s*sources?:/im.test(reply) });
   checks.push({ name: "no help-desk closer", pass: !HELP_DESK.test(reply) });
   checks.push({ name: "no creature or monster talk about a sheet", pass: !(c.kind === "sheet" && /creature|monster/i.test(reply)) });
+  if (c.no_labels) {
+    checks.push({ name: 'no "Fix:" / "Suggestion:" labels', pass: !LABELLED.test(reply) && !meta.labelsStripped });
+  }
+  if (meta.voice) checks.push(voiceCheck(meta.voice, reply));
   if (c.no_source && meta.source !== undefined) checks.push({ name: "no Source footer", pass: meta.source === "" });
   if (c.fix_fields && meta.findings) {
     const fixes = meta.findings.filter((f) => f.severity === "fix").map((f) => f.field);
