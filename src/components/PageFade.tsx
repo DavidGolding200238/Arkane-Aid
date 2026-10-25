@@ -97,13 +97,24 @@ export function ScrollFades({
 }) {
   const { tail, line } = useFadeSizes();
   if (box.h <= 0 || screen.w <= 0) return null;
+  // The bottom fade runs a couple of dp past the scroll area's edge, fully solid there, so
+  // sub-pixel rounding never leaves an unfaded sliver of content along the bottom. The overlap
+  // is page paper lined up with the background, so it is invisible.
+  const lip = 3;
   return (
     <>
       {top ? (
         <PageFade direction="down" top={box.y} height={tail} screenWidth={screen.w} screenHeight={screen.h} />
       ) : null}
       {bottom ? (
-        <PageFade direction="up" top={box.y + box.h - line} height={line} screenWidth={screen.w} screenHeight={screen.h} />
+        <PageFade
+          direction="up"
+          top={box.y + box.h - line}
+          height={line + lip}
+          solid={lip / (line + lip)}
+          screenWidth={screen.w}
+          screenHeight={screen.h}
+        />
       ) : null}
     </>
   );
