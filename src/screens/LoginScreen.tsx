@@ -119,7 +119,8 @@ export default function LoginScreen({ onOpenDash }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : signingUp ? "height" : undefined}
+      // Same as Sage: padding on both platforms, so the form pushes up above the keyboard.
+      behavior="padding"
       onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     >
       <StatusBar style="dark" />
