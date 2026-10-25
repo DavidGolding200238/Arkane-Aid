@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Image, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import PageHeader from "./PageHeader";
 import ParchmentPanel from "./ParchmentPanel";
+import { ScrollFades, useFadeSizes } from "./PageFade";
 import { colors, fonts, inkText, radius, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
@@ -21,18 +22,24 @@ type Props = {
 export default function ScreenFrame({ title, onBack, children, footer, subtitle = "Tome" }: Props) {
   const fontsLoaded = useAppFonts();
   const { s } = useScale();
+  // Layout for the Sage page's soft fades: the page size, and the scroll area's place on it.
+  const fade = useFadeSizes();
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
   if (!fontsLoaded) return <View style={styles.root} />;
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <PageHeader title={title} subtitle={subtitle} onBack={onBack} />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: s(20), paddingTop: s(4), paddingBottom: s(28) }}
+        // Room for the top and bottom of the sheet to scroll clear of the fades, as on the Sage page.
+        contentContainerStyle={{ paddingHorizontal: s(20), paddingTop: s(4) + fade.tail, paddingBottom: s(28) + fade.line }}
         keyboardShouldPersistTaps="handled"
+        onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         removeClippedSubviews={false}
       >
         <Image source={d20} style={[styles.badge, { width: s(64), height: s(64), marginBottom: s(6) }]} resizeMode="contain" />
@@ -43,6 +50,8 @@ export default function ScreenFrame({ title, onBack, children, footer, subtitle 
           {children}
         </ParchmentPanel>
       </ScrollView>
+      {/* The Sage page's fades, once here for every page that uses this frame. */}
+      <ScrollFades screen={screen} box={scrollBox} />
       {footer}
     </View>
   );

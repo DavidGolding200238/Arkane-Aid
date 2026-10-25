@@ -15,6 +15,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Path } from "react-native-svg";
 import PageHeader from "../components/PageHeader";
+import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
 import { RefreshIcon } from "../components/icons";
 import { CornerOrnaments, Flourish, INK_COLOR, InkButton, InkOutline, INK_RADIUS } from "../components/Ink";
@@ -194,6 +195,10 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const [seats, setSeats] = useState<Record<string, Seat[]>>({});
   const [open, setOpen] = useState<Section>(null);
   const [boundW, setBoundW] = useState(0);
+  // Layout for the Sage page's soft fades: the page size, and the scroll area's place on it.
+  const fade = useFadeSizes();
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
   // The reload icon turns while the party list is loading.
   const spin = useAnimatedValue(0);
   useEffect(() => {
@@ -248,7 +253,7 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const indexPad = indexBleed + panelPad;
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
@@ -256,8 +261,10 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: pagePad, paddingBottom: s(28) }}
+        // Room for the top and bottom of the page to scroll clear of the fades, as on the Sage page.
+        contentContainerStyle={{ paddingHorizontal: pagePad, paddingTop: fade.tail, paddingBottom: s(28) + fade.line }}
         keyboardShouldPersistTaps="handled"
+        onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         removeClippedSubviews={false}
       >
         <View style={styles.center}>
@@ -448,6 +455,8 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           </View>
         </InkCard>
       </ScrollView>
+      {/* The Sage page's fades: the page melts into the paper under the header and above the tab bar. */}
+      <ScrollFades screen={screen} box={scrollBox} />
     </View>
   );
 }

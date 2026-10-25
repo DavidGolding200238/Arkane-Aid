@@ -36,6 +36,7 @@ import {
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
+import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import ParchmentPanel from "../components/ParchmentPanel";
 import CircleButton from "../components/CircleButton";
 import Rule from "../components/Rule";
@@ -248,6 +249,10 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const [customClass, setCustomClass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Layout for the Sage page's soft fades: the page size, and the scroll area's place on it.
+  const fade = useFadeSizes();
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -577,7 +582,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
   return (
     // Lifts the sheet above the keyboard while typing, the same way the Sage screen does.
-    <KeyboardAvoidingView style={styles.root} behavior="padding">
+    <KeyboardAvoidingView style={styles.root} behavior="padding" onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
@@ -589,11 +594,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           styles.page,
           {
             paddingHorizontal: pagePad,
-            paddingTop: s(4),
-            paddingBottom: s(24),
+            // Room for the top and bottom of the sheet to scroll clear of the fades, as on the Sage page.
+            paddingTop: s(4) + fade.tail,
+            paddingBottom: s(24) + fade.line,
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
       >
         <ParchmentPanel
           variant="ledger"
@@ -1003,6 +1010,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           </View>
         ) : null}
       </ScrollView>
+      {/* The Sage page's fades: the page melts into the paper under the header and above the tab bar. */}
+      <ScrollFades screen={screen} box={scrollBox} />
     </KeyboardAvoidingView>
   );
 }
