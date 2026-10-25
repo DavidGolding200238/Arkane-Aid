@@ -119,7 +119,7 @@ function Gate() {
           </ScreenError>
         ) : null}
         {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
-        {screen === "ledger" ? <LedgerScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
+        {screen === "ledger" ? <LedgerScreen onBack={() => setScreen("codex")} onOpen={setScreen} /> : null}
         {screen === "settings" ? <SettingsScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "create" ? (
           <CreatePartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
