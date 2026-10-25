@@ -109,7 +109,6 @@ Shows which party you are in. Account options cover sign out, creating or joinin
 | Images | expo-image, expo-image-picker |
 | Fonts | Cinzel Decorative, Atkinson Hyperlegible |
 | Builds | EAS Build |
-| Android package | za.co.openwindow.arkaneaid |
 
 The Groq key only lives as a Supabase function secret. It is never in the app, the APK or this repository.
 
