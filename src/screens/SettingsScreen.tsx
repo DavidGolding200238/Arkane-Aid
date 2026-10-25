@@ -253,7 +253,9 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   const indexPad = indexBleed + panelPad;
 
   return (
-    <View style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    // Keyed so it mounts fresh after the font-loading placeholder: a reused view never reports
+    // its layout again, and the fades need the page size.
+    <View key="page" style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
