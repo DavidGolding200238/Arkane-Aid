@@ -401,7 +401,10 @@ for (const [name, voice] of SAGE_VOICES) {
       "Suggestion: Give thy character a name.",
       "suggest - put thy best score in Charisma.",
     ].join("\n");
-    const { result } = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, checklist);
+    const { result } = await runReply(
+      { question: "What you think of my chatacter sheet", character: DAVID, ...voice },
+      checklist,
+    );
     assertFalse(/fix|suggest/i.test(result.reply), result.reply);
     assertEquals(result.reply.split("\n"), [
       "Strength 30 exceeds the maximum of 20 for any character; lower it to 20 or less.",
@@ -411,22 +414,34 @@ for (const [name, voice] of SAGE_VOICES) {
       "Put thy best score in Charisma.",
     ]);
     assert(result.labelsStripped);
-    const clean = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, "Ah, young one, thy Strength soars too high.");
+    const clean = await runReply(
+      { question: "What you think of my chatacter sheet", character: DAVID, ...voice },
+      "Ah, young one, thy Strength soars too high.",
+    );
     assertFalse(clean.result.labelsStripped);
   });
 
   Deno.test(`${name}: sheet reviews keep the voice's own temperature`, async () => {
-    const review = await runReply({ question: "What you think of my chatacter sheet", character: DAVID, ...voice }, "ok");
+    const review = await runReply(
+      { question: "What you think of my chatacter sheet", character: DAVID, ...voice },
+      "ok",
+    );
     const rules = await runReply({ question: "how does grappling work", ...voice }, "ok");
     assertEquals(review.request.temperature, rules.request.temperature);
-    assertEquals(review.request.temperature, temperatureFor(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard"));
+    assertEquals(
+      review.request.temperature,
+      temperatureFor(voice.mode as "sage" | "bard", voice.style as "plain" | "wizard"),
+    );
     assertEquals(review.request.maxTokens, rules.request.maxTokens);
   });
 }
 
 Deno.test("more than four must-change items may be a short list, still without labels", async () => {
   const broken = { ...DAVID, hp_max: 0, ac: 0 };
-  const { request } = await runReply({ question: "check my sheet", character: broken, mode: "sage", style: "wizard" }, "ok");
+  const { request } = await runReply(
+    { question: "check my sheet", character: broken, mode: "sage", style: "wizard" },
+    "ok",
+  );
   const user = request.messages[1].content;
   assertStringIncludes(user, "a short plain list is allowed");
   assertStringIncludes(user, 'No "Fix:" or "Suggestion:" labels');
@@ -554,11 +569,31 @@ for (const [name, voice] of noSheetVoices) {
     assertFalse(/splendid|great|well done|fine sheet/i.test(result.reply));
     assertEquals(result.retrieval, "sheet");
     const fields = result.findings!.map((f) => f.field);
-    for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) assert(fields.includes(field), field);
+    for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) {
+      assert(fields.includes(field), field);
+    }
     assert(result.source.length > 0);
   });
   Deno.test(`${name}: the untouched template saved as is gets the same review`, async () => {
-    const character = { name: "", race: "", class: "", level: 1, hp_current: 10, hp_max: 10, ac: 10, speed: 30, str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, features: "", languages: "", skills: [] };
+    const character = {
+      name: "",
+      race: "",
+      class: "",
+      level: 1,
+      hp_current: 10,
+      hp_max: 10,
+      ac: 10,
+      speed: 30,
+      str: 10,
+      dex: 10,
+      con: 10,
+      int: 10,
+      wis: 10,
+      cha: 10,
+      features: "",
+      languages: "",
+      skills: [],
+    };
     const blank = await runFixed({ question: "check my sheet", ...voice });
     const { calls, result } = await runFixed({ question: "check my sheet", character, ...voice });
     assertEquals(calls, 0);
@@ -593,4 +628,51 @@ Deno.test("a filled-in sheet still goes to the checker and the model, not the fi
   });
   assertEquals(calls, 1);
   assertEquals(result.retrieval, "sheet");
+});
+
+Deno.test("temperatures: Wizard 0.25, Arbiter 0.3, Bard 0.35, Scribe 0.2", () => {
+  assertEquals(temperatureFor("sage", "wizard"), 0.25);
+  assertEquals(temperatureFor("sage", "plain"), 0.3);
+  assertEquals(temperatureFor("bard", "plain"), 0.35);
+  assertEquals(temperatureFor("bard", "wizard"), 0.35);
+  assertEquals(temperatureFor("scribe"), 0.2);
+});
+
+// Rules answers never come from the small fallback model; chat, the Scribe and sheet reviews
+// (which only explain the checker's findings) keep it.
+for (
+  const [name, body, fallback] of [
+    ["rules question", { question: "how does grappling work", mode: "sage", style: "plain" }, false],
+    ["chat", { question: "Hello", mode: "sage", style: "plain" }, true],
+    ["scribe", { question: "Thorin grappled the goblin", mode: "scribe" }, true],
+    ["sheet review", { question: "check my sheet", sheet: "Level 3 Human Fighter", mode: "bard" }, true],
+  ] as const
+) {
+  Deno.test(`${name}: fallback to the small model is ${fallback ? "allowed" : "off"}`, async () => {
+    const { request } = await run(body);
+    assertEquals(request.fallback, fallback);
+  });
+}
+
+Deno.test("the reply names the model that wrote it", async () => {
+  const result = (await ask({ question: "how does grappling work", mode: "bard" }, {
+    chat: () => Promise.resolve({ text: "Grab and hold!", model: "openai/gpt-oss-20b" }),
+    party: () => Promise.resolve(""),
+  })) as AskReply;
+  assertEquals(result.model, "openai/gpt-oss-20b");
+  const plain = await run({ question: "how does grappling work", mode: "sage" });
+  assertEquals(plain.result.model, PERSONAS.sage.model);
+});
+
+Deno.test("a busy chat call is not turned into the busy line", async () => {
+  let threw = false;
+  try {
+    await ask({ question: "Hello", mode: "sage" }, {
+      chat: () => Promise.reject(new Error("down")),
+      party: () => Promise.resolve(""),
+    });
+  } catch {
+    threw = true;
+  }
+  assert(threw);
 });

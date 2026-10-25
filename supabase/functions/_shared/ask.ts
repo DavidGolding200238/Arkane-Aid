@@ -1,12 +1,30 @@
 // Everything the sage function does between "here is the request body" and "here is the reply",
 // with Groq and the party lookup passed in, so tests can run the whole path with Groq mocked.
-import type { ChatRequest } from "./groq.ts";
-import { tidy } from "./groq.ts";
+import type { ChatAnswer, ChatRequest } from "./groq.ts";
+import { isBusy, tidy } from "./groq.ts";
 import { reviewMessage, userMessage } from "./message.ts";
-import { flavourOf, type Flavour, PERSONAS, resolveMode, type SageStyle, systemPrompt, temperatureFor, voiceReminder } from "./personas.ts";
+import {
+  type Flavour,
+  flavourOf,
+  PERSONAS,
+  resolveMode,
+  type SageStyle,
+  systemPrompt,
+  temperatureFor,
+  voiceReminder,
+} from "./personas.ts";
 import { type ChatKind, chatKind } from "./smalltalk.ts";
 import { dropClosers, hasLabels, pickSource, splitReply } from "./reply.ts";
-import { checkSheet, findingsSource, isTemplate, labelledSheet, parseBrief, readSheet, type Severity, TEMPLATE_SHEET } from "./sheet_check.ts";
+import {
+  checkSheet,
+  findingsSource,
+  isTemplate,
+  labelledSheet,
+  parseBrief,
+  readSheet,
+  type Severity,
+  TEMPLATE_SHEET,
+} from "./sheet_check.ts";
 import { srd } from "./srd.ts";
 import { hybridSearch, type SemanticSearch } from "./hybrid.ts";
 import { historyMessages, isFollowUp, isVague, readHistory } from "./history.ts";
@@ -20,9 +38,11 @@ const ABOUT_PARTY = /\b(party|we|our|us|everyone|everybody|anyone|anybody|who|gr
 // for a verdict, so "does my character add proficiency to the check" stays a rules question.
 const SHEETY = /\b(sheet|playersheet|charsheet|build|stats|ability scores)\b/i;
 const CHARY = /\b(?!chapter|chatter)cha[a-z]{0,4}ters?\b|\bcaracters?\b|\bpc\b/i;
-const STRONG = /\b(check (?:my|the|over|out|this)|review|look (?:over|at)|wrong|mistakes?|errors?|fix (?:my|the|this)|problems?|issues?|think (?:of|about)|what do you think|thoughts?|opinion|rate|rating|feedback|critique)\b/i;
+const STRONG =
+  /\b(check (?:my|the|over|out|this)|review|look (?:over|at)|wrong|mistakes?|errors?|fix (?:my|the|this)|problems?|issues?|think (?:of|about)|what do you think|thoughts?|opinion|rate|rating|feedback|critique)\b/i;
 const WEAK = /\b(legal|valid|correct|good|ok|okay|fine|looks?)\b/i;
-const BARE_SHEET = /^\W*(?:(?:is|how's|hows|how is)\s+)?(?:my|the)\s+(?:character\s+|player\s*)?sheet\W*(?:ok(?:ay)?|good|fine|right)?\W*$/i;
+const BARE_SHEET =
+  /^\W*(?:(?:is|how's|hows|how is)\s+)?(?:my|the)\s+(?:character\s+|player\s*)?sheet\W*(?:ok(?:ay)?|good|fine|right)?\W*$/i;
 
 export function isSheetReview(question: string): boolean {
   const sheety = SHEETY.test(question);
@@ -61,9 +81,18 @@ const NO_SHEET_MARK = /press Save sheet/;
 // A cut-off question with nothing to lean on ("where must I"): ask again instead of guessing from
 // a weak SRD match on filler words.
 const SAY_AGAIN: Record<Flavour, string> = {
-  wizard: "Forgive me, I caught only part of thy question. Ask it once more, and hold the orb until thou art done speaking.",
+  wizard:
+    "Forgive me, I caught only part of thy question. Ask it once more, and hold the orb until thou art done speaking.",
   plain: "I only caught part of that. Ask it again, and keep holding the orb until you finish speaking.",
   bard: "I caught but a scrap of that verse! Sing it again, and hold the orb till the very last word.",
+};
+
+// The big model is busy or rate-limited and the question is a rules question: the small fallback
+// model makes rules up too often, so the Sage asks the player to try again instead.
+export const BUSY: Record<Flavour, string> = {
+  wizard: "Forgive me, the stars are crowded and my tome will not open just now. Ask me again in a moment.",
+  plain: "The Sage is busy right now. Ask again in a moment.",
+  bard: "My lute's mid-tune and the hall is packed! Ask again in a moment, friend.",
 };
 
 function fixedReply(mode: string, persona: string, reply: string): AskReply {
@@ -79,12 +108,14 @@ function fixedReply(mode: string, persona: string, reply: string): AskReply {
     chat: null,
     retrieval: "none",
     labelsStripped: false,
+    model: "none",
   };
 }
 
 export type AskDeps = {
-  /** One Groq chat call (groq.ts chat with the key bound, or a mock). */
-  chat: (request: ChatRequest) => Promise<string>;
+  /** One Groq chat call (groq.ts chatWithModel with the key bound, or a mock). A bare string
+   *  means the requested model answered. */
+  chat: (request: ChatRequest) => Promise<string | ChatAnswer>;
   /** The party's sheets as text, read as the caller. */
   party: (partyId: string) => Promise<string>;
   /** Meaning search (gte-small + pgvector). Missing or failing means keyword search only. */
@@ -109,6 +140,10 @@ export type AskReply = {
   retrieval: "hybrid" | "keyword" | "none" | "sheet";
   /** True when the model wrote "Fix:" / "Suggestion:" labels and the safety net removed them (the evals fail on it). */
   labelsStripped: boolean;
+  /** The model that wrote the reply ("none" for a fixed reply with no model call). */
+  model: string;
+  /** True for the "Sage is busy, ask again" reply. */
+  busy?: boolean;
   /** A sheet review's findings from the checker; absent otherwise. */
   findings?: { severity: Severity; field: string; problem: string }[];
 };
@@ -141,20 +176,23 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
   const review = !kind && !!sheetData && persona.mode !== "scribe" && isSheetReview(question);
   const reminder = voiceReminder(persona.mode, style, review);
   const finish = (content: string) => (reminder ? `${content}\n\n${reminder}` : content);
-  const talk = async (content: string) =>
-    tidy(
-      await deps.chat({
-        model: persona.model,
-        temperature: temperatureFor(persona.mode, style),
-        maxTokens: persona.maxTokens,
-        messages: [
-          { role: "system", content: systemPrompt(persona.mode, style) },
-          ...historyMessages(history),
-          // The voice reminder is the very last thing the model reads before it answers.
-          { role: "user", content: finish(content) },
-        ],
-      }),
-    );
+  const talk = async (content: string, fallback = true): Promise<ChatAnswer> => {
+    const answer = await deps.chat({
+      model: persona.model,
+      temperature: temperatureFor(persona.mode, style),
+      maxTokens: persona.maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt(persona.mode, style) },
+        ...historyMessages(history),
+        // The voice reminder is the very last thing the model reads before it answers.
+        { role: "user", content: finish(content) },
+      ],
+      fallback,
+    });
+    return typeof answer === "string"
+      ? { text: tidy(answer), model: persona.model }
+      : { text: tidy(answer.text), model: answer.model };
+  };
 
   const flavour = flavourOf(persona.mode, style);
   if (!kind && flavour && (!sheetData || isTemplate(sheetData))) {
@@ -181,7 +219,7 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
     // The checker decides what is wrong; the model explains it. No SRD search, and the footer
     // comes from the findings, never from the model.
     const findings = checkSheet(sheetData!);
-    const raw = await talk(reviewMessage(question, sheetText, findings));
+    const { text: raw, model } = await talk(reviewMessage(question, sheetText, findings));
     // splitReply also strips any "Fix:" / "Suggestion:" labels the model still wrote.
     const reply = dropClosers(splitReply(raw).text);
     if (!reply) return { code: "empty_reply", error: "The Sage had nothing to say. Try asking another way." };
@@ -198,6 +236,7 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
       chat: null,
       retrieval: "sheet",
       labelsStripped: hasLabels(raw),
+      model,
       findings: findings.map(({ severity, field, problem }) => ({ severity, field, problem })),
     };
   }
@@ -210,7 +249,16 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
   const party = found && partyId && ABOUT_PARTY.test(question) ? await deps.party(partyId) : "";
   const chat = kind ? { kind, hasHistory: history.length > 0 } : null;
 
-  const raw = await talk(userMessage(question, found, found ? sheetText : "", party, chat));
+  // A rules answer (not chat, not the Scribe) never comes from the small fallback model.
+  const rules = !!found && !!flavour;
+  let answer: ChatAnswer;
+  try {
+    answer = await talk(userMessage(question, found, found ? sheetText : "", party, chat), !rules);
+  } catch (error) {
+    if (!rules || !isBusy(error)) throw error;
+    return { ...fixedReply(persona.mode, persona.name, BUSY[flavour!]), grounded: false, busy: true };
+  }
+  const raw = answer.text;
   // The spoken answer and its short source note ("Alignment, p. 21") travel separately, so
   // text to speech never reads citations aloud. The footer names only extracts the model was
   // given; chat, lore, homebrew and declines get none.
@@ -231,5 +279,6 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
     chat: kind,
     retrieval: found?.retrieval ?? "none",
     labelsStripped: hasLabels(raw),
+    model: answer.model,
   };
 }

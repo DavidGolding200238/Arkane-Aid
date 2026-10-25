@@ -3,7 +3,16 @@ const URL = "https://api.groq.com/openai/v1/chat/completions";
 const FALLBACK_MODEL = "openai/gpt-oss-20b";
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-export type ChatRequest = { model: string; temperature: number; maxTokens: number; messages: ChatMessage[] };
+export type ChatRequest = {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  messages: ChatMessage[];
+  /** false: when the big model is busy, fail instead of answering with the small one (rules answers). */
+  fallback?: boolean;
+};
+/** The reply text and the model that wrote it. */
+export type ChatAnswer = { text: string; model: string };
 
 export class GroqError extends Error {
   constructor(message: string, readonly status: number) {
@@ -33,15 +42,25 @@ export async function once(key: string, request: ChatRequest): Promise<string> {
   return String(data?.choices?.[0]?.message?.content ?? "").trim();
 }
 
-/** One call, with a single retry on the small model when the big one is busy or rate-limited. */
-export async function chat(key: string, request: ChatRequest): Promise<string> {
+/** Rate-limited (429), a Groq server error (5xx), a timeout or a dropped connection. */
+export function isBusy(error: unknown): boolean {
+  return error instanceof GroqError ? error.status === 429 || error.status >= 500 : true;
+}
+
+/** One call, with a single retry on the small model when the big one is busy or rate-limited,
+ *  unless the request says fallback: false. Returns the model that answered. */
+export async function chatWithModel(key: string, request: ChatRequest): Promise<ChatAnswer> {
   try {
-    return await once(key, request);
+    return { text: await once(key, request), model: request.model };
   } catch (error) {
-    const busy = error instanceof GroqError ? error.status === 429 || error.status >= 500 : true;
-    if (!busy || request.model === FALLBACK_MODEL) throw error;
-    return await once(key, { ...request, model: FALLBACK_MODEL });
+    if (!isBusy(error) || request.model === FALLBACK_MODEL || request.fallback === false) throw error;
+    return { text: await once(key, { ...request, model: FALLBACK_MODEL }), model: FALLBACK_MODEL };
   }
+}
+
+/** chatWithModel, text only. */
+export async function chat(key: string, request: ChatRequest): Promise<string> {
+  return (await chatWithModel(key, request)).text;
 }
 
 /** Plain text for a parchment card and the speech engine: no markdown left over. */
