@@ -154,7 +154,7 @@ Only needed if you want to run or change the code.
 ```bash
 git clone https://github.com/DavidGolding200238/Arkane-Aid.git
 cd Arkane-Aid
-git checkout development
+git checkout Apk-Build
 npm install
 ```
 
@@ -316,7 +316,7 @@ Speech in and out use the phone's own engines. No paid speech services.
 ## 10. Repository
 
 Public repository: DavidGolding200238/Arkane-Aid  
-Active branch: development
+Active branch: Apk-Build
 
 ---
 
