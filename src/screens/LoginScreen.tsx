@@ -53,6 +53,8 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const fade = useFadeSizes();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState({ w: 0, h: 0 });
+  // Scroll area, for the Sage bottom fade (it shrinks while the keyboard is open).
+  const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
@@ -116,6 +118,12 @@ export default function LoginScreen({ onOpenDash }: Props) {
 
   if (!fontsLoaded) return <View style={styles.fallback} />;
 
+  // Sage's bottom fade: solid paper behind the nav bar, then one line fading up from it. With the
+  // keyboard open the scroll area ends at the keyboard, so there is no nav bar to cover.
+  const keyboardOpen = screen.h > 0 && scrollBox.h > 0 && scrollBox.y + scrollBox.h < screen.h - 1;
+  const navCover = keyboardOpen ? 0 : insets.bottom;
+  const bottomFadeH = navCover + fade.line;
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
@@ -127,9 +135,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.page, { paddingTop: signingUp ? Math.max(topInset, insets.top + fade.tail) : s(48), paddingBottom: s(36) }]}
+        contentContainerStyle={[styles.page, { paddingTop: signingUp ? Math.max(topInset, insets.top + fade.tail) : s(48), paddingBottom: Math.max(s(36), insets.bottom) + fade.line }]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
+        onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
       >
         <View style={styles.hero}>
           <Image
@@ -340,6 +349,16 @@ export default function LoginScreen({ onOpenDash }: Props) {
         screenWidth={screen.w}
         screenHeight={screen.h}
       />
+      {scrollBox.h > 0 && screen.h > 0 ? (
+        <PageFade
+          direction="up"
+          top={scrollBox.y + scrollBox.h - bottomFadeH}
+          height={bottomFadeH}
+          solid={navCover / bottomFadeH}
+          screenWidth={screen.w}
+          screenHeight={screen.h}
+        />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
