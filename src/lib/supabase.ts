@@ -1,4 +1,5 @@
 import "react-native-url-polyfill/auto";
+import { AppState } from "react-native";
 import { createClient } from "@supabase/supabase-js";
 import "expo-sqlite/localStorage/install";
 
@@ -21,4 +22,13 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+});
+
+// Supabase's React Native setup: refresh tokens only while the app is on screen. Without this the
+// refresh timer can fire as the app goes to the background (e.g. switching to WhatsApp to copy a
+// party code); if Android cuts that request off after the server has rotated the token, the phone
+// keeps the old refresh token, the next refresh is refused as reused, and supabase-js signs out.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
 });

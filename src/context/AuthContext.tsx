@@ -211,7 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    // This phone only: the default ("global") also ends the account's sessions on every other phone.
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) throw new Error("Could not sign out. Try again.");
   };
 
