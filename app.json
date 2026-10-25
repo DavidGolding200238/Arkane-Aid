@@ -31,6 +31,14 @@
           "microphonePermission": "Arkane Aid uses the microphone while you hold the Sage orb, so you can speak your question or note instead of typing it.",
           "speechRecognitionPermission": "Arkane Aid turns what you say into text while you hold the Sage orb."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.gl.** { *; }"
+          }
+        }
       ]
     ],
     "scheme": "arkaneaid",

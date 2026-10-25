@@ -219,6 +219,18 @@ npm run start:dev
 
 `npm start` runs Expo Go. Most of the app runs there, but voice input does not.
 
+#### Release build note: the Sage orb and code shrinking
+
+The first preview APK crashed as soon as the Sage screen opened, while the development build was fine. Expo SDK 58 turns on R8 code shrinking for Android release builds, and `expo-gl` 58.0.3 ships without keep rules, so R8 strips the `GLView` constructor. When the 3D orb's canvas mounts, Android can't create the view and the app closes. Development builds don't shrink code, so the problem only shows up in preview and production builds. It is a known Expo issue ([expo/expo#51948](https://github.com/expo/expo/issues/51948)).
+
+The fix lives in `app.json`. The `expo-build-properties` plugin adds a keep rule for `expo-gl` and leaves shrinking on for everything else:
+
+```json
+["expo-build-properties", { "android": { "extraProguardRules": "-keep class expo.modules.gl.** { *; }" } }]
+```
+
+If a future release build still crashes there, set `"enableMinifyInReleaseBuilds": false` under `android` in the same plugin instead. The APK gets bigger but nothing is stripped. Remove the rule once a fixed `expo-gl` is released.
+
 ### Checks
 
 ```bash
