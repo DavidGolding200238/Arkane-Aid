@@ -116,22 +116,33 @@ The Groq key only lives as a Supabase function secret. It is never in the app, t
 
 ## 4. Installation (APK)
 
-The normal way to try the app.
+The normal way to try the app. The APK is a standalone preview build, so it runs on its own without a computer or Metro.
 
 ### Requirements
 
-An Android phone. Permission to install apps from your browser or file manager.
+- An Android phone (Android 7 or newer)
+- An internet connection, for signing in and asking the Sage
 
-### Steps
+### Install
 
-1. Open the EAS build link for the latest preview build on your phone.
-2. Download the APK and open it.
-3. If Android asks, allow installs from the browser or file manager you used.
-4. Install and open Arkane Aid.
-5. Sign up with an email and password.
-6. Create a party, or join one with a code from your dungeon master.
-7. Fill in your sheet in the Ledger, then open the Sage and ask a ruling.
-8. Allow the microphone the first time you hold the orb.
+1. On the phone, open the EAS install link for the latest preview build (or scan its QR code).
+2. Tap **Install** and download the APK.
+3. Open the downloaded file from the notification or the Downloads folder.
+4. If Android blocks it, tap **Settings** and turn on **Allow from this source** for the browser you used, then go back and tap **Install**.
+5. If Google Play Protect warns about an unknown app, tap **More details** and then **Install anyway**. That warning shows up for any APK that doesn't come from the Play Store.
+
+If an older Arkane Aid or a development build is already on the phone, uninstall it first (long-press the icon, then **Uninstall**). Both use the same package name, and installing over the top keeps the old app's data.
+
+### Open the app
+
+1. Open **Arkane Aid** from the app drawer.
+2. Wait for the splash screen to finish loading.
+3. Sign up with an email and password, or sign in.
+4. Create a party, or join one with a code from your dungeon master.
+5. Fill in your sheet in the Ledger, then open the Sage and ask a ruling.
+6. Allow the microphone the first time you hold the orb to speak.
+
+You stay signed in between launches.
 
 ---
 
