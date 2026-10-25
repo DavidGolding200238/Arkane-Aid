@@ -67,8 +67,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const fieldH = s(40);
   // Compact auth: buttons hug their labels (~40 dp art, hit area padded to 44 by TornButton).
   const btnH = s(40);
-  const pairW = s(128); // fits "SIGN UP"/"LOGIN" with modest padding; both equal
-  const socialW = Math.min(formW, s(284));
+  // Every button lines up with the input boxes' left and right edges (formW).
+  const pairGap = s(12);
+  const pairW = (formW - pairGap) / 2; // Login | Sign up split the field width, both equal
+  const socialW = formW;
   const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
 
   const switchMode = (next: Mode) => {
@@ -275,7 +277,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
             </View>
           ) : (
             <>
-              <View style={{ marginTop: s(8), flexDirection: "row", justifyContent: "center", gap: s(12) }}>
+              <View style={{ marginTop: s(8), flexDirection: "row", justifyContent: "center", gap: pairGap }}>
                 <TornButton label="Login" variant="red" fullWidth={pairW} height={btnH} compact fineEdge onPress={submit} busy={busy} disabled={busy} />
                 <TornButton
                   label="Sign up"

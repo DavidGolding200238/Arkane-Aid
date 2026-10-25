@@ -96,12 +96,19 @@ export default function TornButton({
       ) : (
         <Image source={ART[variant]} style={{ position: "absolute", width: w, height: h }} resizeMode="stretch" />
       )}
-      <View style={[styles.center, icon ? { flexDirection: "row", gap: s(10) } : null]}>
+      {/* Icon pinned at the input text's inset (s(14)); the label stays centred on the button. */}
+      {icon && !busy ? (
+        <Image
+          source={icon}
+          style={{ position: "absolute", left: s(14), top: (h - iconSize) / 2, width: iconSize, height: iconSize }}
+          resizeMode="contain"
+        />
+      ) : null}
+      <View style={[styles.center, icon ? { paddingHorizontal: s(14) + iconSize + s(8) } : null]}>
         {busy ? (
           <ActivityIndicator color={onRed ? colors.cream : colors.ink} />
         ) : (
           <>
-            {icon ? <Image source={icon} style={{ width: iconSize, height: iconSize }} resizeMode="contain" /> : null}
             <Text
               style={[
                 styles.label,
