@@ -34,9 +34,9 @@ const facebookIcon = require("../../assets/images/auth/icon-facebook.png");
 const MIN_PASSWORD = 8;
 
 type Mode = "in" | "up";
-type Props = { onOpenDash?: () => void };
+type Props = { onOpenDash?: () => void; onForgotPassword?: () => void };
 
-export default function LoginScreen({ onOpenDash }: Props) {
+export default function LoginScreen({ onOpenDash, onForgotPassword }: Props) {
   const { s, fs, width } = useScale();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
@@ -240,6 +240,7 @@ export default function LoginScreen({ onOpenDash }: Props) {
           ) : (
             <Pressable
               onPress={() => {
+                if (onForgotPassword) return onForgotPassword();
                 setError("");
                 setNotice("Password reset is not wired yet.");
               }}

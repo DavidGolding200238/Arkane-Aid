@@ -6,6 +6,7 @@ import { PartyProvider } from "./src/context/PartyContext";
 import { VoiceProvider } from "./src/context/VoiceContext";
 import SplashScreen from "./src/screens/SplashScreen";
 import LoginScreen from "./src/screens/LoginScreen";
+import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import CodexScreen from "./src/screens/CodexScreen";
 import LedgerScreen from "./src/screens/LedgerScreen";
@@ -71,6 +72,7 @@ function Gate() {
   const [progress, setProgress] = useState(0);
   const [preloaded, setPreloaded] = useState(false);
   const [screen, setScreen] = useState<AppScreen>("home");
+  const [resetting, setResetting] = useState(false);
 
   // The splash waits for real work: fonts, the main screens' art, the fire loops, and the Sage's
   // code and orb model, reporting progress as each finishes (see src/lib/preload).
@@ -90,7 +92,10 @@ function Gate() {
   if (!splashDone || loading) {
     return <SplashScreen progress={progress} ready={preloaded} onFinish={finishSplash} />;
   }
-  if (!user) return <LoginScreen />;
+  if (!user) {
+    if (resetting) return <ResetPasswordScreen onBack={() => setResetting(false)} />;
+    return <LoginScreen onForgotPassword={() => setResetting(true)} />;
+  }
 
 
   return (
