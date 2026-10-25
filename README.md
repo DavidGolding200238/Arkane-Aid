@@ -24,10 +24,7 @@ The Sage answers a ruling in a few short spoken sentences, grounded in the offic
 
 ### Target users
 
-Players at a small live table. Two personas drove the design.
-
-- Jack Thompson, 26, Johannesburg. A developer. Wants a fast ruling, not a wall of rulebook text.
-- Alex Carter, 24, Cape Town. A student with dyslexia. Needs short, plain sentences that can be read aloud.
+Players at a small live table who want a quick ruling, a note or a number without stopping the game.
 
 ### Platform
 
