@@ -18,7 +18,9 @@ import {
   AtkinsonHyperlegible_400Regular,
   AtkinsonHyperlegible_400Regular_Italic,
 } from "@expo-google-fonts/atkinson-hyperlegible";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
+import PageFade, { useFadeSizes } from "../components/PageFade";
 import Rule from "../components/Rule";
 import TornButton, { FineEdgeArt } from "../components/TornButton";
 import { colors, inkText, useScale } from "../theme";
@@ -47,6 +49,10 @@ export default function LoginScreen({ onOpenDash }: Props) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [titleW, setTitleW] = useState(200);
+  // Layout for the Sage page's top fade behind the status bar.
+  const fade = useFadeSizes();
+  const insets = useSafeAreaInsets();
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
 
   const [fontsLoaded] = useFonts({
     CinzelDecorative_400Regular,
@@ -112,12 +118,13 @@ export default function LoginScreen({ onOpenDash }: Props) {
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : signingUp ? "height" : undefined}
+      onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     >
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.page, { paddingTop: signingUp ? topInset : s(48), paddingBottom: s(36) }]}
+        contentContainerStyle={[styles.page, { paddingTop: signingUp ? Math.max(topInset, insets.top + fade.tail) : s(48), paddingBottom: s(36) }]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
@@ -320,6 +327,16 @@ export default function LoginScreen({ onOpenDash }: Props) {
           ) : null}
         </View>
       </ScrollView>
+      {/* The Sage page's top fade: solid paper behind the status bar, then Sage's short tail, so the
+          page scrolls away under it instead of under the clock and icons. */}
+      <PageFade
+        direction="down"
+        top={0}
+        height={insets.top + fade.tail}
+        solid={insets.top / (insets.top + fade.tail)}
+        screenWidth={screen.w}
+        screenHeight={screen.h}
+      />
     </KeyboardAvoidingView>
   );
 }
