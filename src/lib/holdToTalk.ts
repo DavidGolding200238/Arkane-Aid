@@ -25,7 +25,13 @@ function loadSpeech(): SpeechModule | null {
 }
 
 // Game words the recogniser would otherwise mishear.
-const TERMS = ["Sage", "Scribe", "Codex", "Ledger", "d20", "cantrip", "saving throw", "advantage", "disadvantage", "initiative", "spell slot"];
+const TERMS = [
+  "Sage", "Scribe", "Codex", "Ledger", "d20", "cantrip", "saving throw", "advantage", "disadvantage", "initiative", "spell slot",
+  "player sheet", "character sheet", "Arbiter", "warlock", "halfling", "proficiency", "ability score", "Strength",
+];
+/** South African English first; phones without that speech pack fall back to US English for the rest of the session. */
+const LANGS = ["en-ZA", "en-US"] as const;
+let langIndex = 0;
 /** How long to wait for the recogniser's last words after letting go before giving up on them. */
 const FINISH_TIMEOUT_MS = 2500;
 
@@ -82,12 +88,18 @@ export function useHoldToTalk({ getBase, canStart, onStart, onTranscript, onFina
   const sendOnEnd = useRef(false); // let go: hand over the text when the recogniser ends
   const endedWhileHeld = useRef(false); // the recogniser stopped by itself while still held
   const failed = useRef(false);
+  const retryLang = useRef(false); // the language wasn't supported: start again in the fallback
   const heard = useRef<Heard>({ base: "", finals: [], interim: "" });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
+  };
+
+  const listen = (mod: SpeechModule) => {
+    mod.start({ lang: LANGS[langIndex], interimResults: true, continuous: true, maxAlternatives: 1, contextualStrings: TERMS });
+    active.current = true;
   };
 
   const deliver = useCallback(() => {
@@ -103,6 +115,14 @@ export function useHoldToTalk({ getBase, canStart, onStart, onTranscript, onFina
 
   const stopped = useCallback(() => {
     active.current = false;
+    if (retryLang.current) {
+      retryLang.current = false;
+      const mod = loadSpeech();
+      if (mod && held.current) {
+        listen(mod);
+        return;
+      }
+    }
     setListening(false);
     if (failed.current) {
       clearTimer();
@@ -130,6 +150,12 @@ export function useHoldToTalk({ getBase, canStart, onStart, onTranscript, onFina
       }),
       mod.addListener("error", (event) => {
         if (event.error === "aborted") return;
+        if (event.error === "language-not-supported" && langIndex < LANGS.length - 1) {
+          // No South African speech pack on this phone: switch to US English and listen again.
+          langIndex += 1;
+          retryLang.current = true;
+          return;
+        }
         if ((event.error === "no-speech" || event.error === "speech-timeout") && heardText(heard.current)) return; // keep what was heard
         failed.current = true;
         const message =
@@ -196,8 +222,7 @@ export function useHoldToTalk({ getBase, canStart, onStart, onTranscript, onFina
       failed.current = false;
       sendOnEnd.current = false;
       endedWhileHeld.current = false;
-      mod.start({ lang: "en-US", interimResults: true, continuous: true, maxAlternatives: 1, contextualStrings: TERMS });
-      active.current = true;
+      listen(mod);
       setListening(true);
       holdHaptic();
     } catch {
