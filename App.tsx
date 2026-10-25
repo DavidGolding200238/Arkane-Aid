@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { PartyProvider } from "./src/context/PartyContext";
@@ -66,6 +66,13 @@ class ScreenError extends Component<{ children: ReactNode; onBack: () => void },
   }
 }
 
+// Where each screen's back arrow goes; Android's own back button and gesture follow the same map.
+function backFrom(screen: AppScreen): AppScreen {
+  if (screen === "ledger") return "codex";
+  if (screen === "create" || screen === "join") return "settings";
+  return "home";
+}
+
 function Gate() {
   const { user, loading, recovery, cancelRecovery } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
@@ -86,6 +93,26 @@ function Gate() {
       live = false;
     };
   }, []);
+
+  // Android back (the < key or the side swipe) goes back a page like the on-screen arrows.
+  // On the dashboard and the login screen it is left to Android, which closes the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!splashDone || loading) return false;
+      if (!user) {
+        if (resetting || recovery !== "none") {
+          setResetting(false);
+          void cancelRecovery();
+          return true;
+        }
+        return false;
+      }
+      if (screen === "home") return false;
+      setScreen(backFrom(screen));
+      return true;
+    });
+    return () => sub.remove();
+  }, [splashDone, loading, user, resetting, recovery, cancelRecovery, screen]);
 
   const finishSplash = useCallback(() => setSplashDone(true), []);
 
@@ -119,7 +146,7 @@ function Gate() {
           </ScreenError>
         ) : null}
         {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
-        {screen === "ledger" ? <LedgerScreen onBack={() => setScreen("codex")} onOpen={setScreen} /> : null}
+        {screen === "ledger" ? <LedgerScreen onBack={() => setScreen(backFrom("ledger"))} onOpen={setScreen} /> : null}
         {screen === "settings" ? <SettingsScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
         {screen === "create" ? (
           <CreatePartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
