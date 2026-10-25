@@ -524,3 +524,73 @@ Deno.test("out-of-scope and odd questions reach all three voices as the same mes
     }
   }
 });
+
+// No sheet sent (or the untouched template saved): every voice reviews the Ledger's blank template
+// as incomplete with a fixed line, with no model call, so no voice praises it or brushes it off.
+async function runFixed(body: Record<string, unknown>) {
+  let calls = 0;
+  const result = await ask(body, {
+    chat: () => {
+      calls += 1;
+      return Promise.resolve("Thy sheet is splendid!");
+    },
+    party: () => Promise.resolve(""),
+  });
+  return { calls, result: result as AskReply };
+}
+const noSheetVoices: [string, Record<string, unknown>][] = [
+  ["wizard", { mode: "sage", style: "wizard" }],
+  ["arbiter", { mode: "sage", style: "plain" }],
+  ["bard", { mode: "bard", style: "plain" }],
+];
+for (const [name, voice] of noSheetVoices) {
+  Deno.test(`${name}: a sheet question with no sheet reviews the blank template as incomplete`, async () => {
+    const { calls, result } = await runFixed({ question: "what do you think of my player sheet", ...voice });
+    assertEquals(calls, 0);
+    for (const word of ["species", "class", "name", "10", "traits", "features", "Ledger", "Save sheet"]) {
+      assertStringIncludes(result.reply, word);
+    }
+    assert(/join it on the Tome/i.test(result.reply), result.reply);
+    assertFalse(/splendid|great|well done|fine sheet/i.test(result.reply));
+    assertEquals(result.retrieval, "sheet");
+    const fields = result.findings!.map((f) => f.field);
+    for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) assert(fields.includes(field), field);
+    assert(result.source.length > 0);
+  });
+  Deno.test(`${name}: the untouched template saved as is gets the same review`, async () => {
+    const character = { name: "", race: "", class: "", level: 1, hp_current: 10, hp_max: 10, ac: 10, speed: 30, str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, features: "", languages: "", skills: [] };
+    const blank = await runFixed({ question: "check my sheet", ...voice });
+    const { calls, result } = await runFixed({ question: "check my sheet", character, ...voice });
+    assertEquals(calls, 0);
+    assertEquals(result.reply, blank.result.reply);
+  });
+  Deno.test(`${name}: in a party, the template review skips the join step`, async () => {
+    const partyId = "00000000-0000-4000-8000-000000000000";
+    const { calls, result } = await runFixed({ question: "check my sheet", partyId, ...voice });
+    assertEquals(calls, 0);
+    assertFalse(/join it/i.test(result.reply));
+  });
+  Deno.test(`${name}: "where must I" after the template review repeats it`, async () => {
+    const first = await runFixed({ question: "what do you think of my player sheet", ...voice });
+    const history = [{ q: "what do you think of my player sheet", a: first.result.reply }];
+    const { calls, result } = await runFixed({ question: "where must I", history, ...voice });
+    assertEquals(calls, 0);
+    assertEquals(result.reply, first.result.reply);
+  });
+  Deno.test(`${name}: a cut-off question with no history asks again instead of guessing`, async () => {
+    const { calls, result } = await runFixed({ question: "where must I", ...voice });
+    assertEquals(calls, 0);
+    assertStringIncludes(result.reply, "orb");
+  });
+}
+
+Deno.test("a filled-in sheet still goes to the checker and the model, not the fixed line", async () => {
+  const { calls, result } = await runFixed({
+    question: "what do you think of my sheet",
+    sheet: "Level 3 Human Fighter",
+    mode: "sage",
+    style: "wizard",
+  });
+  assertEquals(calls, 1);
+  assertEquals(result.retrieval, "sheet");
+});

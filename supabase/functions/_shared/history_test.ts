@@ -35,3 +35,8 @@ Deno.test("follow-ups are short and lean on the last message", () => {
     assertFalse(isFollowUp(q), q);
   }
 });
+
+Deno.test("short filler-only questions lean on the last answer", () => {
+  for (const q of ["where must I", "what must I do?", "now what", "what do I do"]) assert(isFollowUp(q), q);
+  for (const q of ["what does prone do", "grapple?", "where must I put my bonus action"]) assertFalse(isFollowUp(q), q);
+});

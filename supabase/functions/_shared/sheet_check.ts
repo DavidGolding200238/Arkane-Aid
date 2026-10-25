@@ -230,6 +230,34 @@ export function parseBrief(brief: string): Sheet | null {
   };
 }
 
+/** The Ledger's blank starting sheet (EMPTY in src/screens/LedgerScreen.tsx): what a new player sees
+ *  before they fill anything in. It is drawn on the phone and only stored on "Save sheet", so the
+ *  app sends no sheet for it; the Sage reviews this instead. Keep equal to EMPTY. */
+export const TEMPLATE_SHEET: Sheet = {
+  level: 1,
+  hp_current: 10,
+  hp_max: 10,
+  ac: 10,
+  speed: 30,
+  scores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  skills: [],
+  languages: [],
+  features: [],
+  traits: [],
+  gear: [],
+};
+
+/** True when every ability score is filled in and still the starting 10. */
+function allTens(sheet: Sheet): boolean {
+  return ABILITIES.every(([key]) => sheet.scores[key] === 10);
+}
+
+/** True for the untouched starting template (saved or not): no name, species, class, lists, all 10s. */
+export function isTemplate(sheet: Sheet): boolean {
+  return !sheet.partial && !sheet.name && !sheet.race && !sheet.class && allTens(sheet) &&
+    !sheet.features.length && !sheet.traits.length && !sheet.skills.length && !sheet.gear.length;
+}
+
 /** Ability Score Improvements by level (4, 8, 12, 16) and the Epic Boon at 19, each worth +2. */
 function boosts(level: number): number {
   return [4, 8, 12, 16, 19].filter((l) => level >= l).length;
@@ -278,6 +306,10 @@ export function checkSheet(sheet: Sheet): Finding[] {
     }
   }
 
+  if (!sheet.partial && allTens(sheet)) {
+    add("fix", "Ability Scores", "All six ability scores are still the starting 10.", "Set them with the standard array (15, 14, 13, 12, 10, 8), point buy or a roll.", REFS.generate);
+  }
+
   // Hit points, Armor Class, Speed. 0 current HP is legal (down and dying); a 0 maximum is not.
   if (sheet.hp_max !== undefined && sheet.hp_max <= 0) {
     add("fix", "Hit Points", `Maximum Hit Points are ${sheet.hp_max}.`, "At level 1 it is your class's Hit Die maximum plus your Constitution modifier.", REFS.numbers);
@@ -305,8 +337,11 @@ export function checkSheet(sheet: Sheet): Finding[] {
   const badFeatures = junk("Features", sheet.features, featureFix, REFS.features);
   junk("Traits", sheet.traits, "Replace it with your species traits, or clear it.", REFS.species);
   junk("Gear", sheet.gear, "Replace it with your starting equipment from your class and background.", REFS.equipment);
-  if (!sheet.partial && !badFeatures && klass && !sheet.features.length) {
-    add("suggest", "Features", "No class features are written down.", `A level 1 ${klass} has ${LEVEL_1[klass]}.`, REFS.features);
+  if (!sheet.partial && !badFeatures && !sheet.features.length) {
+    add("suggest", "Features", "No class features are written down.", klass ? `A level 1 ${klass} has ${LEVEL_1[klass]}.` : "Pick a class, then write down its level 1 features.", REFS.features);
+  }
+  if (!sheet.partial && !sheet.traits.length) {
+    add("suggest", "Traits", "No species traits are written down.", race ? `Write down the ${race} traits.` : "Pick a species, then write down its traits.", REFS.species);
   }
 
   // Gentle notes on the scores.

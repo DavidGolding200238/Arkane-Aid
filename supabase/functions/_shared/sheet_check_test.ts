@@ -1,15 +1,17 @@
-import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertFalse, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   checkSheet,
   CLASSES,
   findingsSource,
   findingsText,
   isJunk,
+  isTemplate,
   labelledSheet,
   parseBrief,
   RACES,
   readSheet,
   type Sheet,
+  TEMPLATE_SHEET,
 } from "./sheet_check.ts";
 import * as app from "../../../src/lib/sheetLists.ts";
 
@@ -192,4 +194,17 @@ Deno.test("a pipe in the player's own text cannot break the findings table", () 
   const text = findingsText(check({ race: "Elf | Orc" }));
   assert(text.includes("Elf / Orc"), text);
   for (const row of text.split("\n")) assertEquals(row.split(" | ").length, 4, row);
+});
+
+Deno.test("the blank Ledger template is flagged incomplete, never clean", () => {
+  assert(isTemplate(TEMPLATE_SHEET));
+  const findings = checkSheet(TEMPLATE_SHEET);
+  const fields = findings.map((f) => f.field);
+  for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) assert(fields.includes(field), field);
+  assertEquals(findings.find((f) => f.field === "Ability Scores")!.severity, "fix");
+});
+
+Deno.test("a filled-in sheet is not the template", () => {
+  assertFalse(isTemplate({ ...TEMPLATE_SHEET, race: "Elf" }));
+  assertFalse(isTemplate({ ...TEMPLATE_SHEET, scores: { ...TEMPLATE_SHEET.scores, str: 15 } }));
 });

@@ -3,13 +3,13 @@
 import type { ChatRequest } from "./groq.ts";
 import { tidy } from "./groq.ts";
 import { reviewMessage, userMessage } from "./message.ts";
-import { PERSONAS, resolveMode, type SageStyle, systemPrompt, temperatureFor, voiceReminder } from "./personas.ts";
+import { flavourOf, type Flavour, PERSONAS, resolveMode, type SageStyle, systemPrompt, temperatureFor, voiceReminder } from "./personas.ts";
 import { type ChatKind, chatKind } from "./smalltalk.ts";
 import { dropClosers, hasLabels, pickSource, splitReply } from "./reply.ts";
-import { checkSheet, findingsSource, labelledSheet, parseBrief, readSheet, type Severity } from "./sheet_check.ts";
+import { checkSheet, findingsSource, isTemplate, labelledSheet, parseBrief, readSheet, type Severity, TEMPLATE_SHEET } from "./sheet_check.ts";
 import { srd } from "./srd.ts";
 import { hybridSearch, type SemanticSearch } from "./hybrid.ts";
-import { historyMessages, isFollowUp, readHistory } from "./history.ts";
+import { historyMessages, isFollowUp, isVague, readHistory } from "./history.ts";
 import { text } from "./http.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +30,56 @@ export function isSheetReview(question: string): boolean {
   if (STRONG.test(question) && (sheety || chary)) return true;
   if (WEAK.test(question) && (sheety || (chary && question.split(/\s+/).length <= 7))) return true;
   return BARE_SHEET.test(question);
+}
+
+// A sheet question with no saved sheet (the app sends none until "Save sheet"), or the untouched
+// starting template saved as is: the Sage reviews the Ledger's blank template as INCOMPLETE. The
+// reply is a fixed line per voice, never a model call, so no voice can praise a blank sheet or
+// brush the player off. It names what is missing and where to fill it in.
+const TEMPLATE_REVIEW: Record<Flavour, (party: boolean) => string> = {
+  wizard: (party) =>
+    "Thy sheet is still the Ledger's blank starting page, so it is not finished yet. It has no species, no class " +
+    "and no name, all six ability scores still sit at 10, and no traits or features are written. Open the Ledger, " +
+    "tap the quill, fill these in and press Save sheet" +
+    (party ? "" : ". If thou playest with a party, join it on the Tome first, for each party keeps its own sheet") +
+    ". Then ask me again and I shall read it gladly.",
+  plain: (party) =>
+    "Your sheet is still the blank starting template, so it's incomplete. It has no species, no class and no name, " +
+    "all six ability scores are still 10, and no traits or features are written. Open the Ledger, tap the quill, " +
+    "fill these in and press Save sheet" +
+    (party ? "" : ". If you play with a party, join it on the Tome first, because each party keeps its own sheet") +
+    ". Then ask me again and I'll review it.",
+  bard: (party) =>
+    "Your sheet's a blank page, your tale's still unsung! No species, no class and no name, all six scores still 10, " +
+    "and no traits or features yet. Open the Ledger, tap the quill, fill these in and press Save sheet" +
+    (party ? "" : ". Got a party? Join it on the Tome first, for each party keeps its own sheet") +
+    ". Then ask again, and I'll sing what I see.",
+};
+/** Recognises a TEMPLATE_REVIEW reply in the history, so "what must I do?" after it gets the same steps. */
+const NO_SHEET_MARK = /press Save sheet/;
+
+// A cut-off question with nothing to lean on ("where must I"): ask again instead of guessing from
+// a weak SRD match on filler words.
+const SAY_AGAIN: Record<Flavour, string> = {
+  wizard: "Forgive me, I caught only part of thy question. Ask it once more, and hold the orb until thou art done speaking.",
+  plain: "I only caught part of that. Ask it again, and keep holding the orb until you finish speaking.",
+  bard: "I caught but a scrap of that verse! Sing it again, and hold the orb till the very last word.",
+};
+
+function fixedReply(mode: string, persona: string, reply: string): AskReply {
+  return {
+    mode,
+    persona,
+    reply,
+    source: "",
+    sources: [],
+    corrections: [],
+    grounded: true,
+    smallTalk: false,
+    chat: null,
+    retrieval: "none",
+    labelsStripped: false,
+  };
 }
 
 export type AskDeps = {
@@ -105,6 +155,27 @@ export async function ask(body: Record<string, unknown>, deps: AskDeps): Promise
         ],
       }),
     );
+
+  const flavour = flavourOf(persona.mode, style);
+  if (!kind && flavour && (!sheetData || isTemplate(sheetData))) {
+    // A sheet question, or "where must I?" right after the template review, with still no sheet.
+    const last = history[history.length - 1];
+    const afterReview = !!last && NO_SHEET_MARK.test(last.a) && isFollowUp(question);
+    if (isSheetReview(question) || afterReview) {
+      const findings = checkSheet(TEMPLATE_SHEET);
+      const refs = [...new Map(findings.map((f) => [f.ref.title, f.ref])).values()];
+      return {
+        ...fixedReply(persona.mode, persona.name, TEMPLATE_REVIEW[flavour](!!partyId)),
+        source: findingsSource(findings),
+        sources: refs.map((r) => ({ title: r.title, citation: `SRD 5.2.1, ${r.title}, p. ${r.page}`, page: r.page })),
+        retrieval: "sheet",
+        findings: findings.map(({ severity, field, problem }) => ({ severity, field, problem })),
+      };
+    }
+  }
+  if (!kind && flavour && !history.length && isVague(question)) {
+    return fixedReply(persona.mode, persona.name, SAY_AGAIN[flavour]);
+  }
 
   if (review) {
     // The checker decides what is wrong; the model explains it. No SRD search, and the footer
