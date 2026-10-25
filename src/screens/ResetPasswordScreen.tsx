@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,7 +10,6 @@ import {
   Text,
   TextInput,
   View,
-  type TextInputInstance,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,16 +25,20 @@ const field = require("../../assets/images/auth/input-field.png");
 
 // Same rule as sign-up.
 const MIN_PASSWORD = 8;
-const CODE_LENGTH = 6;
+const LINK_ERROR = "That reset link is invalid or has expired. Send a new link and try again.";
 
-type Props = { onBack: () => void };
+type Props = { onBack: () => void; onDone: () => void };
 
-/** Reset password with a 6-digit code from the email, styled like Create Account. */
-export default function ResetPasswordScreen({ onBack }: Props) {
+/**
+ * Reset password with the emailed link, styled like Create Account. Step 1 sends the link; tapping
+ * it on this phone reopens the app here (see AuthContext) for step 2, the new password.
+ */
+export default function ResetPasswordScreen({ onBack, onDone }: Props) {
   const { s, fs, width } = useScale();
-  const { sendResetCode, resetPassword } = useAuth();
+  const { recovery, sendResetLink, saveNewPassword } = useAuth();
+  const linkOpened = recovery === "ready";
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [linkErrorSeen, setLinkErrorSeen] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +48,6 @@ export default function ResetPasswordScreen({ onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
   const [titleW, setTitleW] = useState(200);
-  const codeInput = useRef<TextInputInstance>(null);
   const fade = useFadeSizes();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState({ w: 0, h: 0 });
@@ -60,9 +62,6 @@ export default function ResetPasswordScreen({ onBack }: Props) {
   const btnH = s(40);
   // The button lines up with the input boxes' edges, as on Login/Sign up.
   const socialW = formW;
-  const boxGap = s(8);
-  const boxW = (formW - boxGap * (CODE_LENGTH - 1)) / CODE_LENGTH;
-  const boxH = s(44);
   const topInset = Platform.OS === "android" ? (NativeStatusBar.currentHeight ?? 24) + s(8) : s(52);
   const locked = busy || sending;
 
@@ -75,16 +74,16 @@ export default function ResetPasswordScreen({ onBack }: Props) {
     return trimmed;
   };
 
-  const sendCode = async () => {
+  const sendLink = async () => {
     setError("");
     setNotice("");
+    setLinkErrorSeen(true);
     const trimmed = validEmail();
     if (!trimmed) return;
     setSending(true);
     try {
-      await sendResetCode(trimmed);
-      setNotice("If that email has an account, a 6-digit code is on its way.");
-      codeInput.current?.focus();
+      await sendResetLink(trimmed);
+      setNotice("If that email has an account, a reset link is on its way. Open the email on this phone and tap the link.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
@@ -95,12 +94,6 @@ export default function ResetPasswordScreen({ onBack }: Props) {
   const submit = async () => {
     setError("");
     setNotice("");
-    const trimmed = validEmail();
-    if (!trimmed) return;
-    if (!new RegExp(`^\\d{${CODE_LENGTH}}$`).test(code)) {
-      setError("Enter the 6-digit code from your email.");
-      return;
-    }
     if (password.length < MIN_PASSWORD) {
       setError(`Password must be at least ${MIN_PASSWORD} characters.`);
       return;
@@ -111,9 +104,9 @@ export default function ResetPasswordScreen({ onBack }: Props) {
     }
     setBusy(true);
     try {
-      await resetPassword(trimmed, code, password);
+      await saveNewPassword(password);
       // Signed in with the new password; next time the signed-out page opens on Login.
-      onBack();
+      onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setBusy(false);
@@ -124,6 +117,7 @@ export default function ResetPasswordScreen({ onBack }: Props) {
 
   // Same bottom fade as Login/Sign up: solid paper behind the nav bar, then one line fading up.
   const keyboardOpen = screen.h > 0 && scrollBox.h > 0 && scrollBox.y + scrollBox.h < screen.h - 1;
+  const shownError = error || (recovery === "invalid" && !linkErrorSeen ? LINK_ERROR : "");
   const navCover = keyboardOpen ? 0 : insets.bottom;
   const bottomFadeH = navCover + fade.line;
 
@@ -152,128 +146,92 @@ export default function ResetPasswordScreen({ onBack }: Props) {
           </Text>
           <Rule width={Math.max(titleW, s(120))} color={colors.rule} style={{ marginTop: -s(4), marginBottom: s(4) }} />
           <Text style={[styles.step, { fontSize: fs(15), marginTop: s(8) }]} accessibilityRole="header">
-            Reset your password
+            {linkOpened ? "Choose a new password" : "Reset your password"}
           </Text>
         </View>
 
         <View style={{ width: formW, marginTop: s(8) }}>
-          <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>Email</Text>
-          <FieldBox height={fieldH} width={formW} seed={12}>
-            <TextInput
-              style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              autoComplete="email"
-              value={email}
-              onChangeText={setEmail}
-              editable={!locked}
-              placeholderTextColor={colors.placeholder}
-            />
-          </FieldBox>
-          <Pressable
-            onPress={sendCode}
-            disabled={locked}
-            hitSlop={8}
-            style={styles.sendWrap}
-            accessibilityRole="button"
-            accessibilityLabel="Send code"
-          >
-            <Text style={[styles.sendCode, { fontSize: fs(13), marginTop: s(6) }]}>
-              {sending ? "Sending\u2026" : "Send code"}
-            </Text>
-          </Pressable>
+          {linkOpened ? (
+            <>
+              <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>New password</Text>
+              <FieldBox height={fieldH} width={formW} seed={13}>
+                <TextInput
+                  style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
+                  secureTextEntry={!showPassword}
+                  textContentType="newPassword"
+                  autoComplete="password-new"
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!busy}
+                  placeholderTextColor={colors.placeholder}
+                />
+                <Pressable
+                  style={[styles.eye, { right: s(12) }]}
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                >
+                  <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showPassword ? "Hide" : "Show"}</Text>
+                </Pressable>
+              </FieldBox>
 
-          <Text style={[styles.label, { fontSize: fs(15), marginTop: s(14), marginBottom: s(4) }]}>
-            6-digit code from your email
-          </Text>
-          {/* One hidden input takes the code (and the keyboard's autofill); six inked boxes show it. */}
-          <Pressable
-            onPress={() => codeInput.current?.focus()}
-            style={{ flexDirection: "row", gap: boxGap, height: boxH }}
-            accessibilityLabel="6-digit code"
-          >
-            {Array.from({ length: CODE_LENGTH }, (_, i) => (
-              <View key={i} style={{ width: boxW, height: boxH, alignItems: "center", justifyContent: "center" }}>
-                <FineEdgeArt source={field} w={boxW} h={boxH} seed={20 + i} />
-                <Text style={[styles.digit, { fontSize: fs(22) }]}>{code[i] ?? ""}</Text>
-              </View>
-            ))}
-            <TextInput
-              ref={codeInput}
-              style={styles.hiddenCode}
-              value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, CODE_LENGTH))}
-              keyboardType="number-pad"
-              maxLength={CODE_LENGTH}
-              textContentType="oneTimeCode"
-              autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
-              editable={!busy}
-              caretHidden
-              accessibilityLabel="6-digit code"
-            />
-          </Pressable>
+              <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Re-enter new password</Text>
+              <FieldBox height={fieldH} width={formW} seed={14}>
+                <TextInput
+                  style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
+                  secureTextEntry={!showConfirm}
+                  textContentType="newPassword"
+                  autoComplete="password-new"
+                  value={confirm}
+                  onChangeText={setConfirm}
+                  editable={!busy}
+                  placeholderTextColor={colors.placeholder}
+                />
+                <Pressable
+                  style={[styles.eye, { right: s(12) }]}
+                  onPress={() => setShowConfirm((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirm ? "Hide confirmation" : "Show confirmation"}
+                >
+                  <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showConfirm ? "Hide" : "Show"}</Text>
+                </Pressable>
+              </FieldBox>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.label, { fontSize: fs(15), marginBottom: s(4) }]}>Email</Text>
+              <FieldBox height={fieldH} width={formW} seed={12}>
+                <TextInput
+                  style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14) }]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                  autoComplete="email"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!locked}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </FieldBox>
+            </>
+          )}
 
-          <Text style={[styles.label, { fontSize: fs(15), marginTop: s(14), marginBottom: s(4) }]}>New password</Text>
-          <FieldBox height={fieldH} width={formW} seed={13}>
-            <TextInput
-              style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
-              secureTextEntry={!showPassword}
-              textContentType="newPassword"
-              autoComplete="password-new"
-              value={password}
-              onChangeText={setPassword}
-              editable={!busy}
-              placeholderTextColor={colors.placeholder}
-            />
-            <Pressable
-              style={[styles.eye, { right: s(12) }]}
-              onPress={() => setShowPassword((v) => !v)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-            >
-              <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showPassword ? "Hide" : "Show"}</Text>
-            </Pressable>
-          </FieldBox>
-
-          <Text style={[styles.label, { fontSize: fs(15), marginTop: s(10), marginBottom: s(4) }]}>Re-enter new password</Text>
-          <FieldBox height={fieldH} width={formW} seed={14}>
-            <TextInput
-              style={[styles.input, { fontSize: fs(16), height: fieldH, paddingHorizontal: s(14), paddingRight: s(64) }]}
-              secureTextEntry={!showConfirm}
-              textContentType="newPassword"
-              autoComplete="password-new"
-              value={confirm}
-              onChangeText={setConfirm}
-              editable={!busy}
-              placeholderTextColor={colors.placeholder}
-            />
-            <Pressable
-              style={[styles.eye, { right: s(12) }]}
-              onPress={() => setShowConfirm((v) => !v)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={showConfirm ? "Hide confirmation" : "Show confirmation"}
-            >
-              <Text style={[styles.eyeText, { fontSize: fs(13) }]}>{showConfirm ? "Hide" : "Show"}</Text>
-            </Pressable>
-          </FieldBox>
-
-          {error ? <Text style={[styles.error, { fontSize: fs(13), marginTop: s(12) }]}>{error}</Text> : null}
+          {shownError ? <Text style={[styles.error, { fontSize: fs(13), marginTop: s(12) }]}>{shownError}</Text> : null}
           {notice ? <Text style={[styles.notice, { fontSize: fs(13), marginTop: s(12) }]}>{notice}</Text> : null}
 
           <View style={{ marginTop: s(16), alignItems: "center", gap: s(10) }}>
             <TornButton
-              label="Reset password"
+              label={linkOpened ? "Save new password" : "Send reset link"}
               variant="red"
               fullWidth={socialW}
               height={btnH}
               compact
               fineEdge
-              onPress={submit}
-              busy={busy}
+              onPress={linkOpened ? submit : sendLink}
+              busy={linkOpened ? busy : sending}
               disabled={locked}
             />
             <Pressable onPress={onBack} disabled={busy} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back to login">
@@ -347,10 +305,6 @@ const styles = StyleSheet.create({
   },
   eye: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
   eyeText: { fontFamily: fonts.bodyItalic, color: colors.muted },
-  sendWrap: { alignSelf: "flex-end" },
-  sendCode: { fontFamily: fonts.bodyItalic, color: colors.wordmark, textDecorationLine: "underline" },
-  digit: { fontFamily: fonts.heading, color: colors.ink, includeFontPadding: false },
-  hiddenCode: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, opacity: 0, color: "transparent" },
   backLink: {
     fontFamily: fonts.body,
     color: colors.wordmark,

@@ -6,8 +6,40 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Linking } from "react-native";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+
+/** Where the reset email's link sends the phone. Must be in Supabase's Redirect URLs list. */
+export const RESET_REDIRECT = "arkaneaid://reset-password";
+// Set while a reset link has signed the user in but the new password is not saved yet, so a
+// restart in between drops that session instead of opening the app signed in.
+const RECOVERY_PENDING_KEY = "arkaneaid.recoveryPending";
+
+/** Reset link state: "ready" = link opened, ask for the new password; "invalid" = bad/expired link. */
+export type Recovery = "none" | "ready" | "invalid";
+
+/**
+ * Pull the reset details out of a link. Implicit flow (this client's default) puts the tokens in
+ * the #fragment; PKCE would put ?code= in the query. Errors (e.g. otp_expired) can be in either.
+ */
+function parseRecoveryUrl(url: string) {
+  const hashAt = url.indexOf("#");
+  const queryAt = url.indexOf("?");
+  const fragment = new URLSearchParams(hashAt >= 0 ? url.slice(hashAt + 1) : "");
+  const query = new URLSearchParams(
+    queryAt >= 0 ? url.slice(queryAt + 1, hashAt > queryAt ? hashAt : undefined) : ""
+  );
+  const get = (key: string) => fragment.get(key) ?? query.get(key);
+  const isReset = url.toLowerCase().includes("reset-password") || get("type") === "recovery";
+  return {
+    isReset,
+    error: get("error") ?? get("error_code"),
+    accessToken: get("access_token"),
+    refreshToken: get("refresh_token"),
+    code: query.get("code"),
+  };
+}
 
 type AuthContextType = {
   user: User | null;
@@ -16,8 +48,10 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  sendResetCode: (email: string) => Promise<void>;
-  resetPassword: (email: string, code: string, password: string) => Promise<void>;
+  recovery: Recovery;
+  sendResetLink: (email: string) => Promise<void>;
+  saveNewPassword: (password: string) => Promise<void>;
+  cancelRecovery: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,10 +83,17 @@ function publicAuthMessage(error: AuthError, kind: "in" | "up" | "reset"): strin
       return "Email or password is incorrect.";
     }
   } else if (kind === "reset") {
-    // Reset: a wrong or used code reads the same as an expired one, and nothing says whether the
-    // email has an account.
-    if (msg.includes("expired") || msg.includes("invalid") || msg.includes("token") || status === 403) {
-      return "That code is wrong or has expired. Send a new code and try again.";
+    // Reset: a used or expired link reads the same, and nothing says whether the email has an
+    // account.
+    if (
+      msg.includes("expired") ||
+      msg.includes("invalid") ||
+      msg.includes("token") ||
+      msg.includes("session") ||
+      status === 401 ||
+      status === 403
+    ) {
+      return "That reset link is invalid or has expired. Send a new link and try again.";
     }
     if (msg.includes("different from the old") || msg.includes("same password")) {
       return "That is already your password. Go back and log in with it.";
@@ -80,16 +121,55 @@ function publicAuthMessage(error: AuthError, kind: "in" | "up" | "reset"): strin
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  // While a reset is mid-way, the code has signed the user in but the new password is not set yet.
+  const [recovery, setRecovery] = useState<Recovery>("none");
+  // While a reset is mid-way, the link has signed the user in but the new password is not set yet.
   // Hold that session back so the app stays on the reset screen until the password is saved.
   const holdSession = useRef(false);
   const heldSession = useRef<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let live = true;
+
+    const start = async () => {
+      // A reset left half-finished (app closed before the new password was saved): drop it.
+      if (localStorage.getItem(RECOVERY_PENDING_KEY)) {
+        localStorage.removeItem(RECOVERY_PENDING_KEY);
+        await supabase.auth.signOut({ scope: "local" });
+      }
+      const { data } = await supabase.auth.getSession();
+      if (!live) return;
+      if (holdSession.current) heldSession.current = data.session;
+      else setSession(data.session);
       setLoading(false);
-    });
+    };
+
+    const openLink = async (url: string | null | undefined) => {
+      if (!url) return;
+      const link = parseRecoveryUrl(url);
+      if (!link.isReset) return;
+      if (link.error || (!link.code && (!link.accessToken || !link.refreshToken))) {
+        setRecovery("invalid");
+        return;
+      }
+      holdSession.current = true;
+      localStorage.setItem(RECOVERY_PENDING_KEY, "1");
+      setSession(null);
+      const { error } = link.code
+        ? await supabase.auth.exchangeCodeForSession(link.code)
+        : await supabase.auth.setSession({
+            access_token: link.accessToken as string,
+            refresh_token: link.refreshToken as string,
+          });
+      if (error) {
+        holdSession.current = false;
+        heldSession.current = undefined;
+        localStorage.removeItem(RECOVERY_PENDING_KEY);
+        await supabase.auth.signOut({ scope: "local" });
+        setRecovery("invalid");
+        return;
+      }
+      setRecovery("ready");
+    };
 
     const {
       data: { subscription },
@@ -102,7 +182,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // The reset email's link opens the app (cold start) or arrives while it is running.
+    const linkSub = Linking.addEventListener("url", ({ url }) => void openLink(url));
+    void start()
+      .then(() => Linking.getInitialURL())
+      .then((url) => {
+        if (live) void openLink(url);
+      });
+
+    return () => {
+      live = false;
+      subscription.unsubscribe();
+      linkSub.remove();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -123,34 +215,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error("Could not sign out. Try again.");
   };
 
-  const sendResetCode = async (email: string) => {
-    // Supabase emails a recovery code. The "Reset Password" email template must include
-    // {{ .Token }} for the 6-digit code to appear in it.
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const sendResetLink = async (email: string) => {
+    // Supabase emails a link (the default template's {{ .ConfirmationURL }}) that opens the app.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: RESET_REDIRECT });
     if (error) throw new Error(publicAuthMessage(error, "reset"));
   };
 
-  const resetPassword = async (email: string, code: string, password: string) => {
-    holdSession.current = true;
-    let verified = false;
-    try {
-      const { error: codeError } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
-      if (codeError) throw new Error(publicAuthMessage(codeError, "reset"));
-      verified = true;
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw new Error(publicAuthMessage(error, "reset"));
-    } catch (err) {
-      // The code is used up once verified; drop that half-finished sign-in so the old password
-      // still works and a new code can be sent.
-      if (verified) await supabase.auth.signOut({ scope: "local" });
-      heldSession.current = undefined;
-      throw err;
-    } finally {
-      holdSession.current = false;
-    }
+  const saveNewPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(publicAuthMessage(error, "reset"));
     // New password saved: let the session through, which opens the app signed in.
-    if (heldSession.current !== undefined) setSession(heldSession.current);
+    holdSession.current = false;
+    localStorage.removeItem(RECOVERY_PENDING_KEY);
+    const held = heldSession.current;
     heldSession.current = undefined;
+    setRecovery("none");
+    if (held !== undefined) setSession(held);
+    else setSession((await supabase.auth.getSession()).data.session);
+  };
+
+  const cancelRecovery = async () => {
+    // Back out of a reset: drop the link's half-finished sign-in so the old password still works.
+    if (holdSession.current) await supabase.auth.signOut({ scope: "local" });
+    holdSession.current = false;
+    heldSession.current = undefined;
+    localStorage.removeItem(RECOVERY_PENDING_KEY);
+    setSession(null);
+    setRecovery("none");
   };
 
   return (
@@ -162,8 +253,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
-        sendResetCode,
-        resetPassword,
+        recovery,
+        sendResetLink,
+        saveNewPassword,
+        cancelRecovery,
       }}
     >
       {children}

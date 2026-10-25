@@ -67,7 +67,7 @@ class ScreenError extends Component<{ children: ReactNode; onBack: () => void },
 }
 
 function Gate() {
-  const { user, loading } = useAuth();
+  const { user, loading, recovery, cancelRecovery } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preloaded, setPreloaded] = useState(false);
@@ -93,7 +93,18 @@ function Gate() {
     return <SplashScreen progress={progress} ready={preloaded} onFinish={finishSplash} />;
   }
   if (!user) {
-    if (resetting) return <ResetPasswordScreen onBack={() => setResetting(false)} />;
+    // A reset link opens the reset screen on its own, even from a cold start.
+    if (resetting || recovery !== "none") {
+      return (
+        <ResetPasswordScreen
+          onBack={() => {
+            setResetting(false);
+            void cancelRecovery();
+          }}
+          onDone={() => setResetting(false)}
+        />
+      );
+    }
     return <LoginScreen onForgotPassword={() => setResetting(true)} />;
   }
 
