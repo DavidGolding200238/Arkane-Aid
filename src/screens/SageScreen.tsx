@@ -100,6 +100,8 @@ export default function SageScreen({ onBack }: Props) {
   const history = memory.key === memoryKey ? memory.turns : [];
   const [question, setQuestion] = useState("");
   const [asked, setAsked] = useState("");
+  // The question came from the microphone: the card shows it as what was heard.
+  const [heard, setHeard] = useState(false);
   const [reply, setReply] = useState("");
   const [source, setSource] = useState("");
   const [error, setError] = useState("");
@@ -212,6 +214,7 @@ export default function SageScreen({ onBack }: Props) {
     setSheetLine("");
     Keyboard.dismiss();
     setAsked(trimmed);
+    setHeard(spoken !== undefined);
     setQuestion("");
     setBusy(true);
     try {
@@ -395,7 +398,9 @@ export default function SageScreen({ onBack }: Props) {
           <SageModeButtons persona={persona} onChange={changeMode} />
         </View>
 
-        {reply ? (
+        {/* The card appears as soon as the question is sent, showing it (or what was heard),
+            and the reply then writes into it. */}
+        {reply || (busy && asked) ? (
           <View
             style={[styles.full, { marginTop: s(spacing.xxl) }]}
             onLayout={(e) => {
@@ -406,6 +411,7 @@ export default function SageScreen({ onBack }: Props) {
               text={reply}
               label={replyLabel}
               asked={asked}
+              heard={heard}
               footNote={footNote}
               source={source}
               speaking={speaking}

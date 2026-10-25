@@ -21,6 +21,8 @@ type Props = {
   label: string;
   /** The question or note it answers, shown small above the reply. */
   asked?: string;
+  /** asked came from the microphone: shown as "Heard: ..." so a mishearing is plain to see. */
+  heard?: boolean;
   /** "Sheet attached." / "Written to the Codex." */
   footNote?: string;
   /** Where the ruling comes from, e.g. "Alignment, p. 21". Shown small under the reply, never spoken. */
@@ -75,6 +77,7 @@ export default function SageReplyCard({
   text,
   label,
   asked,
+  heard,
   footNote,
   source,
   speaking,
@@ -87,6 +90,9 @@ export default function SageReplyCard({
   const fade = useAnimatedValue(0);
   const writing = shown < text.length;
   const progressRef = useRef(onProgress);
+  // The card shows the question while the Sage thinks (text ""), then the reply writes into the
+  // same card: fade in only for a fresh card, not when the reply lands in it.
+  const lastText = useRef<string | null>(null);
   useEffect(() => {
     progressRef.current = onProgress;
   }, [onProgress]);
@@ -97,8 +103,12 @@ export default function SageReplyCard({
     let frame: number | undefined;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- restart the typewriter when a new reply arrives
     setShown(0);
-    fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    if (lastText.current !== "") {
+      fade.setValue(0);
+      Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }
+    lastText.current = text;
+    if (!text) return;
     AccessibilityInfo.isReduceMotionEnabled()
       .catch(() => false)
       .then((reduce) => {
@@ -168,18 +178,20 @@ export default function SageReplyCard({
             ) : null}
           </View>
           {asked ? (
-            <Text style={[styles.asked, { fontSize: fs(14), lineHeight: fs(19) }]} numberOfLines={2}>
-              {asked}
+            <Text style={[styles.asked, { fontSize: fs(14), lineHeight: fs(19) }]} numberOfLines={heard ? 3 : 2}>
+              {heard ? `Heard: ${asked}` : asked}
             </Text>
           ) : null}
-          <Text
-            style={[styles.body, { fontSize: fs(17), lineHeight: fs(25) }]}
-            selectable={!writing}
-            accessibilityLabel={text}
-          >
-            {text.slice(0, shown)}
-            {writing ? <Text style={styles.unwritten}>{text.slice(shown)}</Text> : null}
-          </Text>
+          {text ? (
+            <Text
+              style={[styles.body, { fontSize: fs(17), lineHeight: fs(25) }]}
+              selectable={!writing}
+              accessibilityLabel={text}
+            >
+              {text.slice(0, shown)}
+              {writing ? <Text style={styles.unwritten}>{text.slice(shown)}</Text> : null}
+            </Text>
+          ) : null}
           {source && !writing ? (
             <Text
               style={[styles.source, { fontSize: fs(12), lineHeight: fs(16) }]}
