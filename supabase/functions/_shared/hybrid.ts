@@ -28,6 +28,14 @@ const WEAK_KEYWORD_WEIGHT = 0.5;
 const SEMANTIC_SPREAD = 0.06;
 /** A meaning match this close counts as grounded on its own. */
 const SEMANTIC_GROUNDED = 0.88;
+/** Below both of these (and not grounded), nothing the search found is about the question, so the
+ *  model gets no extracts and is told so (message.ts). Calibrated on evals/sage-eval.json and cut-off
+ *  questions with gte-small: every eval question with an expected entry clears one of them (weakest:
+ *  "can I hit someone running away", keyword 8.25), while filler such as "where must I" (keyword
+ *  3.06, meaning 0.81), "what do I do now" (6.48, 0.82) or "is that allowed" (4.98, 0.83) clears
+ *  neither. gte-small rates almost any text 0.80-0.85 alike, so its floor sits just above that. */
+export const KEYWORD_RELEVANT = 7;
+export const SEMANTIC_RELEVANT = 0.86;
 const RRF_K = 60;
 const CANDIDATES = 8;
 
@@ -62,7 +70,11 @@ export type HybridOptions = {
   timeoutMs?: number;
 };
 
-export async function hybridSearch(index: SrdIndex, question: string, options: HybridOptions = {}): Promise<HybridResult> {
+export async function hybridSearch(
+  index: SrdIndex,
+  question: string,
+  options: HybridOptions = {},
+): Promise<HybridResult> {
   const limit = options.limit ?? 4;
   const maxChars = options.maxChars ?? 6000;
   const query = options.context ? `${question} ${options.context}` : question;
@@ -74,13 +86,16 @@ export async function hybridSearch(index: SrdIndex, question: string, options: H
     : keyword.corrections;
 
   let semantic: SemanticMatch[] = [];
+  let bestSimilarity = 0;
   if (options.semantic) {
     try {
       const matches = await withTimeout(options.semantic(query), options.timeoutMs ?? 4000);
       // A row only counts if it still lines up with the bundled SRD (same id, same title).
       const valid = matches.filter((m) => Number.isInteger(m.chunk) && index.rawTitle(m.chunk) === m.name);
       const best = valid[0]?.similarity ?? 0;
-      const nudged = (m: SemanticMatch) => m.similarity + (RULES_KINDS.has(index.hitFor(m.chunk).kind) ? RULES_NUDGE : 0);
+      bestSimilarity = best;
+      const nudged = (m: SemanticMatch) =>
+        m.similarity + (RULES_KINDS.has(index.hitFor(m.chunk).kind) ? RULES_NUDGE : 0);
       semantic = valid
         .filter((m) => m.similarity >= best - SEMANTIC_SPREAD)
         .sort((a, b) => nudged(b) - nudged(a));
@@ -88,6 +103,11 @@ export async function hybridSearch(index: SrdIndex, question: string, options: H
       console.error("sage: meaning search unavailable, keyword only", error instanceof Error ? error.message : error);
     }
   }
+
+  const relevant = keyword.grounded || (keyword.hits[0]?.score ?? 0) >= KEYWORD_RELEVANT ||
+    bestSimilarity >= SEMANTIC_RELEVANT;
+  const retrieval = semantic.length ? "hybrid" : "keyword";
+  if (!relevant) return { hits: [], corrections, grounded: false, retrieval };
 
   const byId = new Map<number, SrdHit>(keyword.hits.map((hit) => [hit.id, hit]));
   const pinned = keyword.hits.filter((hit) => hit.score >= PIN_SCORE).slice(0, MAX_PINS).map((hit) => hit.id);
@@ -107,5 +127,5 @@ export async function hybridSearch(index: SrdIndex, question: string, options: H
     hits.push(hit);
   }
   const grounded = keyword.grounded || semantic.some((m) => m.similarity >= SEMANTIC_GROUNDED);
-  return { hits, corrections, grounded, retrieval: semantic.length ? "hybrid" : "keyword" };
+  return { hits, corrections, grounded, retrieval };
 }

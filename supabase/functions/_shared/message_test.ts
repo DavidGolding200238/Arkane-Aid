@@ -1,15 +1,38 @@
 // deno test supabase/functions/_shared/message_test.ts
 import { assert, assertEquals, assertFalse, assertStringIncludes } from "jsr:@std/assert@1";
-import { userMessage } from "./message.ts";
-import { PERSONAS, systemPrompt, type Mode } from "./personas.ts";
+import { NO_EXTRACT, userMessage } from "./message.ts";
+import { type Mode, PERSONAS, systemPrompt } from "./personas.ts";
 import { isSmallTalk } from "./smalltalk.ts";
 import { srd } from "./srd.ts";
 
-for (const text of ["Hello", "hello!", "Hi there", "hey sage", "Thanks", "thank you so much", "Who are you?", "Good morning, Arbiter", "hi, who are you?", "Hail!", "cheers mate"]) {
+for (
+  const text of [
+    "Hello",
+    "hello!",
+    "Hi there",
+    "hey sage",
+    "Thanks",
+    "thank you so much",
+    "Who are you?",
+    "Good morning, Arbiter",
+    "hi, who are you?",
+    "Hail!",
+    "cheers mate",
+  ]
+) {
   Deno.test(`"${text}" is small talk`, () => assert(isSmallTalk(text)));
 }
 
-for (const text of ["hellish rebuke", "hail of thorns", "hi, how does grappling work?", "thanks, and what does fireball do", "help", "shield"]) {
+for (
+  const text of [
+    "hellish rebuke",
+    "hail of thorns",
+    "hi, how does grappling work?",
+    "thanks, and what does fireball do",
+    "help",
+    "shield",
+  ]
+) {
   Deno.test(`"${text}" is a real question`, () => assertFalse(isSmallTalk(text)));
 }
 
@@ -90,3 +113,10 @@ for (const [mode, style, identity] of voices) {
     assert(PERSONAS[mode]);
   });
 }
+
+Deno.test("no relevant extract: the model is told so, with no SRD text", () => {
+  const message = userMessage("is that allowed", { hits: [], corrections: [], grounded: false }, "", "");
+  assertStringIncludes(message, `<srd>\n${NO_EXTRACT}\n</srd>`);
+  assertStringIncludes(message, "not in the loaded rules");
+  assertStringIncludes(message, "dungeon master decides");
+});

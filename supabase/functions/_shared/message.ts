@@ -49,6 +49,12 @@ export function reviewMessage(question: string, sheet: string, findings: Finding
   ].join("\n\n");
 }
 
+/** What the model reads when the search found nothing relevant to the question. */
+export const NO_EXTRACT =
+  "No relevant SRD 5.2.1 extract was found for this question. Do not answer a rules question from memory: " +
+  "say you are not sure because it is not in the loaded rules, and that the dungeon master decides. " +
+  'State no numbers, dice, DCs or ranges. A lore, setting or table question may still get a "Lore:" or "Homebrew idea:" answer.';
+
 export function userMessage(
   question: string,
   found: SearchResult | null,
@@ -63,7 +69,7 @@ export function userMessage(
     const extracts = found.hits.map((hit) => `[${shortCitation(hit.citation)}]\n${hit.text}`).join("\n\n");
     parts.push(`<srd>\n${extracts}\n</srd>`);
   } else {
-    parts.push("<srd>\nNo matching SRD 5.2.1 entry.\n</srd>");
+    parts.push(`<srd>\n${NO_EXTRACT}\n</srd>`);
   }
   if (found.corrections.length) {
     const guesses = found.corrections.map((c) => `"${c.from}" might mean ${c.to}`).join("; ");
