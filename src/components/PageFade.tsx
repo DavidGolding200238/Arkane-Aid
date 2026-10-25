@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, G, Image as SvgImage, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
-import { colors } from "../theme";
+import { colors, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 
@@ -63,3 +63,48 @@ export default function PageFade({ top, height, screenWidth, screenHeight, direc
 const styles = StyleSheet.create({
   box: { position: "absolute", left: 0, right: 0, overflow: "hidden" },
 });
+
+/**
+ * The Sage page's fade sizes, so every scrolling page uses exactly the same ones: a short tail
+ * under a fixed top edge (header, tabs), and about one line of text above a fixed bottom edge
+ * (the Sage typing box, the tab bar, the Codex arrow). Pages add them to their scroll padding so
+ * the first and last content can scroll clear of the fade.
+ */
+export function useFadeSizes() {
+  const { s, fs } = useScale();
+  return { tail: s(12), line: fs(25) };
+}
+
+type Box = { y: number; h: number };
+
+/**
+ * The Sage fades for a scroll area that is clipped at its own edges (its top just under the
+ * page's header or tabs, its bottom on the tab bar or a docked control). The scroll area already
+ * hides what is outside it, so only the fading part is drawn: Sage's tail fading down from the
+ * top edge, and Sage's one-line fade rising to the bottom edge. Same paper, same sizes.
+ * `screen` is the page's own size and `box` the scroll area's place in it (dp).
+ */
+export function ScrollFades({
+  screen,
+  box,
+  top = true,
+  bottom = true,
+}: {
+  screen: { w: number; h: number };
+  box: Box;
+  top?: boolean;
+  bottom?: boolean;
+}) {
+  const { tail, line } = useFadeSizes();
+  if (box.h <= 0 || screen.w <= 0) return null;
+  return (
+    <>
+      {top ? (
+        <PageFade direction="down" top={box.y} height={tail} screenWidth={screen.w} screenHeight={screen.h} />
+      ) : null}
+      {bottom ? (
+        <PageFade direction="up" top={box.y + box.h - line} height={line} screenWidth={screen.w} screenHeight={screen.h} />
+      ) : null}
+    </>
+  );
+}

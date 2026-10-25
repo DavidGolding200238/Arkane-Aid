@@ -12,6 +12,7 @@ import {
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
+import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
 import Rule from "../components/Rule";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
@@ -90,6 +91,12 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  // Layout for the Sage page's soft fades: the page size, and the notes list's place on it
+  // (the book's top plus the list's top inside the book).
+  const fade = useFadeSizes();
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const [bookY, setBookY] = useState(0);
+  const [list, setList] = useState({ y: 0, h: 0 });
 
   const load = useCallback(async () => {
     if (!partyId) {
@@ -168,13 +175,16 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const saveW = Math.max(s(120), width - pagePad * 2);
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <PageHeader title="Codex" subtitle={selected?.party.name ?? "No party"} onBack={onBack} />
 
-      <View style={[styles.book, { marginTop: s(6), marginBottom: s(12) }]}>
+      <View
+        style={[styles.book, { marginTop: s(6), marginBottom: s(12) }]}
+        onLayout={(e) => setBookY(e.nativeEvent.layout.y)}
+      >
         <View style={{ paddingHorizontal: pagePad, paddingTop: s(6), paddingBottom: s(8) }}>
           <View style={styles.sessionRow}>
             <SectionTitle size={fs(18)}>Session notes</SectionTitle>
@@ -260,8 +270,15 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: pagePad, paddingTop: s(10), paddingBottom: s(16), gap: s(12) }}
+          // Room for the first and last notes to scroll clear of the fades, as on the Sage page.
+          contentContainerStyle={{
+            paddingHorizontal: pagePad,
+            paddingTop: fade.tail,
+            paddingBottom: s(16) + fade.line,
+            gap: s(12),
+          }}
           keyboardShouldPersistTaps="handled"
+          onLayout={(e) => setList({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         >
           {!partyId ? (
             <Text style={[styles.empty, { fontSize: fs(14) }]}>
@@ -315,6 +332,10 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
           <ChevronDownIcon width={s(32)} />
         </View>
       </View>
+
+      {/* The Sage page's fades: notes melt into the paper under the tabs and above the arrow
+          instead of being cut off. */}
+      <ScrollFades screen={screen} box={{ y: bookY + list.y, h: list.h }} />
     </View>
   );
 }

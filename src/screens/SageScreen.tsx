@@ -16,7 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { useKeepAwake } from "expo-keep-awake";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PageHeader from "../components/PageHeader";
-import PageFade from "../components/PageFade";
+import PageFade, { useFadeSizes } from "../components/PageFade";
 import ScreenVignette from "../components/ScreenVignette";
 import SageInputBar from "../components/SageInputBar";
 import SageReplyCard from "../components/SageReplyCard";
@@ -108,6 +108,7 @@ export default function SageScreen({ onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const fontsLoaded = useAppFonts();
+  const fade = useFadeSizes();
   const [writing, setWriting] = useState(false);
   // A quick tap on the orb briefly shows how to talk to it.
   const [holdHint, setHoldHint] = useState(false);
@@ -319,9 +320,8 @@ export default function SageScreen({ onBack }: Props) {
   // header) down to the header's bottom edge, just below the title underline, then a short fade.
   // The orb starts below that fade. Bottom: about one line of reply text, fading up from the
   // typing box's area; everything from there down (the box, beside it, below it) is solid paper.
-  const topFadeTail = s(12);
+  const { tail: topFadeTail, line: bottomFade } = fade;
   const gapUnderHeader = topFadeTail; // the orb itself stays clear of the fade
-  const bottomFade = fs(25);
   const dockTop = scrollBox.y + scrollBox.h; // where the scroll area ends and the typing box area begins
   const bottomFadeTop = dockTop - bottomFade;
   const bottomFadeH = scrollBox.h > 0 && screen.h > 0 ? screen.h - bottomFadeTop : 0;
