@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
@@ -183,7 +183,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   return (
     // Keyed so it mounts fresh after the font-loading placeholder: a reused view never reports
     // its layout again, and the fades need the page size.
-    <View key="page" style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    // Padding for the keyboard keeps a weapon or spell being edited low in the list in view.
+    <KeyboardAvoidingView key="page" behavior="padding" style={styles.root} onLayout={(e) => setScreen({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
@@ -352,7 +353,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
       {/* The Sage page's fades: notes melt into the paper under the tabs and above the arrow
           instead of being cut off. */}
       <ScrollFades screen={screen} box={{ y: bookY + list.y, h: list.h }} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

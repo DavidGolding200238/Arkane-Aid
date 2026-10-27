@@ -154,7 +154,8 @@ function Gate() {
         {screen === "join" ? (
           <JoinPartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
-        {screen !== "home" ? <TabBar current={screen} onOpen={setScreen} /> : null}
+        {/* Every page, the dashboard too, sits above the tab bar (never under it). */}
+        <TabBar current={screen} onOpen={setScreen} />
       </View>
     </PartyProvider>
   );

@@ -23,8 +23,8 @@ const TABS: { id: TabId; label: string; Icon: typeof HomeIcon }[] = [
   { id: "settings", label: "Tome", Icon: GearIcon },
 ];
 
-// Which tab is lit for each screen. Ledger is opened from the Codex (its
-// Ledger tab), so it lights Codex; Create and Join party live under the Tome.
+// Which tab is lit for each screen. The Character Sheet ("ledger") is opened from the Codex
+// (its Sheet tab), so it lights Codex; Create and Join party live under the Tome.
 export function tabFor(screen: AppScreen): TabId {
   switch (screen) {
     case "ledger":

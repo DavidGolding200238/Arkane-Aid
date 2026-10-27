@@ -3,6 +3,7 @@ import {
   Animated,
   Easing,
   Image,
+  type LayoutChangeEvent,
   PanResponder,
   StyleSheet,
   Text,
@@ -10,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
@@ -45,8 +45,8 @@ const ICON = 0.44;
 const LABEL = 15.4;
 // The lowest point of the dial (the bottom seal's edge) in stage units: CY + 32 + SEAL_R + SEAL / 2.
 const DIAL_BOTTOM = CY + 32 + SEAL_R + SEAL / 2;
-// Keep the dial at least this far (dp) above the system nav bar, whether 3-button or gesture.
-const DIAL_MARGIN = 32;
+// Keep the dial at least this far (dp) above the tab bar (which sits above the system nav bar).
+const DIAL_MARGIN = 20;
 // Never lift the dial more than this (stage units), so the top seals stay clear of the wordmark rule.
 const MAX_LIFT = 40;
 
@@ -74,9 +74,12 @@ function wrapDelta(delta: number) {
 }
 
 export default function HomeScreen({ onOpen }: Props) {
-  // fit = min(width / 360, height / 780), the same stage scale as before.
-  const { fit: s, height } = useScale();
-  const insets = useSafeAreaInsets();
+  // The stage fits the page above the tab bar: min(width / 360, page height / 780). The page height
+  // comes from layout (the window minus the tab bar); until then the window height stands in.
+  const { width, height } = useScale();
+  const [pageH, setPageH] = useState(0);
+  const areaH = pageH || height;
+  const s = Math.min(width / DESIGN_WIDTH, areaH / DESIGN_HEIGHT);
   const rot = useAnimatedValue(0);
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
@@ -93,8 +96,8 @@ export default function HomeScreen({ onOpen }: Props) {
   const gem = GEM * s;
   const wheel = 340 * s;
   const wx = (CX - 170) * s;
-  // Lift only the dial (rings, die, seals, gems) when its bottom would sit within DIAL_MARGIN of the nav bar.
-  const lift = Math.min(MAX_LIFT * s, Math.max(0, DIAL_BOTTOM * s + DIAL_MARGIN - (height - insets.bottom)));
+  // Lift only the dial (rings, die, seals, gems) when its bottom would sit within DIAL_MARGIN of the tab bar.
+  const lift = Math.min(MAX_LIFT * s, Math.max(0, DIAL_BOTTOM * s + DIAL_MARGIN - areaH));
   const wy = (CY - 170 + 32) * s - lift;
   const lx = wheel / 2;
   const ly = wheel / 2;
@@ -188,10 +191,12 @@ export default function HomeScreen({ onOpen }: Props) {
     })
   );
 
-  if (!fontsLoaded) return <View style={styles.fallback} />;
+  const measure = (e: LayoutChangeEvent) => setPageH(e.nativeEvent.layout.height);
+
+  if (!fontsLoaded || !pageH) return <View style={styles.fallback} onLayout={measure} />;
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={measure}>
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
