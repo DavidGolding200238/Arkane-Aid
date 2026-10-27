@@ -217,6 +217,9 @@ Deno.test("homebrew species: the Sage gets the sheet's homebrew traits and the r
   const system = sent[0].messages[0].content;
   assertStringIncludes(system, "homebrew species traits");
   assertStringIncludes(system, "say they are homebrew");
+  // Still real advice: the closest official species as a guide, and the DM only for a genuine ruling.
+  assertStringIncludes(system, "closest official species");
+  assertStringIncludes(system, "never as the default answer");
   const user = lastUser(sent[0]);
   assertStringIncludes(user, "Homebrew species traits (the table's homebrew, written on the sheet)");
   assertStringIncludes(user, "Flight 30 ft");

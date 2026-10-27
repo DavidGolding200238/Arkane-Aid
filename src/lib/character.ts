@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { errorText } from "./parties";
 import { type Spell, type Weapon, spellLine, suggestedToHit, weaponLine } from "./arsenal";
 import { isCustomRace } from "./sheetLists";
+import type { CodexEntry } from "./codex";
 
 /** What a player writes for a custom (homebrew) species. Stored as characters.race_traits. */
 export type RaceTraits = {
@@ -131,7 +132,7 @@ const COMBAT_SQL =
   "Run supabase/004_sheet_combat.sql in the SQL editor once. It adds armor class, speed, skills, languages, and features.";
 
 const SHEET_WORDS =
-  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|ac|armor|speed|skill|language|spell|spells|cast|weapon|weapons|attack|sword|subclass|lineage|homebrew|feature|can i|do i|am i)\b/i;
+  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|ac|armor|speed|skill|language|spell|spells|cast|weapon|weapons|attack|sword|subclass|lineage|homebrew|feature|codex|note|notes|item|items|can i|do i|am i)\b/i;
 
 export const SKILLS = [
   "Acrobatics",
@@ -241,13 +242,19 @@ export type SheetData = {
   lineage: string;
   /** Only for a custom species: the traits the player wrote, which are the table's homebrew. */
   homebrew: { bonuses: string; size: string; speed: number | null; abilities: string } | null;
-  /** The weapon in hand, as one line ("Longsword +5 to hit, 1d8 Slashing"). */
+  background: string;
+  /** The weapon in hand, as one line ("Longsword +5 to hit, 1d8 Slashing"). Older servers read only this. */
   weapon: string;
+  /** Every Codex weapon, one line each, the one in hand starting "[in hand]". */
+  weapons: string[];
   spells: string[];
+  /** The Codex's items ("Bag of Holding: holds 500 lb") and newest notes ("Session 3: we met..."). */
+  items: string[];
+  notes: string[];
 };
 
-/** The Codex's weapons and spells, sent with the sheet. */
-export type Arsenal = { weapons?: Weapon[]; spells?: Spell[] };
+/** The Codex's weapons, spells, items and notes, sent with the sheet. */
+export type Arsenal = { weapons?: Weapon[]; spells?: Spell[]; codex?: CodexEntry[] };
 
 function homebrewOf(character: Character) {
   if (!isCustomRace(character.race ?? "") || !hasRaceTraits(character.race_traits)) return null;
@@ -260,10 +267,29 @@ function homebrewOf(character: Character) {
   };
 }
 
+/** The to-hit the Codex shows: the written one, else the suggested one (weaponLine picks). */
+const lineFor = (character: Character, weapon: Weapon) =>
+  weaponLine(weapon, suggestedToHit(weapon.properties, character, proficiencyBonus(character.level)));
+
 function inHand(character: Character, weapons: Weapon[] = []) {
   const weapon = weapons.find((w) => w.in_hand);
-  if (!weapon) return "";
-  return weaponLine(weapon, suggestedToHit(weapon.properties, character, proficiencyBonus(character.level)));
+  return weapon ? lineFor(character, weapon) : "";
+}
+
+/** Every Codex weapon, short: name and properties clipped so twenty fit, the one in hand marked. */
+function allWeapons(character: Character, weapons: Weapon[] = []) {
+  return weapons.slice(0, 20).map((w) => {
+    const line = lineFor(character, { ...w, name: clip(w.name, 40), properties: clip(w.properties, 60) });
+    return w.in_hand ? `[in hand] ${line}` : line;
+  });
+}
+
+/** Codex items or notes of one kind, newest first (loadCodex's order): "Title: body", clipped. */
+function codexLines(entries: CodexEntry[] = [], kind: "item" | "note", max: number, body: number) {
+  return entries
+    .filter((e) => e.kind === kind)
+    .slice(0, max)
+    .map((e) => [clip(e.title, 40), clip(e.body, body)].filter(Boolean).join(": "));
 }
 
 // Keeps one-per-line lists apart once clip folds the whitespace: "Rage\nWeapon Mastery" -> "Rage; Weapon Mastery".
@@ -293,14 +319,18 @@ export function sheetData(
     cha: character.cha,
     skills: (character.skills ?? []).slice(0, 18),
     languages: clip(lines(character.languages), 200),
-    features: clip(lines(character.features), 400),
-    traits: traits.slice(0, 8).map((t) => clip(t.name, 40)).filter(Boolean),
-    gear: gear.slice(0, 12).map((g) => clip(g.name, 40)).filter(Boolean),
+    features: clip(lines(character.features), 800),
+    traits: traits.slice(0, 20).map((t) => clip(t.name, 40)).filter(Boolean),
+    gear: gear.slice(0, 30).map((g) => clip(g.name, 40)).filter(Boolean),
     subclass: clip(character.subclass, 40),
     lineage: clip(character.lineage, 40),
     homebrew: homebrewOf(character),
+    background: clip(character.background, 300),
     weapon: inHand(character, arsenal.weapons),
-    spells: (arsenal.spells ?? []).slice(0, 30).map((s) => clip(spellLine(s), 50)),
+    weapons: allWeapons(character, arsenal.weapons),
+    spells: (arsenal.spells ?? []).slice(0, 60).map((s) => clip(spellLine(s), 50)),
+    items: codexLines(arsenal.codex, "item", 15, 80),
+    notes: codexLines(arsenal.codex, "note", 10, 120),
   };
 }
 
@@ -319,18 +349,18 @@ export function sheetBrief(
   const who = [name, race, klass, `L${character.level}`].filter(Boolean).join(" ");
   const combat = `AC${character.ac} SPD${character.speed} PB+${proficiencyBonus(character.level)} HP ${character.hp_current}/${character.hp_max}`;
   const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
-  const skills = (character.skills ?? []).slice(0, 8).join(", ");
+  const skills = (character.skills ?? []).slice(0, 18).join(", ");
   const gearLine = gear
-    .slice(0, 6)
+    .slice(0, 12)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
   const traitLine = traits
-    .slice(0, 4)
+    .slice(0, 8)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
-  const features = clip(character.features, 80);
+  const features = clip(lines(character.features), 200);
   const brew = homebrewOf(character);
   const homebrew = brew
     ? `Homebrew species traits (written on the sheet): ${[
@@ -342,9 +372,11 @@ export function sheetBrief(
         .filter(Boolean)
         .join("; ")}`
     : "";
-  const weapon = inHand(character, arsenal.weapons);
+  const weapons = allWeapons(character, arsenal.weapons)
+    .map((w) => clip(w, 56))
+    .join("; ");
   const spells = (arsenal.spells ?? [])
-    .slice(0, 16)
+    .slice(0, 60)
     .map((s) => clip(spellLine(s), 32))
     .join(", ");
   return [
@@ -356,7 +388,7 @@ export function sheetBrief(
     traitLine ? `Traits: ${traitLine}` : "",
     features ? `Features: ${features}` : "",
     homebrew,
-    weapon ? `In hand: ${weapon}` : "",
+    weapons ? `Weapons: ${weapons}` : "",
     spells ? `Spells: ${spells}` : "",
   ]
     .filter(Boolean)

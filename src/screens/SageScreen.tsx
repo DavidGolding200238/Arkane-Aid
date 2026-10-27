@@ -27,7 +27,7 @@ import { useVoice, type VoiceId } from "../context/VoiceContext";
 import type { FlameColour } from "../components/flames/useFlameMotion";
 import { loadCharacter, loadEquipment, loadTraits, needsSheet, sheetBrief, sheetData, type SheetData } from "../lib/character";
 import { loadSpells, loadWeapons } from "../lib/arsenal";
-import { addCodexEntry } from "../lib/codex";
+import { addCodexEntry, loadCodex } from "../lib/codex";
 import { askSage, type SageMode, type SagePersona, type SageTurn } from "../lib/sage";
 import { prepareDeviceVoices, speak, stopSpeaking, type SpeakerVoice } from "../lib/voice";
 import { errorText } from "../lib/parties";
@@ -223,17 +223,18 @@ export default function SageScreen({ onBack }: Props) {
       let fields: SheetData | null = null;
       if (mode !== "scribe" && needsSheet(trimmed)) {
         const character = await loadCharacter(partyId);
-        // The Codex's weapons (the one in hand) and spells ride along with the sheet.
-        const [gear, traits, weapons, spells] = character
+        // The whole Codex rides along with the sheet: weapons (the one in hand marked), spells, items and notes.
+        const [gear, traits, weapons, spells, codex] = character
           ? await Promise.all([
               loadEquipment(character.id),
               loadTraits(character.id),
               loadWeapons(character.id),
               loadSpells(character.id),
+              partyId ? loadCodex(partyId) : [],
             ])
-          : [[], [], [], []];
+          : [[], [], [], [], []];
         brief = sheetBrief(character, gear, traits, { weapons, spells });
-        fields = sheetData(character, gear, traits, { weapons, spells });
+        fields = sheetData(character, gear, traits, { weapons, spells, codex });
         setSheetLine(brief ? "Sheet attached." : "No sheet yet.");
       }
       const data = await askSage({
