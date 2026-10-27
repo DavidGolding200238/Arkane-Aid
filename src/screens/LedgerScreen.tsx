@@ -130,14 +130,22 @@ function StatFrame({
 // Printed section heading: the red Cinzel of the Home/Login wordmark, with the same drawn
 // underline snug under the letters and as wide as the text.
 function SectionTitle({ children, center, size }: { children: string; center?: boolean; size: number }) {
+  const [textWidth, setTextWidth] = useState(0);
+
   return (
     <View style={[styles.sectionTitle, center ? styles.sectionCenter : styles.sectionLeft]}>
       {/* Illuminated first letter, half again as tall, like a drop cap in a printed tome. */}
-      <Text style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}>
+      <Text
+        onLayout={(event) => {
+          const width = event.nativeEvent.layout.width;
+          setTextWidth((current) => (Math.abs(current - width) > 0.5 ? width : current));
+        }}
+        style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
+      >
         <Text style={[styles.dropCap, { fontSize: Math.round(size * 1.5) }]}>{children.charAt(0)}</Text>
         {children.slice(1)}
       </Text>
-      <Rule color={colors.rule} style={styles.sectionRule} />
+      <Rule width={textWidth} color={colors.rule} style={styles.sectionRule} />
     </View>
   );
 }
@@ -831,7 +839,8 @@ export default function LedgerScreen({ onBack, onOpen, retired }: Props) {
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
       <PageHeader
-        title="Character Sheet"
+        title="Player Sheet"
+        titleSize={25}
         subtitle={retired ? wasIn : STATUS_TEXT[status] ? `${STATUS_TEXT[status]} \u00b7 ${partyName}` : partyName}
         onBack={goBack}
         ruleWidth={s(200)}
@@ -1039,11 +1048,6 @@ export default function LedgerScreen({ onBack, onOpen, retired }: Props) {
               : null}
             {renderPicker("lineage", lineageFor?.options ?? [], lineageFor?.title)}
             {renderPicker("subclass", subclassFor ? [subclassFor] : [])}
-            {editing ? (
-              <Text style={[styles.note, { fontSize: fs(12.5), marginTop: s(8) }]}>
-                2024 rules (SRD 5.2.1): Orc is a starting species, and subraces are now lineages.
-              </Text>
-            ) : null}
 
             {/* Same grid as before: Level over AC, HP over Bonus, the middle of the first row empty. */}
             <View style={[styles.vitalRow, { marginTop: s(12) }]}>
@@ -1448,11 +1452,7 @@ export default function LedgerScreen({ onBack, onOpen, retired }: Props) {
               Join
             </Text>
           </Text>
-        ) : (
-          <Text style={[styles.note, { fontSize: fs(13), marginTop: s(12) }]}>
-            This sheet is only for {partyName}. A new party gets a new character.
-          </Text>
-        )}
+        ) : null}
 
         {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
 
@@ -1629,10 +1629,11 @@ const styles = StyleSheet.create({
   optionTextOn: { color: colors.primary },
   // Inputs drawn as a blank line: no box border, a hand-inked Rule sits under each one.
   lineInput: { width: "100%", fontFamily: fonts.body, color: colors.ink },
-  sectionTitle: { marginBottom: 8 },
+  sectionTitle: { marginBottom: 8, alignItems: "flex-start" },
   sectionCenter: { alignSelf: "center" },
   sectionLeft: { alignSelf: "flex-start" },
   section: {
+    alignSelf: "flex-start",
     fontFamily: fonts.title,
     color: colors.wordmark,
     letterSpacing: 0.4,

@@ -11,6 +11,7 @@ type Props = {
   title: string;
   onBack: () => void;
   subtitle?: string;
+  titleSize?: number;
   /** Underline width in dp (already scaled). Defaults to the Codex/Ledger 156. */
   ruleWidth?: number;
   /** Extra container style, e.g. Sage floats the header over its page. The header itself has no background. */
@@ -22,7 +23,7 @@ type Props = {
 // The title is centred on the screen: the back button on the left is balanced by an
 // equal-width spacer on the right.
 // Used by Codex, Ledger, Tome and Sage.
-export default function PageHeader({ title, onBack, subtitle, ruleWidth, style, onLayout }: Props) {
+export default function PageHeader({ title, onBack, subtitle, titleSize = 30, ruleWidth, style, onLayout }: Props) {
   const { s, fs } = useScale();
   const insets = useSafeAreaInsets();
   const circle = s(44);
@@ -51,7 +52,7 @@ export default function PageHeader({ title, onBack, subtitle, ruleWidth, style, 
             full box width and would otherwise draw the smaller text from the left. paddingLeft cancels the
             trailing letterSpacing after the last letter so the ink itself is centred. */}
         <Text
-          style={[styles.title, { fontSize: fs(30), paddingLeft: LETTER_SPACING }]}
+          style={[styles.title, { fontSize: fs(titleSize), paddingLeft: LETTER_SPACING }]}
           numberOfLines={1}
           adjustsFontSizeToFit
         >

@@ -22,7 +22,7 @@ A live table stalls every time someone has to look up a rule, write down what ha
 
 Arkane Aid is a player-side companion.
 
-The Sage answers a ruling in a few short spoken sentences, grounded in the official 2024 rules (SRD 5.2.1). The Scribe turns what the table just said into a note in the Codex. The Character Sheet holds your character for the current party and saves itself as you type. The dice roller throws 3D dice from the Home screen. None of it replaces the dungeon master.
+The Sage answers a ruling in a few short spoken sentences, grounded in the 2024 rules covered by the official SRD 5.2.1. The Scribe turns what the table just said into a note in the Codex. The Player Sheet holds your character for the current party and saves itself as you type. The dice roller throws 3D dice from the Home screen. None of it replaces the dungeon master.
 
 ### Target users
 
@@ -58,7 +58,7 @@ The dashboard has a dial of seals for the Sage and Scribe, the Codex and the Tom
 
 ### Dice roller
 
-Tap the d20 on Home. Pick a die (d4, d6, d8, d10, d12 or d20), how many (up to 40) and a bonus, then tap Roll or shake the phone. The dice are 3D and land on the number they rolled. The tray shows up to 10 dice but the total counts all of them. Advantage and Disadvantage only work on a single d20, rolling two and keeping the higher or lower. A natural 20 turns gold and glows, a natural 1 turns red with a red flash, and each has its own buzz. The pop-up uses the same ink and paper look as the Character Sheet.
+Tap the d20 on Home. The **Check** tab uses your Player Sheet and Codex to calculate common skill checks, saving throws, ability checks, attacks and damage. It includes advantage/disadvantage and Guidance or Bless where applicable; you can set a DC or AC when needed. Use **Free roll** to choose a die (d4, d6, d8, d10, d12 or d20), how many (up to 40) and a bonus, then tap Roll or shake the phone. Free Roll totals the dice and bonus but does not calculate character bonuses or determine success. The dice are 3D and land on the number they rolled. The tray shows up to 10 dice but the total counts all of them. A natural 20 turns gold and glows, a natural 1 turns red with a red flash, and each has its own buzz. The pop-up uses the same ink and paper look as the Player Sheet.
 
 ### Sage
 
@@ -86,7 +86,7 @@ Pick Sage or Scribe, hold the orb to talk and let go to send. It uses the phone'
 
 ### Rules and sources
 
-The app follows the 2024 rules. The `sage` Edge Function searches the full System Reference Document 5.2.1, bundled with the function. Search is hybrid: keyword search that forgives typos ("firebal", "grapled"), plus meaning search using Supabase's built-in `gte-small` embeddings, so a plain question like "can I hit someone running away" still finds Opportunity Attacks. If the embeddings table is empty, it falls back to keyword search alone.
+The Sage answers rules questions using the 2024 rules covered by the System Reference Document 5.2.1, bundled with the `sage` Edge Function. The SRD is the rules source available to the app; it is not the full set of 2024 rulebooks, and the app does not automatically apply every rule or situation during play. Search is hybrid: keyword search that forgives typos ("firebal", "grapled"), plus meaning search using Supabase's built-in `gte-small` embeddings, so a plain question like "can I hit someone running away" still finds Opportunity Attacks. If the embeddings table is empty, it falls back to keyword search alone.
 
 Answers taken from the SRD show a small "Source:" line under the reply, such as "Fireball, p. 131". That line is never read aloud. When the SRD has nothing on a question, the Sage says it is not sure and that the dungeon master decides. Lore and campaign questions get a short answer labelled "Lore:" or "Homebrew idea:", so an invented idea is never passed off as an official rule. Questions that have nothing to do with D&D get a short in-character refusal and a nudge back to the game.
 
@@ -100,7 +100,7 @@ The session book, with All, Notes, Items, Weapons, Spells and Sheet tabs. The ta
 
 Weapons and Spells are your own, per party. Pick from the SRD list or write your own. Exactly one weapon is in hand; it sits at the top and the Sage uses it. The to-hit box suggests STR (DEX for ranged weapons, the higher of the two for Finesse) plus your Proficiency Bonus. Type a number and it gets its "+" when you leave the box. Spells are grouped by level in tabs, Cantrip to 9th. Open a weapon or spell to edit it or delete it. The Sheet tab opens the Character Sheet.
 
-### Character Sheet
+### Player Sheet
 
 Name, species, lineage, class, subclass, level, hit points, armour class, speed, the six abilities, skills, languages, features, background, traits, equipment and a portrait from the gallery. Species and class pick from the official 2024 lists (SRD 5.2.1), with a custom option; a custom species gets a Homebrew box for its traits, which the Sage treats as your table's homebrew.
 
@@ -329,7 +329,7 @@ npm run eval:answers       # asks the deployed Sage the same questions and check
 | Dice roller | Pop-up over Home: pick dice, roll, see the total |
 | Sage | Ask a ruling or scribe a note, by voice or text |
 | Codex | Session notes, items, weapons and spells for the current party |
-| Character Sheet (LedgerScreen) | Character sheet for the current party |
+| Player Sheet (LedgerScreen) | Character sheet for the current party |
 | Tome | Account, parties, guidance and voice personality |
 | Create and Join party | Make a party code or use one |
 
