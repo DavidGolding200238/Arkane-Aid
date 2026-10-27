@@ -92,7 +92,6 @@ export type CheckSheet = {
   expertise: string[];
   /** Saves ticked on the sheet as well as the class's own (stored as "str", "dex", ...). */
   save_profs: string[];
-  jack_of_all_trades: boolean;
 };
 
 export const abilityMod = (score: number) => Math.floor((score - 10) / 2);
@@ -120,13 +119,19 @@ function abilityPart(sheet: CheckSheet, key: AbilityKey): Part {
   return { label: abilityName(key), value: abilityMod(sheet[key]) };
 }
 
+/** Jack of All Trades: a Bard's feature from level 2 (2024 rules), so it follows the class and level
+ *  on the sheet rather than a checkbox. */
+export function hasJackOfAllTrades(sheet: { class: string | null | undefined; level: number }): boolean {
+  return classKey(sheet.class) === "bard" && sheet.level >= 2;
+}
+
 export function savesOf(sheet: CheckSheet): AbilityKey[] {
   const keys = new Set<AbilityKey>([...classSaves(sheet.class), ...(sheet.save_profs as AbilityKey[])]);
   return ABILITIES.map((a) => a.key).filter((k) => keys.has(k));
 }
 
 /** A skill check: ability mod, + PB if proficient (2 x PB with Expertise), or half PB (rounded down)
- *  with Jack of All Trades on a skill you're not proficient in. Guidance adds 1d4. */
+ *  with Jack of All Trades (a Bard from level 2) on a skill you're not proficient in. Guidance adds 1d4. */
 export function skillCheck(sheet: CheckSheet, skill: string, extras: Extras = {}): D20Test {
   const ability = SKILL_ABILITY[skill] ?? "str";
   const pb = proficiency(sheet.level);
@@ -134,7 +139,7 @@ export function skillCheck(sheet: CheckSheet, skill: string, extras: Extras = {}
   if (sheet.skills.includes(skill)) {
     parts.push({ label: "Proficiency", value: pb });
     if (sheet.expertise.includes(skill)) parts.push({ label: "Expertise", value: pb });
-  } else if (sheet.jack_of_all_trades) {
+  } else if (hasJackOfAllTrades(sheet)) {
     parts.push({ label: "Jack of All Trades", value: Math.floor(pb / 2) });
   }
   if (extras.guidance) parts.push(GUIDANCE);

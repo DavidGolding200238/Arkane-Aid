@@ -7,6 +7,7 @@ import {
   classSaves,
   deathSave,
   flatBonus,
+  hasJackOfAllTrades,
   initiative,
   NEW_TALLY,
   outcomeOf,
@@ -51,7 +52,6 @@ const bard: CheckSheet = {
   skills: ["Stealth", "Persuasion", "Performance"],
   expertise: ["Stealth"],
   save_profs: [],
-  jack_of_all_trades: true,
 };
 
 /** Dice that come up in a fixed order. */
@@ -77,9 +77,20 @@ Deno.test("skills: proficiency, expertise and Jack of All Trades", () => {
   const athletics = skillCheck(bard, "Athletics");
   eq(athletics.parts.map((p) => p.label), ["Strength", "Jack of All Trades"], "JoaT card");
   eq(flatBonus(athletics.parts), -1 + 1, "half PB rounded down");
-  eq(flatBonus(skillCheck({ ...bard, jack_of_all_trades: false }, "Athletics").parts), -1, "no JoaT");
+  eq(flatBonus(skillCheck({ ...bard, class: "Wizard" }, "Athletics").parts), -1, "no JoaT for a Wizard");
+  eq(flatBonus(skillCheck({ ...bard, level: 1 }, "Athletics").parts), -1, "no JoaT for a level 1 Bard");
   // Expertise without proficiency does nothing (the sheet only offers it on proficient skills).
   eq(flatBonus(skillCheck({ ...bard, expertise: ["Arcana"] }, "Arcana").parts), 0 + 1, "expertise needs proficiency");
+});
+
+Deno.test("Jack of All Trades: a Bard from level 2, any case", () => {
+  eq(hasJackOfAllTrades({ class: "Bard", level: 2 }), true, "Bard 2");
+  eq(hasJackOfAllTrades({ class: " bard ", level: 20 }), true, "lower case, spaces");
+  eq(hasJackOfAllTrades({ class: "BARD", level: 5 }), true, "upper case");
+  eq(hasJackOfAllTrades({ class: "Bard", level: 1 }), false, "Bard 1");
+  eq(hasJackOfAllTrades({ class: "Rogue", level: 5 }), false, "other class");
+  eq(hasJackOfAllTrades({ class: "Bardic Rogue", level: 5 }), false, "only the Bard class");
+  eq(hasJackOfAllTrades({ class: null, level: 5 }), false, "no class");
 });
 
 Deno.test("Guidance adds 1d4 to skill checks only", () => {
