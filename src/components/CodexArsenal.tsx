@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type KeyboardTypeOptions } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View, type HostInstance, type KeyboardTypeOptions } from "react-native";
 import { EMPTY_DRAFT, loadCharacter, proficiencyBonus, saveCharacter, SheetUpdateNeeded, type Character } from "../lib/character";
 import {
   holdWeapon,
@@ -21,6 +21,7 @@ import {
 } from "../lib/arsenal";
 import { errorText } from "../lib/parties";
 import NoteSheet from "./NoteSheet";
+import FadeRow, { FadePaperContext } from "./FadeRow";
 import { InkButton, InkStroke, RuledLines } from "./Ink";
 import { colors, fonts, inkText, useScale } from "../theme";
 
@@ -208,6 +209,10 @@ function FormButtons({
 
 function Card({ seed, children, onPress, hint }: { seed: number; children: ReactNode; onPress?: () => void; hint?: string }) {
   const { s } = useScale();
+  // The card's paper, so a tab row inside it (the spell form's levels) fades into the sheet.
+  const sheet = useRef<HostInstance>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const paper = useMemo(() => ({ kind: "sheet" as const, ref: sheet, w: size.w, h: size.h }), [size]);
   return (
     <Pressable
       onPress={onPress}
@@ -215,9 +220,16 @@ function Card({ seed, children, onPress, hint }: { seed: number; children: React
       accessibilityHint={hint}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <View style={{ padding: s(14), paddingBottom: s(12), gap: s(4) }}>
+      <View
+        ref={sheet}
+        style={{ padding: s(14), paddingBottom: s(12), gap: s(4) }}
+        onLayout={(e) => {
+          const { width: w, height: h } = e.nativeEvent.layout;
+          setSize((old) => (old.w === w && old.h === h ? old : { w, h }));
+        }}
+      >
         <NoteSheet seed={seed} />
-        {children}
+        <FadePaperContext.Provider value={paper}>{children}</FadePaperContext.Provider>
       </View>
     </Pressable>
   );
@@ -435,10 +447,23 @@ export function WeaponList({ partyId, adding, onCloseAdd, width }: ListProps) {
 // ---------- Spells ----------
 
 // The level tabs (Cantrip to 9th), red-underlined like the Codex tabs; scrolls sideways on narrow phones.
-function LevelTabs({ level, onPick, counts }: { level: number; onPick: (level: number) => void; counts?: number[] }) {
+// The Codex page margin: the list's level row reaches past it so its tabs scroll to the screen edge.
+const PAGE_MARGIN = 19;
+
+function LevelTabs({
+  level,
+  onPick,
+  counts,
+  bleed = 0,
+}: {
+  level: number;
+  onPick: (level: number) => void;
+  counts?: number[];
+  bleed?: number;
+}) {
   const { s, fs } = useScale();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: s(14), paddingHorizontal: s(2) }}>
+    <FadeRow gap={s(18)} inset={s(2)} bleed={bleed} active={level}>
       {SPELL_LEVELS.map((name, i) => {
         const on = i === level;
         const count = counts?.[i] ?? 0;
@@ -461,7 +486,7 @@ function LevelTabs({ level, onPick, counts }: { level: number; onPick: (level: n
           </Pressable>
         );
       })}
-    </ScrollView>
+    </FadeRow>
   );
 }
 
@@ -592,7 +617,7 @@ export function SpellList({ partyId, adding, onCloseAdd, width }: ListProps) {
 
   return (
     <View style={{ gap: s(12) }}>
-      <LevelTabs level={level} onPick={setLevel} counts={counts} />
+      <LevelTabs level={level} onPick={setLevel} counts={counts} bleed={s(PAGE_MARGIN)} />
       {adding ? (
         <SpellForm key={`new-${level}`} start={emptySpell(level)} width={width} busy={busy} onSave={(d) => save(d, null)} onCancel={onCloseAdd} />
       ) : null}

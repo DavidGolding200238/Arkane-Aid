@@ -19,6 +19,7 @@ import CircleButton from "../components/CircleButton";
 import NoteSheet from "../components/NoteSheet";
 import { SpellList, WeaponList } from "../components/CodexArsenal";
 import Rule from "../components/Rule";
+import FadeRow from "../components/FadeRow";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
 import { InkButton, InkStroke, RuledLines } from "../components/Ink";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
@@ -209,7 +210,14 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
             />
           </View>
 
-          <View style={[styles.tabs, { marginTop: s(4) }]}>
+          {/* The tabs scroll sideways, at their own widths with even gaps, reaching to the screen
+              edges, with a paper fade on the side that has more. */}
+          <FadeRow
+            gap={s(18)}
+            bleed={pagePad}
+            active={Math.max(0, TABS.findIndex((item) => item.id === tab))}
+            style={{ marginTop: s(4) }}
+          >
             {TABS.map((item, i) => {
               const on = item.id === tab;
               return (
@@ -221,12 +229,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                   accessibilityRole="tab"
                   accessibilityState={{ selected: on }}
                 >
-                  <Text
-                    style={[styles.tabLabel, on && styles.tabOn, { fontSize: fs(15), lineHeight: fs(24) }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
-                  >
+                  <Text style={[styles.tabLabel, on && styles.tabOn, { fontSize: fs(15), lineHeight: fs(24) }]} numberOfLines={1}>
                     {item.label}
                   </Text>
                   {/* The open tab is underlined in red ink, like a marked page. */}
@@ -236,7 +239,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                 </Pressable>
               );
             })}
-          </View>
+          </FadeRow>
           <Rule color={colors.rule} style={{ marginTop: s(1), opacity: 0.55 }} />
 
           {writing && !HEADINGS[tab] ? (
@@ -381,9 +384,7 @@ const styles = StyleSheet.create({
   },
   sectionRule: { marginTop: -3 },
   dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
-  tabs: { flexDirection: "row" },
-  // Six tabs share the row by their own widths (Weapons is the longest), so all fit from 360dp up.
-  tab: { flexGrow: 1, alignItems: "center" },
+  tab: { alignItems: "center" },
   tabLabel: { fontFamily: fonts.headingBold, color: colors.ink, letterSpacing: 0.3 },
   tabOn: { color: colors.activeTab },
   tabMark: { marginTop: -2 },
