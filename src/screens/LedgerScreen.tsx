@@ -140,7 +140,7 @@ function SectionTitle({ children, center, size }: { children: string; center?: b
           const width = event.nativeEvent.layout.width;
           setTextWidth((current) => (Math.abs(current - width) > 0.5 ? width : current));
         }}
-        style={[styles.section, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
+        style={[styles.section, center && styles.sectionTextCenter, { fontSize: size, lineHeight: Math.round(size * 1.6) }]}
       >
         <Text style={[styles.dropCap, { fontSize: Math.round(size * 1.5) }]}>{children.charAt(0)}</Text>
         {children.slice(1)}
@@ -1630,7 +1630,7 @@ const styles = StyleSheet.create({
   // Inputs drawn as a blank line: no box border, a hand-inked Rule sits under each one.
   lineInput: { width: "100%", fontFamily: fonts.body, color: colors.ink },
   sectionTitle: { marginBottom: 8, alignItems: "flex-start" },
-  sectionCenter: { alignSelf: "center" },
+  sectionCenter: { alignSelf: "stretch", alignItems: "center" },
   sectionLeft: { alignSelf: "flex-start" },
   section: {
     alignSelf: "flex-start",
@@ -1639,6 +1639,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     ...inkText.red,
   },
+  sectionTextCenter: { alignSelf: "center" },
   sectionRule: { marginTop: -3 },
   dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
   story: { fontFamily: fonts.body, color: colors.ink, textAlign: "left" },
