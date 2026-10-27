@@ -1,8 +1,10 @@
-# Arkane Aid <img src="assets/images/app-icon/icon.png" alt="Arkane Aid icon" width="52" />
+<h1 align="center">Arkane Aid</h1>
 
-**A spoken companion for a live Dungeons and Dragons table.**
+<p align="center"><img src="docs/readme-hero.png" alt="Dragon skull holding a d20" width="320" /></p>
 
-Arkane Aid keeps the game moving. Ask a rule and hear the answer. Say what just happened and it lands in the session notes. Keep a character sheet that travels with your party. The dungeon master still has the final say.
+<p align="center"><strong>A spoken companion for a live Dungeons and Dragons table.</strong></p>
+
+Arkane Aid keeps the game moving. Ask a rule and hear the answer. Say what just happened and it lands in the session notes. Keep a character sheet that travels with your party, and roll your dice on the phone. The dungeon master still has the final say.
 
 Built with Expo (React Native, TypeScript), Supabase and Groq. Android first.
 
@@ -20,15 +22,15 @@ A live table stalls every time someone has to look up a rule, write down what ha
 
 Arkane Aid is a player-side companion.
 
-The Sage answers a ruling in a few short spoken sentences, grounded in the official 5e rules. The Scribe turns what the table just said into a note in the Codex. The Character Sheet holds your character for the current party and saves itself as you type. None of it replaces the dungeon master.
+The Sage answers a ruling in a few short spoken sentences, grounded in the official 2024 rules (SRD 5.2.1). The Scribe turns what the table just said into a note in the Codex. The Character Sheet holds your character for the current party and saves itself as you type. The dice roller throws 3D dice from the Home screen. None of it replaces the dungeon master.
 
 ### Target users
 
-Players at a small live table who want a quick ruling, a note or a number without stopping the game.
+Players at a small live table who want a quick ruling, a note, a number or a roll without stopping the game.
 
 ### Platform
 
-Android first. The app is built with EAS as an APK. A development build is used while working on the code. Voice input needs a native build, so it does not work in Expo Go.
+Android first. The app is built with EAS as an APK. A development build is used while working on the code. Voice input, the 3D dice and shake to roll need a native build, so they do not work in Expo Go.
 
 ---
 
@@ -38,27 +40,41 @@ Android first. The app is built with EAS as an APK. A development build is used 
 
 Email sign up and login through Supabase Auth. The app never handles password hashing itself and never writes passwords to the device. Only the session tokens are kept on the phone. Sign up asks for the password twice, and both screens require at least 8 characters. Error messages never reveal whether an email is already registered. A profile row is created on first sign in. Sign out is in the Tome.
 
-Google and Facebook buttons are on the Login screen, but they only show a notice for now. They need the matching providers switched on in Supabase before they can sign anyone in.
+Google sign-in opens Google in the browser through Supabase (expo-web-browser) and comes back to the app signed in. If the Google provider is not switched on in Supabase, the button says so. The Facebook button only shows a notice for now.
+
+Sign-in links use PKCE: the link carries a one-time code that only the phone that asked for it can swap for a session.
 
 ### Password reset
 
-"Forgot password?" on the Login screen sends a reset email through Supabase's built-in mailer. Tapping the link on the phone opens the app on the reset screen (`arkaneaid://reset-password`), where you set a new password twice and are signed straight in. No custom SMTP is needed.
+"Forgot password?" on the Login screen sends a reset email through Supabase's built-in mailer. Open the email on the same phone and tap the link. It opens the app on the reset screen (`arkaneaid://reset-password`), where you set a new password twice and are signed straight in. A link that has expired or was opened on another device says so and asks for a new one. No custom SMTP is needed.
 
 ### Parties
 
-Create a party and get a join code, or join one with a code. The creator is the dungeon master and everyone who joins is a player. Switch the active party in the Tome. Notes and the character sheet are scoped to the selected party, so one campaign never leaks into another.
+Create a party and get a 6-character join code, or join one with a code. The creator is the dungeon master and everyone who joins is a player. Switch the active party in the Tome. Notes and the character sheet are scoped to the selected party, so one campaign never leaks into another.
+
+### Home
+
+The dashboard has a dial of seals for the Sage and Scribe, the Codex and the Tome. Swipe to turn the dial, or tap a seal to open it. The d20 in the middle opens the dice roller. The tab bar at the bottom has Home, Codex, Sage and Tome.
+
+### Dice roller
+
+Tap the d20 on Home. Pick a die (d4, d6, d8, d10, d12 or d20), how many (up to 40) and a bonus, then tap Roll or shake the phone. The dice are 3D and land on the number they rolled. The tray shows up to 10 dice but the total counts all of them. Advantage and Disadvantage only work on a single d20, rolling two and keeping the higher or lower. A natural 20 turns gold and glows, a natural 1 turns red with a red flash, and each has its own buzz. The pop-up uses the same ink and paper look as the Character Sheet.
 
 ### Sage
 
-Ask a ruling by typing it or by holding the orb and speaking. The answer comes back in short sentences, writes itself out on a parchment card and is read aloud by the phone's own text to speech. Your character sheet is only sent along when the question depends on it, so a general rules question costs fewer tokens.
+Ask a ruling by typing it or by holding the orb and speaking. The answer comes back in short sentences, writes itself out on a parchment card and is read aloud by the phone's own text to speech.
+
+When a question is about you ("can I", "my spells", "what am I holding"), your Character Sheet goes along with it: your weapons (the one in hand marked), spells, and the newest notes and items in the party's Codex. A general rules question goes without it and costs fewer tokens. "Check my sheet" runs a fixed rules check on the sheet, and the Sage explains what it found. Questions about what the party can do read the sheets of everyone in your party.
+
+A homebrew species is taken as written. The Sage still helps, using the closest official 2024 species and your class as a guide.
 
 The Sage has three voices, picked in the Tome:
 
 | Voice | Style | Orb |
 |-------|-------|-----|
-| Wizard | The same ruling in a warmer, ornate court-mage tone | Red |
+| Wizard | The Sage as an old court mage | Red |
 | Arbiter | Short, sure rulings from the bench | Blue |
-| Bard | The ruling with a bit of rhythm and a wink | Green |
+| Bard | Rulings with a rhyme and a wink | Green |
 
 All three share the same rules, scope and limits and only differ in tone. Each has its own speech rate and pitch, so they sound different too.
 
@@ -66,27 +82,29 @@ The Sage keeps the last three exchanges of the current session, so a follow-up l
 
 ### Voice input
 
-Hold the orb to talk and let go to send. It uses the phone's own speech recogniser, so there is no extra key or paid service. It listens in South African English and falls back to US English on phones without that language pack. A short list of game words (cantrip, saving throw, spell slot and so on) is passed to the recogniser so they are heard correctly.
+Pick Sage or Scribe, hold the orb to talk and let go to send. It uses the phone's own speech recogniser, so there is no extra key or paid service. It listens in South African English and falls back to US English on phones without that language pack. A short list of game words (cantrip, saving throw, spell slot and so on) is passed to the recogniser so they are heard correctly.
 
 ### Rules and sources
 
-The `sage` Edge Function searches the full System Reference Document 5.2.1, bundled with the function. Search is hybrid: keyword search that forgives typos ("firebal", "grapled"), plus meaning search using Supabase's built-in `gte-small` embeddings, so a plain question like "can I hit someone running away" still finds Opportunity Attacks. If the embeddings table is empty, it falls back to keyword search alone.
+The app follows the 2024 rules. The `sage` Edge Function searches the full System Reference Document 5.2.1, bundled with the function. Search is hybrid: keyword search that forgives typos ("firebal", "grapled"), plus meaning search using Supabase's built-in `gte-small` embeddings, so a plain question like "can I hit someone running away" still finds Opportunity Attacks. If the embeddings table is empty, it falls back to keyword search alone.
 
-Answers taken from the SRD show a small "Source:" line under the reply, such as "Fireball, p. 131". That line is never read aloud. When the SRD has nothing on a question, the Sage answers from general lore or offers a homebrew idea and labels it "Lore:" or "Homebrew idea:", so an invented idea is never passed off as an official rule. Questions that have nothing to do with D&D get a short in-character refusal and a nudge back to the game.
+Answers taken from the SRD show a small "Source:" line under the reply, such as "Fireball, p. 131". That line is never read aloud. When the SRD has nothing on a question, the Sage says it is not sure and that the dungeon master decides. Lore and campaign questions get a short answer labelled "Lore:" or "Homebrew idea:", so an invented idea is never passed off as an official rule. Questions that have nothing to do with D&D get a short in-character refusal and a nudge back to the game.
 
 ### Scribe
 
-Switch the Sage screen to Scribe mode, say or type what just happened, and the Scribe writes it as a single past-tense line in the Codex for the current party. No advice, no rulings.
+Pick Scribe on the Sage screen, say or type what just happened, and the Scribe writes it as a single past-tense line in the Codex for the current party. No advice, no rulings.
 
 ### Codex
 
-The session book, with All, Notes, Items, Weapons, Spells and Sheet tabs. Add a note or an item, tap your own note to edit it, or long-press a card to delete it. Only the current party's entries show.
+The session book, with All, Notes, Items, Weapons, Spells and Sheet tabs. The tab row scrolls sideways on narrow phones and fades at the edges. Add a note or an item, tap your own note to edit it, or press and hold your own note or item to delete it. Only the current party's entries show.
 
-Weapons and Spells are your own, per party. Pick from the SRD list or write your own. Exactly one weapon is in hand; it sits at the top and the Sage uses it. The to-hit box suggests STR (or DEX for Finesse and ranged weapons) plus your Proficiency Bonus. Spells are grouped in level tabs, Cantrip to 9th. The Sheet tab opens the Character Sheet.
+Weapons and Spells are your own, per party. Pick from the SRD list or write your own. Exactly one weapon is in hand; it sits at the top and the Sage uses it. The to-hit box suggests STR (DEX for ranged weapons, the higher of the two for Finesse) plus your Proficiency Bonus. Type a number and it gets its "+" when you leave the box. Spells are grouped by level in tabs, Cantrip to 9th. Open a weapon or spell to edit it or delete it. The Sheet tab opens the Character Sheet.
 
 ### Character Sheet
 
-The character sheet: name, species, lineage, class, subclass, level, hit points, armour class, speed, proficiency bonus, the six abilities, skills, languages, features, background, traits, equipment and a portrait from the gallery. Species and class pick from the official 2024 lists (SRD 5.2.1), with a custom option; a custom species gets a Homebrew box for its traits, which the Sage treats as your table's homebrew. The sheet saves itself 0.8 s after you stop typing, and when you leave, switch tab or party, or put the app away. A blank sheet is never saved. One sheet per person per party.
+Name, species, lineage, class, subclass, level, hit points, armour class, speed, the six abilities, skills, languages, features, background, traits, equipment and a portrait from the gallery. Species and class pick from the official 2024 lists (SRD 5.2.1), with a custom option; a custom species gets a Homebrew box for its traits, which the Sage treats as your table's homebrew.
+
+Numbers go in number boxes you can type in freely. Level runs from 1 to 20 and hit points go up to 999. The Proficiency Bonus follows the level. The sheet saves itself 0.8 s after you stop typing, and when you leave, switch tab or party, or put the app away. A blank sheet is never saved. One sheet per person per party.
 
 ### Tome (settings)
 
@@ -100,13 +118,16 @@ Shows which party you are in. Account options cover sign out, creating or joinin
 |-------|------------|
 | Framework | Expo SDK 58 with expo-dev-client (React Native 0.88, React 19.3) |
 | Language | TypeScript |
-| Auth and data | Supabase Auth, Postgres, Storage, Row Level Security |
+| Auth and data | Supabase Auth (PKCE, email and Google), Postgres, Storage, Row Level Security |
+| Sign-in browser | expo-web-browser |
 | Rules search | SRD 5.2.1 chunks, pgvector, Supabase `gte-small` embeddings |
 | AI | Groq (`gpt-oss-120b` for the Sage, `gpt-oss-20b` for the Scribe and as a fallback), called only from a Supabase Edge Function |
 | Speech out | expo-speech |
 | Speech in | expo-speech-recognition |
+| 3D | three, @react-three/fiber and expo-gl (the Sage orb and the dice) |
+| Shake and buzz | expo-sensors, expo-haptics |
 | Images | expo-image, expo-image-picker |
-| Fonts | Cinzel Decorative, Atkinson Hyperlegible |
+| Fonts | Cinzel Decorative, Asul, MedievalSharp, Atkinson Hyperlegible |
 | Builds | EAS Build |
 
 The Groq key only lives as a Supabase function secret. It is never in the app, the APK or this repository.
@@ -136,10 +157,12 @@ If an older Arkane Aid or a development build is already on the phone, uninstall
 
 1. Open **Arkane Aid** from the app drawer.
 2. Wait for the splash screen to finish loading.
-3. Sign up with an email and password, or sign in.
-4. Create a party, or join one with a code from your dungeon master.
-5. Fill in your Character Sheet (Codex, Sheet tab), then open the Sage and ask a ruling.
-6. Allow the microphone the first time you hold the orb to speak.
+3. Sign up with an email and password, or sign in with email or Google.
+4. Read the Guidance tips that pop up the first time. They stay in the Tome.
+5. Create a party, or join one with a code from your dungeon master.
+6. Fill in your Character Sheet (Codex, Sheet tab), then open the Sage and ask a ruling.
+7. Allow the microphone the first time you hold the orb to speak.
+8. Tap the d20 on Home to roll dice.
 
 You stay signed in between launches.
 
@@ -155,9 +178,14 @@ Only needed if you want to run or change the code.
 - Git
 - An Expo account and EAS CLI (`npm install -g eas-cli`)
 - An Android phone
-- A Supabase project and the Supabase CLI
+- A Supabase project (the Supabase CLI runs through `npx supabase`)
 - A Groq API key (free tier works)
-- Deno, only for seeding the rules search, the function tests and the evals
+- Deno, only for seeding the rules search, the tests and the evals
+- A Google Cloud project, only for Google sign-in
+
+### Branches
+
+`Apk-Build` is the branch the APK is built from. `main` mirrors it.
 
 ### Clone and install
 
@@ -182,11 +210,11 @@ Copy `.env.example` to `.env` and fill in two values from your Supabase dashboar
 From the repo root:
 
 ```bash
-supabase login
-supabase link --project-ref YOUR-PROJECT-REF
-supabase db push                          # runs supabase/migrations in order
-supabase secrets set GROQ_API_KEY=YOUR-GROQ-KEY
-supabase functions deploy sage
+npx supabase login
+npx supabase link --project-ref YOUR-PROJECT-REF
+npx supabase db push                          # runs supabase/migrations in order
+npx supabase secrets set GROQ_API_KEY=YOUR-GROQ-KEY
+npx supabase functions deploy sage
 ```
 
 Migration `20261027000007_sheet_rework.sql` adds the sheet's subclass, lineage and homebrew species traits and the `character_weapons` and `character_spells` tables (Row Level Security: only you change yours; your party can read them). Until it is pushed the sheet still saves without those fields, and the Weapons and Spells tabs say the database needs updating.
@@ -201,8 +229,16 @@ The Sage still works without this step, using keyword search only.
 
 In the Supabase dashboard:
 
-1. Authentication, URL Configuration, Redirect URLs: add `arkaneaid://**` so the password reset link opens the app.
+1. Authentication, URL Configuration, Redirect URLs: add `arkaneaid://**` so the password reset link and Google sign-in open the app.
 2. Authentication, Providers, Email: set the minimum password length to 8 to match the app.
+
+### Google sign-in
+
+1. In Google Cloud, create an OAuth client of type **Web application**. Add `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback` as an authorised redirect URI.
+2. In Supabase, Authentication, Providers, Google: switch it on and paste the client ID and secret from step 1.
+3. Keep `arkaneaid://**` in the Redirect URLs (above).
+
+The app sends people to `arkaneaid://auth-callback`, so no Android client or SHA-1 is needed. Until the provider is on, the Google button says it isn't switched on yet.
 
 ### Build with EAS
 
@@ -229,19 +265,28 @@ Install the APK on your phone. A preview build opens straight from the app drawe
 npm run start:dev
 ```
 
-`npm start` runs Expo Go. Most of the app runs there, but voice input does not.
+`npm start` runs Expo Go. Most of the app runs there, but voice input, the 3D dice and shake to roll do not.
 
-#### Release build note: the Sage orb and code shrinking
+### Build steps, in short
+
+```bash
+npm install
+npx supabase db push
+npx supabase functions deploy sage
+eas build --profile preview --platform android
+```
+
+#### Release build note: code shrinking
 
 The first preview APK crashed as soon as the Sage screen opened, while the development build was fine. Expo SDK 58 turns on R8 code shrinking for Android release builds, and `expo-gl` 58.0.3 ships without keep rules, so R8 strips the `GLView` constructor. When the 3D orb's canvas mounts, Android can't create the view and the app closes. Development builds don't shrink code, so the problem only shows up in preview and production builds. It is a known Expo issue ([expo/expo#51948](https://github.com/expo/expo/issues/51948)).
 
-The fix lives in `app.json`. The `expo-build-properties` plugin adds a keep rule for `expo-gl` and leaves shrinking on for everything else:
+The fix lives in `app.json`. The `expo-build-properties` plugin adds keep rules for `expo-gl` (the orb and the dice) and `expo-sensors` (shake to roll) and leaves shrinking on for everything else:
 
 ```json
-["expo-build-properties", { "android": { "extraProguardRules": "-keep class expo.modules.gl.** { *; }" } }]
+["expo-build-properties", { "android": { "extraProguardRules": "-keep class expo.modules.gl.** { *; }\n-keep class expo.modules.sensors.** { *; }" } }]
 ```
 
-If a future release build still crashes there, set `"enableMinifyInReleaseBuilds": false` under `android` in the same plugin instead. The APK gets bigger but nothing is stripped. Remove the rule once a fixed `expo-gl` is released.
+If a future release build still crashes there, set `"enableMinifyInReleaseBuilds": false` under `android` in the same plugin instead. The APK gets bigger but nothing is stripped. Remove the rules once fixed versions are released.
 
 ### Checks
 
@@ -249,24 +294,27 @@ If a future release build still crashes there, set `"enableMinifyInReleaseBuilds
 npm run typecheck          # TypeScript
 npm run lint               # ESLint
 npm run test:functions     # Edge Function type check, lint and tests (Deno)
-npm run eval:search        # scores the rules search on 38 test questions
+npm run test:dice          # dice faces land on the number rolled (Deno)
+npm run eval:search        # scores the rules search on the eval questions
 npm run eval:answers       # asks the deployed Sage the same questions and checks the replies
 ```
 
 ### Permissions used
 
-android.permission.RECORD_AUDIO (voice input, only while the orb is held)
+- android.permission.RECORD_AUDIO (voice input, only while the orb is held)
+- android.permission.HIGH_SAMPLING_RATE_SENSORS (shake to roll)
 
 ---
 
 ## 6. How the app works
 
-1. The player signs in.
+1. The player signs in with email or Google.
 2. They create a party or join one with a code.
 3. They fill in a Character Sheet for that party.
 4. At the table they ask the Sage a ruling, by voice or text, and hear the answer.
 5. They tell the Scribe what just happened, and the line lands in the Codex.
-6. Switching party loads only that party's sheet and notes.
+6. They tap the d20 on Home to roll.
+7. Switching party loads only that party's sheet and notes.
 
 ---
 
@@ -275,9 +323,10 @@ android.permission.RECORD_AUDIO (voice input, only while the orb is held)
 | Screen | Purpose |
 |--------|---------|
 | Splash | Loads fonts, art and the orb before the app opens |
-| Login and Sign up | Email authentication |
+| Login and Sign up | Email and Google sign-in |
 | Reset password | New password from the emailed link |
-| Home | Dashboard with seals for Sage, Codex and Tome |
+| Home | Dashboard with seals for Sage, Codex and Tome, and the d20 for the dice roller |
+| Dice roller | Pop-up over Home: pick dice, roll, see the total |
 | Sage | Ask a ruling or scribe a note, by voice or text |
 | Codex | Session notes, items, weapons and spells for the current party |
 | Character Sheet (LedgerScreen) | Character sheet for the current party |
@@ -286,7 +335,7 @@ android.permission.RECORD_AUDIO (voice input, only while the orb is held)
 
 ### Design direction
 
-Parchment, ink and torn-paper panels, with a red, blue or green fire orb that matches the Sage's voice. Cinzel Decorative for titles and Atkinson Hyperlegible for body text, chosen for readability with dyslexia in mind. Layout was designed in Figma first.
+Parchment, ink and torn-paper panels, with a red, blue or green fire orb that matches the Sage's voice. Cinzel Decorative for titles, Asul for headings, MedievalSharp for numbers and Atkinson Hyperlegible for body text, chosen for readability with dyslexia in mind. Layout was designed in Figma first.
 
 ---
 
@@ -296,16 +345,17 @@ Parchment, ink and torn-paper panels, with a red, blue or green fire orb that ma
 App.tsx                 auth gate, screens and tab bar
 src/
   screens/              Splash, Login, ResetPassword, Home, Sage, Codex, Ledger (Character Sheet), Settings (Tome), CreateParty, JoinParty
-  components/           orb and flames, Sage input and reply card, page header and fades, buttons, panels, tab bar
+  components/           orb and flames, dice roller, Sage input and reply card, Codex weapons and spells, guidance, ink and paper pieces, page header and fades, buttons, panels, tab bar
   context/              AuthContext, PartyContext, VoiceContext
-  lib/                  Supabase client, parties, character, codex, Sage client, voice, hold to talk
+  lib/                  Supabase client, parties, character and autosave, codex, weapons and spells, dice, Sage client, voice, hold to talk, guidance
   theme/                colours, spacing, typography, scaling
 assets/                 icons, images, the orb model
+docs/                   README image
 supabase/
-  migrations/           schema, Row Level Security, party sheets, SRD vectors
+  migrations/           schema, Row Level Security, party sheets, SRD vectors, sheet rework
   functions/sage/       the Sage Edge Function
-  functions/_shared/    personas, SRD search, memory, auth, Groq client (+ tests)
-scripts/                SRD build and seed, local Sage test, art build scripts
+  functions/_shared/    personas, SRD search, sheet check, memory, auth, Groq client (+ tests)
+scripts/                SRD build and seed, local Sage test, dice face test, art build scripts
 evals/                  Sage test questions and scoring scripts
 art-source/             source art for the build scripts (not bundled)
 eas.json                development, preview and production build profiles
@@ -315,7 +365,9 @@ eas.json                development, preview and production build profiles
 
 `parties` and `party_members` hold the table and roles.  
 `characters` is one row per user per party, with equipment and traits hanging off it.  
-`codex_entries` holds party notes and items.  
+`character_weapons` and `character_spells` hold your weapons and spells.  
+`codex_entries` holds party notes and items. Only the author can edit or delete one.  
+`party_sheets` lets the Sage read the sheets of the asker's own party, as the asker.  
 Portraits live in the `character-portraits` storage bucket.  
 `srd_chunks` holds the SRD pieces and their embeddings (read-only for players).
 
@@ -335,12 +387,14 @@ One sheet per person per party, so switching campaigns never mixes notes or gear
 
 Speech in and out use the phone's own engines. No paid speech services.
 
+Sign-in links use PKCE, so a reset or Google link only works on the phone that asked for it.
+
 ---
 
 ## 10. Repository
 
 Public repository: DavidGolding200238/Arkane-Aid  
-Active branch: Apk-Build
+Active branch: Apk-Build (`main` mirrors it)
 
 ---
 
@@ -348,7 +402,7 @@ Active branch: Apk-Build
 
 The best way to evaluate the app is the preview APK on an Android phone.
 
-The loop to walk is: sign up, create or join a party, fill in the Character Sheet, ask the Sage a ruling by holding the orb, scribe a note, then check it in the Codex.
+The loop to walk is: sign up, create or join a party, fill in the Character Sheet, ask the Sage a ruling by holding the orb, scribe a note, check it in the Codex, then tap the d20 on Home and roll.
 
 ## Credits
 
