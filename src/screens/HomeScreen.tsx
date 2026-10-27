@@ -234,12 +234,6 @@ export default function HomeScreen({ onOpen }: Props) {
           resizeMode="contain"
           style={{ position: "absolute", left: 80 * s, top: 470 * s - lift, width: 200 * s, height: 200 * s }}
         />
-        <Image
-          source={dieArt}
-          resizeMode="contain"
-          pointerEvents="none"
-          style={{ position: "absolute", left: 116 * s, top: 519 * s - lift, width: 128 * s, height: 102 * s, zIndex: 2 }}
-        />
 
         <View
           pointerEvents="box-only"
@@ -266,6 +260,13 @@ export default function HomeScreen({ onOpen }: Props) {
               );
             })}
           </Animated.View>
+
+          {/* The d20 lives inside the dial's touch area (box-only), so a tap on it always reaches the dial. Same spot as before: 116,519 on the stage. */}
+          <Image
+            source={dieArt}
+            resizeMode="contain"
+            style={{ position: "absolute", left: 116 * s - wx, top: 519 * s - lift - wy, width: 128 * s, height: 102 * s, zIndex: 4 }}
+          />
 
           <Animated.View pointerEvents="none" style={[styles.layer, { zIndex: 3, transform: [{ rotate }] }]}>
             {SEALS.map((item) => {
