@@ -237,6 +237,7 @@ export default function HomeScreen({ onOpen }: Props) {
         <Image
           source={dieArt}
           resizeMode="contain"
+          pointerEvents="none"
           style={{ position: "absolute", left: 116 * s, top: 519 * s - lift, width: 128 * s, height: 102 * s, zIndex: 2 }}
         />
 
