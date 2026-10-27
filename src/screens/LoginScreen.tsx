@@ -38,7 +38,7 @@ type Props = { onOpenDash?: () => void; onForgotPassword?: () => void };
 
 export default function LoginScreen({ onOpenDash, onForgotPassword }: Props) {
   const { s, fs, width } = useScale();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +48,7 @@ export default function LoginScreen({ onOpenDash, onForgotPassword }: Props) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [titleW, setTitleW] = useState(200);
   // Layout for the Sage page's top fade behind the status bar.
   const fade = useFadeSizes();
@@ -113,6 +114,19 @@ export default function LoginScreen({ onOpenDash, onForgotPassword }: Props) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const google = async () => {
+    setError("");
+    setNotice("");
+    setGoogleBusy(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setGoogleBusy(false);
     }
   };
 
@@ -317,7 +331,9 @@ export default function LoginScreen({ onOpenDash, onForgotPassword }: Props) {
                   compact
                   fineEdge
                   icon={googleIcon}
-                  onPress={() => setNotice("Google is not switched on in Supabase yet.")}
+                  onPress={google}
+                  busy={googleBusy}
+                  disabled={busy || googleBusy}
                 />
                 <TornButton
                   label="Continue with Facebook"

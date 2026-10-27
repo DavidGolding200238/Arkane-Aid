@@ -8,10 +8,13 @@ import {
 } from "react";
 import { Linking } from "react-native";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import * as WebBrowser from "expo-web-browser";
+import { googleEnabled, supabase } from "../lib/supabase";
 
 /** Where the reset email's link sends the phone. Must be in Supabase's Redirect URLs list. */
 export const RESET_REDIRECT = "arkaneaid://reset-password";
+/** Where Google sign-in returns to the app. Covered by `arkaneaid://**` in Supabase's Redirect URLs. */
+export const GOOGLE_REDIRECT = "arkaneaid://auth-callback";
 // Set while a reset link has signed the user in but the new password is not saved yet, so a
 // restart in between drops that session instead of opening the app signed in.
 const RECOVERY_PENDING_KEY = "arkaneaid.recoveryPending";
@@ -48,6 +51,8 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Google sign-in in the browser. Resolves false if the user closed it without signing in. */
+  signInWithGoogle: () => Promise<boolean>;
   recovery: Recovery;
   sendResetLink: (email: string) => Promise<void>;
   saveNewPassword: (password: string) => Promise<void>;
@@ -210,6 +215,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(publicAuthMessage(error, "up"));
   };
 
+  const signInWithGoogle = async () => {
+    const GOOGLE_OFF = "Google sign-in isn't switched on in Supabase yet.";
+    if ((await googleEnabled()) === false) throw new Error(GOOGLE_OFF);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: GOOGLE_REDIRECT, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) throw new Error("Could not start Google sign-in. Try again.");
+    const result = await WebBrowser.openAuthSessionAsync(data.url, GOOGLE_REDIRECT);
+    if (result.type !== "success") return false;
+    // Same parsing as the reset link: implicit flow (#access_token) or PKCE (?code=).
+    const link = parseRecoveryUrl(result.url);
+    if (link.error) {
+      const text = link.error.toLowerCase();
+      if (text.includes("provider") && text.includes("not enabled")) throw new Error(GOOGLE_OFF);
+      if (text.includes("access_denied")) return false;
+      throw new Error("Google sign-in failed. Try again.");
+    }
+    // The new session reaches the app through onAuthStateChange, the same as an email login.
+    const { error: sessionError } = link.code
+      ? await supabase.auth.exchangeCodeForSession(link.code)
+      : link.accessToken && link.refreshToken
+        ? await supabase.auth.setSession({
+            access_token: link.accessToken,
+            refresh_token: link.refreshToken,
+          })
+        : { error: new Error("missing tokens") };
+    if (sessionError) throw new Error("Google sign-in failed. Try again.");
+    return true;
+  };
+
   const signOut = async () => {
     // This phone only: the default ("global") also ends the account's sessions on every other phone.
     const { error } = await supabase.auth.signOut({ scope: "local" });
@@ -254,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        signInWithGoogle,
         recovery,
         sendResetLink,
         saveNewPassword,

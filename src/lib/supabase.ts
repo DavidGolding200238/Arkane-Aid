@@ -24,6 +24,23 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 });
 
+/**
+ * Whether the Google provider is switched on in Supabase (Authentication > Providers). Reads the
+ * public /auth/v1/settings endpoint with the publishable key. Returns null if it can't be reached.
+ */
+export async function googleEnabled(): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+      headers: { apikey: supabasePublishableKey as string },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { external?: { google?: boolean } };
+    return body.external?.google === true;
+  } catch {
+    return null;
+  }
+}
+
 // Supabase's React Native setup: refresh tokens only while the app is on screen. Without this the
 // refresh timer can fire as the app goes to the background (e.g. switching to WhatsApp to copy a
 // party code); if Android cuts that request off after the server has rotated the token, the phone
