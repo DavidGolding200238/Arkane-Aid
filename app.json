@@ -60,6 +60,12 @@
         "projectId": "4e0800b5-e2f3-4740-883b-0e033cb7ab6e"
       }
     },
-    "owner": "brohammer"
+    "owner": "brohammer",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4e0800b5-e2f3-4740-883b-0e033cb7ab6e"
+    }
   }
 }
