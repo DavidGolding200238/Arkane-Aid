@@ -25,7 +25,8 @@ const field = require("../../assets/images/auth/input-field.png");
 
 // Same rule as sign-up.
 const MIN_PASSWORD = 8;
-const LINK_ERROR = "That reset link is invalid or has expired. Send a new link and try again.";
+// PKCE: a reset link only works on the phone that asked for it, so say so.
+const LINK_ERROR = "This reset link has expired or was opened on another device. Request a new one on this phone.";
 
 type Props = { onBack: () => void; onDone: () => void };
 

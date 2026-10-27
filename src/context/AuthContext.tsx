@@ -23,8 +23,9 @@ const RECOVERY_PENDING_KEY = "arkaneaid.recoveryPending";
 export type Recovery = "none" | "ready" | "invalid";
 
 /**
- * Pull the reset details out of a link. Implicit flow (this client's default) puts the tokens in
- * the #fragment; PKCE would put ?code= in the query. Errors (e.g. otp_expired) can be in either.
+ * Pull the auth details out of a link. PKCE (this client's flow) puts ?code= in the query. A reset
+ * email sent before the switch to PKCE still carries implicit-flow tokens in the #fragment until
+ * it expires. Errors (e.g. otp_expired) can be in either.
  */
 function parseRecoveryUrl(url: string) {
   const hashAt = url.indexOf("#");
@@ -131,6 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Hold that session back so the app stays on the reset screen until the password is saved.
   const holdSession = useRef(false);
   const heldSession = useRef<Session | null | undefined>(undefined);
+  // Reset links already handled: a PKCE code works once, so the same link arriving twice (cold
+  // start URL and the link event) must not be exchanged again and wrongly show as invalid.
+  const seenLinks = useRef(new Set<string>());
 
   useEffect(() => {
     let live = true;
@@ -151,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const openLink = async (url: string | null | undefined) => {
       if (!url) return;
       const link = parseRecoveryUrl(url);
-      if (!link.isReset) return;
+      if (!link.isReset || seenLinks.current.has(url)) return;
+      seenLinks.current.add(url);
       if (link.error || (!link.code && (!link.accessToken || !link.refreshToken))) {
         setRecovery("invalid");
         return;
@@ -216,8 +221,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const GOOGLE_OFF = "Google sign-in isn't switched on in Supabase yet.";
-    if ((await googleEnabled()) === false) throw new Error(GOOGLE_OFF);
+    if ((await googleEnabled()) === false) {
+      throw new Error("Google sign-in isn't switched on in Supabase yet.");
+    }
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: GOOGLE_REDIRECT, skipBrowserRedirect: true },
@@ -225,23 +231,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error || !data?.url) throw new Error("Could not start Google sign-in. Try again.");
     const result = await WebBrowser.openAuthSessionAsync(data.url, GOOGLE_REDIRECT);
     if (result.type !== "success") return false;
-    // Same parsing as the reset link: implicit flow (#access_token) or PKCE (?code=).
+    // PKCE: Supabase sends back arkaneaid://auth-callback?code=... (or ?error=...).
     const link = parseRecoveryUrl(result.url);
-    if (link.error) {
-      const text = link.error.toLowerCase();
-      if (text.includes("provider") && text.includes("not enabled")) throw new Error(GOOGLE_OFF);
-      if (text.includes("access_denied")) return false;
-      throw new Error("Google sign-in failed. Try again.");
-    }
+    // Declining on Google's consent screen comes back as access_denied: treat it as a cancel.
+    if (link.error?.toLowerCase().includes("access_denied")) return false;
+    if (link.error || !link.code) throw new Error("Google sign-in failed. Try again.");
     // The new session reaches the app through onAuthStateChange, the same as an email login.
-    const { error: sessionError } = link.code
-      ? await supabase.auth.exchangeCodeForSession(link.code)
-      : link.accessToken && link.refreshToken
-        ? await supabase.auth.setSession({
-            access_token: link.accessToken,
-            refresh_token: link.refreshToken,
-          })
-        : { error: new Error("missing tokens") };
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(link.code);
     if (sessionError) throw new Error("Google sign-in failed. Try again.");
     return true;
   };

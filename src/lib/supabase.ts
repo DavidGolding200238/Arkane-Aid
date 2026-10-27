@@ -13,14 +13,18 @@ if (!supabaseUrl || !supabasePublishableKey) {
 }
 
 // Auth storage holds Supabase session tokens only (access/refresh), via Expo SQLite's
-// localStorage polyfill. Passwords are never written here — they go to Supabase Auth over
-// HTTPS and are hashed server-side (bcrypt). See AuthContext and README Authentication.
+// localStorage polyfill, which is on disk. PKCE keeps its code verifier there too, so it survives
+// the app going to the background while the browser or mail app opens the link. Passwords are
+// never written here — they go to Supabase Auth over HTTPS and are hashed server-side (bcrypt).
+// See AuthContext and README Authentication.
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     storage: localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Links come back as ?code=, which only this phone (holding the verifier) can swap for a session.
+    flowType: "pkce",
   },
 });
 
