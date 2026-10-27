@@ -141,10 +141,9 @@ export function skillCheck(sheet: CheckSheet, skill: string, extras: Extras = {}
   return { title: `${skill} check`, kind: "check", parts };
 }
 
-/** A plain ability check (no skill). Guidance adds 1d4. */
-export function abilityCheck(sheet: CheckSheet, ability: AbilityKey, extras: Extras = {}): D20Test {
+/** A plain ability check (no skill). In 2024 Guidance only works on skill checks, so it isn't added here. */
+export function abilityCheck(sheet: CheckSheet, ability: AbilityKey, _extras: Extras = {}): D20Test {
   const parts: Part[] = [abilityPart(sheet, ability)];
-  if (extras.guidance) parts.push(GUIDANCE);
   return { title: `${abilityName(ability)} check`, kind: "check", parts };
 }
 
@@ -196,6 +195,23 @@ export function parseDamage(text: string): Damage | null {
   }
   if (!dice.length && !flat) return null;
   return { dice, flat, text: text.trim() };
+}
+
+/** Cantrip damage dice grow with character level: x2 at 5, x3 at 11, x4 at 17. */
+export function cantripMultiplier(level: number) {
+  return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1;
+}
+
+/** A cantrip's damage at this level (Fire Bolt 1d10 becomes 2d10 at level 5). Other spells are unchanged. */
+export function scaleCantrip(damage: Damage | null, spellLevel: number, characterLevel: number): Damage | null {
+  if (!damage || spellLevel !== 0) return damage;
+  const m = cantripMultiplier(characterLevel);
+  if (m === 1) return damage;
+  const dice = damage.dice.map((d) => ({ count: d.count * m, sides: d.sides }));
+  let text = dice.map((d) => `${d.count}d${d.sides}`).join(" + ");
+  if (damage.flat > 0) text += ` + ${damage.flat}`;
+  if (damage.flat < 0) text += ` − ${-damage.flat}`;
+  return { dice, flat: damage.flat, text };
 }
 
 /** The first damage dice in a spell's text ("...takes 1d10 Fire damage" -> 1d10). Healing isn't damage. */

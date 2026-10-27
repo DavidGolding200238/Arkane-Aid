@@ -19,6 +19,8 @@ import {
   spellAbilityFor,
   spellAttack,
   spellDamage,
+  scaleCantrip,
+  damageDice,
   spellKind,
   spellSaveAbility,
   spellSaveDC,
@@ -80,11 +82,11 @@ Deno.test("skills: proficiency, expertise and Jack of All Trades", () => {
   eq(flatBonus(skillCheck({ ...bard, expertise: ["Arcana"] }, "Arcana").parts), 0 + 1, "expertise needs proficiency");
 });
 
-Deno.test("Guidance adds 1d4 to ability checks only", () => {
+Deno.test("Guidance adds 1d4 to skill checks only", () => {
   const check = skillCheck(bard, "Stealth", { guidance: true, bless: true });
   eq(check.parts.filter((p) => p.die).map((p) => p.label), ["Guidance"], "check: Guidance, not Bless");
   eq(bonusText(check.parts), "+9 +1d4", "bonus text");
-  eq(abilityCheck(bard, "wis", { guidance: true }).parts.map((p) => p.label), ["Wisdom", "Guidance"], "raw check");
+  eq(abilityCheck(bard, "wis", { guidance: true }).parts.map((p) => p.label), ["Wisdom"], "raw check: no Guidance in 2024");
   const save = savingThrow(bard, "dex", { guidance: true, bless: true });
   eq(save.parts.filter((p) => p.die).map((p) => p.label), ["Bless"], "save: Bless, not Guidance");
 });
@@ -222,4 +224,14 @@ Deno.test("death saves", () => {
   // Bless's d4 can lift a 9 to a success, but a natural 1 is still two failures.
   const blessed = rollD20(deathSave({ bless: true }), "normal", null, dice(9, 2));
   eq([blessed.total, blessed.outcome], [11, "success"], "Bless on a death save");
+});
+
+Deno.test("cantrip damage scales at levels 5, 11 and 17", () => {
+  const d = spellDamage("A creature takes 1d10 Fire damage.");
+  eq(scaleCantrip(d, 0, 4)?.text, "1d10", "level 4");
+  eq(scaleCantrip(d, 0, 5)?.text, "2d10", "level 5");
+  eq(scaleCantrip(d, 0, 11)?.text, "3d10", "level 11");
+  eq(scaleCantrip(d, 0, 17)?.dice, [{ count: 4, sides: 10 }], "level 17");
+  eq(scaleCantrip(d, 1, 17)?.text, "1d10", "levelled spells don't scale");
+  eq(damageDice(scaleCantrip(d, 0, 5)!, true), [{ sides: 10, count: 4 }], "crit doubles scaled dice");
 });

@@ -13,6 +13,7 @@ import { tapHaptic } from "../../lib/haptics";
 import {
   ABILITIES,
   abilityCheck,
+  scaleCantrip,
   abilityMod,
   abilityName,
   applyDeathSave,
@@ -280,7 +281,7 @@ function Checks({ rollW, sheet }: { rollW: number; sheet: Sheet }) {
         }
         const sp = spells.find((x) => `s:${x.id}` === pick);
         if (!sp) return null;
-        const dmg = spellDamage(sp.description);
+        const dmg = scaleCantrip(spellDamage(sp.description), sp.level, c.level);
         const typeMatch = sp.description.match(/\d+d\d+\s+([a-z]+)\s+damage/i);
         const damageParts = dmg ? [{ label: sp.name, value: 0, dice: dmg.text } as Part & { dice: string }] : [];
         const base = { ...none, damage: dmg, damageType: typeMatch ? typeMatch[1].toLowerCase() : "", damageParts, castPick: !ownSpellAbility };
@@ -445,7 +446,7 @@ function Checks({ rollW, sheet }: { rollW: number; sheet: Sheet }) {
   const isDeath = category === "death";
   const deathDone = isDeath && (deathState === "stable" || deathState === "dead");
   const isSaveSpell = !!plan?.saveDC;
-  const guidanceOn = category === "skill" || (category === "ability" && pick !== "init");
+  const guidanceOn = category === "skill";
   const blessOn = category === "save" || category === "death" || (category === "attack" && !isSaveSpell);
   const dcLabel = isAttack ? "AC" : "DC";
 
@@ -616,7 +617,7 @@ function Checks({ rollW, sheet }: { rollW: number; sheet: Sheet }) {
           <>
             {guidanceOn ? <Toggle label="Guidance, plus 1d4" short="Guidance" on={guidance} seed={175} disabled={rolling} onPress={() => { fresh(); setGuidance(!guidance); }} /> : null}
             {blessOn ? <Toggle label="Bless, plus 1d4" short="Bless" on={bless} seed={176} disabled={rolling} onPress={() => { fresh(); setBless(!bless); }} /> : null}
-            {!guidanceOn && !blessOn && !isSaveSpell ? <Text style={[styles.note, { flex: 1, fontSize: fs(12) }]} numberOfLines={2}>{"Initiative is a Dexterity check. Guidance doesn't apply."}</Text> : null}
+            {!guidanceOn && !blessOn && !isSaveSpell ? <Text style={[styles.note, { flex: 1, fontSize: fs(12) }]} numberOfLines={2}>{pick === "init" ? "Initiative is a Dexterity check. Guidance doesn't apply." : "Guidance only works on skill checks."}</Text> : null}
             {isSaveSpell ? <Text style={[styles.note, { flex: 1, fontSize: fs(12) }]} numberOfLines={2}>Each target makes a {abilityName(plan!.saveDC!.ability)} save against your DC.</Text> : null}
           </>
         )}
