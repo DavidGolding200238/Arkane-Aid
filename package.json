@@ -9,7 +9,7 @@
     "android": "expo start --go --android",
     "typecheck": "tsc --noEmit",
     "test:functions": "cd supabase/functions && deno check **/*.ts && deno lint && deno test --allow-read",
-    "test:dice": "deno test --allow-read --allow-env --sloppy-imports scripts/dice-faces.test.ts",
+    "test:dice": "deno test --allow-read --allow-env --sloppy-imports scripts/dice-faces.test.ts scripts/check-rules.test.ts",
     "lint": "expo lint",
     "seed:srd": "deno run -A --node-modules-dir=none --no-lock scripts/srd-embed.ts",
     "eval:search": "deno run -A --node-modules-dir=none --no-lock evals/search.ts",
