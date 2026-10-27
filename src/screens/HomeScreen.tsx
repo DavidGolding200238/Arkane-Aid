@@ -14,6 +14,8 @@ import { StatusBar } from "expo-status-bar";
 
 import type { AppScreen } from "../navigation/screens";
 import Rule from "../components/Rule";
+import DiceRoller from "../components/dice/DiceRoller";
+import { tapHaptic } from "../lib/haptics";
 import { colors, DESIGN_HEIGHT, DESIGN_WIDTH, fonts, inkText, useAppFonts, useScale } from "../theme";
 import Witch from "../../assets/icons/icons8-witch-hat.svg";
 import Book from "../../assets/icons/icons8-book.svg";
@@ -81,6 +83,7 @@ export default function HomeScreen({ onOpen }: Props) {
   const areaH = pageH || height;
   const s = Math.min(width / DESIGN_WIDTH, areaH / DESIGN_HEIGHT);
   const rot = useAnimatedValue(0);
+  const [diceOpen, setDiceOpen] = useState(false);
   const baseRef = useRef(0);
   const openRef = useRef(onOpen);
   useLayoutEffect(() => {
@@ -169,6 +172,11 @@ export default function HomeScreen({ onOpen }: Props) {
                 rot.setValue(baseRef.current);
                 return;
               }
+            }
+            // A tap on the d20 in the middle of the dial opens the dice roller. (Inside the seals' inner edge.)
+            if (Math.hypot(locationX - x0, locationY - y0) <= sz * 0.43) {
+              tapHaptic();
+              setDiceOpen(true);
             }
           }
           Animated.timing(rot, {
@@ -291,6 +299,7 @@ export default function HomeScreen({ onOpen }: Props) {
           </Animated.View>
         </View>
       </View>
+      <DiceRoller visible={diceOpen} onClose={() => setDiceOpen(false)} />
     </View>
   );
 }
