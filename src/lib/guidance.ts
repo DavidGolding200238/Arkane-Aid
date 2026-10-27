@@ -22,11 +22,11 @@ export const GUIDANCE: Tip[] = [
   },
   {
     title: "Roll the dice",
-    body: "Tap the d20 on the dashboard to roll dice.",
+    body: "Tap the d20 on Home to open the dice. Tap Roll or shake your phone. Advantage and Disadvantage work on a single d20. Ask the Sage any dice rule.",
   },
   {
     title: "Open the Tome",
-    body: "Sign in, make or join a party with its 6-character code, and pick the Sage's voice. These tips stay here.",
+    body: "Sign in with email or Google, make or join a party with its 6-character code, and pick the Sage's voice. These tips stay here.",
   },
   {
     title: "2024 rules",
