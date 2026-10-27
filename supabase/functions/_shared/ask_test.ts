@@ -540,7 +540,7 @@ Deno.test("out-of-scope and odd questions reach all three voices as the same mes
   }
 });
 
-// No sheet sent (or the untouched template saved): every voice reviews the Ledger's blank template
+// No sheet sent (or the untouched template saved): every voice reviews the Character Sheet's blank template
 // as incomplete with a fixed line, with no model call, so no voice praises it or brushes it off.
 async function runFixed(body: Record<string, unknown>) {
   let calls = 0;
@@ -562,7 +562,7 @@ for (const [name, voice] of noSheetVoices) {
   Deno.test(`${name}: a sheet question with no sheet reviews the blank template as incomplete`, async () => {
     const { calls, result } = await runFixed({ question: "what do you think of my player sheet", ...voice });
     assertEquals(calls, 0);
-    for (const word of ["species", "class", "name", "10", "traits", "features", "Ledger", "Save sheet"]) {
+    for (const word of ["species", "class", "name", "10", "traits", "features", "Character Sheet", "saves itself"]) {
       assertStringIncludes(result.reply, word);
     }
     assert(/join it on the Tome/i.test(result.reply), result.reply);

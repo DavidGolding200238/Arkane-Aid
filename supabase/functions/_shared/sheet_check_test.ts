@@ -64,7 +64,7 @@ const check = (over: Record<string, unknown> = {}) => checkSheet(readSheet({ ...
 const fixes = (findings: ReturnType<typeof checkSheet>) => findings.filter((f) => f.severity === "fix");
 const suggestions = (findings: ReturnType<typeof checkSheet>) => findings.filter((f) => f.severity === "suggest");
 
-Deno.test("the checker's race and class lists match the Ledger's", () => {
+Deno.test("the checker's race and class lists match the Character Sheet's", () => {
   assertEquals(RACES, app.RACES);
   assertEquals(CLASSES, app.CLASSES);
 });
@@ -90,7 +90,10 @@ Deno.test("David's sheet: Charisma not highest is a suggestion; Speed 30 and no 
 });
 
 Deno.test("David's sheet: the footer comes from the findings", () => {
-  assertEquals(findingsSource(checkSheet(readSheet(DAVID)!)), "Adjust Ability Scores, p. 21; Record Class Features, p. 22");
+  assertEquals(
+    findingsSource(checkSheet(readSheet(DAVID)!)),
+    "Adjust Ability Scores, p. 21; Record Class Features, p. 22",
+  );
 });
 
 Deno.test("a clean sheet has no findings and no footer", () => {
@@ -133,10 +136,26 @@ Deno.test("missing ability scores are fixes on a full sheet", () => {
 });
 
 Deno.test("placeholder text is caught; real entries and empty fields are not", () => {
-  for (const junk of ["lol", "Lol", "LOL!", "yes", "Yes.", "test", "asdf", "idk", "???", "hahaha", "sdfgh", "aaaa", "xxx"]) {
+  for (
+    const junk of ["lol", "Lol", "LOL!", "yes", "Yes.", "test", "asdf", "idk", "???", "hahaha", "sdfgh", "aaaa", "xxx"]
+  ) {
     assert(isJunk(junk), junk);
   }
-  for (const real of ["Rage", "Darkvision", "Thieves' Cant", "Rope (50 ft)", "Lute", "Yew wand", "Lockpicks", "Healer's Kit", "None", "STR", "SPD"]) {
+  for (
+    const real of [
+      "Rage",
+      "Darkvision",
+      "Thieves' Cant",
+      "Rope (50 ft)",
+      "Lute",
+      "Yew wand",
+      "Lockpicks",
+      "Healer's Kit",
+      "None",
+      "STR",
+      "SPD",
+    ]
+  ) {
     assert(!isJunk(real), real);
   }
 });
@@ -177,7 +196,9 @@ Deno.test("old app brief: David's sheet still gets the same fixes, without guess
   const findings = checkSheet(sheet);
   assertEquals(fixes(findings).map((f) => f.field), ["Strength", "Features", "Traits", "Gear"]);
   // A race the brief can't place is unknown, not missing.
-  const odd = checkSheet(parseBrief("Brakka Half-Orc Barbarian L1. AC14 SPD30 PB+2 HP 15/15. STR30 DEX14 CON16 INT8 WIS12 CHA10")!);
+  const odd = checkSheet(
+    parseBrief("Brakka Half-Orc Barbarian L1. AC14 SPD30 PB+2 HP 15/15. STR30 DEX14 CON16 INT8 WIS12 CHA10")!,
+  );
   assertEquals(fixes(odd).map((f) => f.field), ["Strength"]);
 });
 
@@ -196,15 +217,89 @@ Deno.test("a pipe in the player's own text cannot break the findings table", () 
   for (const row of text.split("\n")) assertEquals(row.split(" | ").length, 4, row);
 });
 
-Deno.test("the blank Ledger template is flagged incomplete, never clean", () => {
+Deno.test("the blank Character Sheet template is flagged incomplete, never clean", () => {
   assert(isTemplate(TEMPLATE_SHEET));
   const findings = checkSheet(TEMPLATE_SHEET);
   const fields = findings.map((f) => f.field);
-  for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) assert(fields.includes(field), field);
+  for (const field of ["Species", "Class", "Ability Scores", "Features", "Traits", "Name"]) {
+    assert(fields.includes(field), field);
+  }
   assertEquals(findings.find((f) => f.field === "Ability Scores")!.severity, "fix");
 });
 
 Deno.test("a filled-in sheet is not the template", () => {
   assertFalse(isTemplate({ ...TEMPLATE_SHEET, race: "Elf" }));
   assertFalse(isTemplate({ ...TEMPLATE_SHEET, scores: { ...TEMPLATE_SHEET.scores, str: 15 } }));
+});
+
+// A species outside the SRD with homebrew traits written on the sheet (Character Sheet "Homebrew species").
+const HOMEBREW = {
+  ...DAVID,
+  race: "Owlfolk",
+  str: 10,
+  cha: 15,
+  features: "Bardic Inspiration, Spellcasting",
+  traits: [],
+  gear: ["Lute"],
+  lineage: "",
+  subclass: "College of Lore",
+  homebrew: {
+    bonuses: "+2 DEX, +1 WIS",
+    size: "Small",
+    speed: 25,
+    abilities: "Flight 30 ft; Darkvision 60 ft, as an owl",
+  },
+  weapon: "Dagger +4 to hit, 1d4 Piercing (Finesse, Light, Thrown)",
+  spells: ["Vicious Mockery (cantrip)", "Healing Word (1st)"],
+};
+
+Deno.test("homebrew species traits from the sheet are read and labelled as homebrew", () => {
+  const sheet = readSheet(HOMEBREW)!;
+  assertEquals(sheet.homebrew, {
+    bonuses: "+2 DEX, +1 WIS",
+    size: "Small",
+    speed: 25,
+    abilities: ["Flight 30 ft", "Darkvision 60 ft, as an owl"],
+  });
+  const text = labelledSheet(sheet);
+  assertStringIncludes(
+    text,
+    "Homebrew species traits (the table's homebrew, written on the sheet): Ability bonuses +2 DEX, +1 WIS; Size Small; Speed 25 ft; Abilities: Flight 30 ft, Darkvision 60 ft, as an owl",
+  );
+  assertStringIncludes(text, "Subclass: College of Lore");
+  assertStringIncludes(text, "Weapon in hand: Dagger +4 to hit");
+  assertStringIncludes(text, "Spells: Vicious Mockery (cantrip), Healing Word (1st)");
+});
+
+Deno.test("a homebrew species with traits on the sheet is not sent to the DM or asked for traits", () => {
+  const findings = checkSheet(readSheet(HOMEBREW)!);
+  const species = findings.find((f) => f.field === "Species")!;
+  assertStringIncludes(species.problem, "homebrew");
+  assertFalse(/check it with them/i.test(species.fix), species.fix);
+  assertFalse(findings.some((f) => f.field === "Traits"), JSON.stringify(findings));
+});
+
+Deno.test("a homebrew species with no traits is pointed at the Homebrew species box", () => {
+  const findings = checkSheet(readSheet({ ...HOMEBREW, homebrew: null })!);
+  assertStringIncludes(findings.find((f) => f.field === "Species")!.fix, "Homebrew species box");
+  assert(findings.some((f) => f.field === "Traits"));
+});
+
+Deno.test("empty homebrew fields count as no homebrew", () => {
+  assertEquals(
+    readSheet({ ...HOMEBREW, homebrew: { bonuses: "", size: "", speed: null, abilities: "" } })!.homebrew,
+    undefined,
+  );
+});
+
+Deno.test("old app brief: lineage, subclass, homebrew, weapon and spells do not leak into other lists", () => {
+  const brief = "Ryn Owlfolk Bard (College of Lore) L1. AC12 SPD25 PB+2 HP 9/9. STR10 DEX14 CON12 INT10 WIS12 CHA15. " +
+    "Features: Bardic Inspiration. Homebrew species traits (written on the sheet): +2 DEX; Size Small; Flight 30 ft. " +
+    "In hand: Dagger +4 to hit, 1d4 Piercing. Spells: Vicious Mockery (cantrip), Healing Word (1st)";
+  const sheet = parseBrief(brief)!;
+  assertEquals(sheet.class, "Bard");
+  assertEquals(sheet.features, ["Bardic Inspiration"]);
+  assertEquals(sheet.homebrew?.abilities, ["+2 DEX; Size Small; Flight 30 ft"]);
+  assertEquals(sheet.weapon, "Dagger +4 to hit, 1d4 Piercing");
+  assertEquals(sheet.spells, ["Vicious Mockery (cantrip)", "Healing Word (1st)"]);
 });

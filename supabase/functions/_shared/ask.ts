@@ -52,31 +52,33 @@ export function isSheetReview(question: string): boolean {
   return BARE_SHEET.test(question);
 }
 
-// A sheet question with no saved sheet (the app sends none until "Save sheet"), or the untouched
-// starting template saved as is: the Sage reviews the Ledger's blank template as INCOMPLETE. The
+// A sheet question with no saved sheet (the app saves one only after the first edit), or the
+// untouched starting template saved as is: the Sage reviews the Character Sheet's blank template
+// as INCOMPLETE. The
 // reply is a fixed line per voice, never a model call, so no voice can praise a blank sheet or
 // brush the player off. It names what is missing and where to fill it in.
 const TEMPLATE_REVIEW: Record<Flavour, (party: boolean) => string> = {
   wizard: (party) =>
-    "Thy sheet is still the Ledger's blank starting page, so it is not finished yet. It has no species, no class " +
-    "and no name, all six ability scores still sit at 10, and no traits or features are written. Open the Ledger, " +
-    "tap the quill, fill these in and press Save sheet" +
+    "Thy sheet is still the Character Sheet's blank starting page, so it is not finished yet. It has no species, " +
+    "no class and no name, all six ability scores still sit at 10, and no traits or features are written. Open the " +
+    "Character Sheet, tap the quill and fill these in; it saves itself" +
     (party ? "" : ". If thou playest with a party, join it on the Tome first, for each party keeps its own sheet") +
     ". Then ask me again and I shall read it gladly.",
   plain: (party) =>
     "Your sheet is still the blank starting template, so it's incomplete. It has no species, no class and no name, " +
-    "all six ability scores are still 10, and no traits or features are written. Open the Ledger, tap the quill, " +
-    "fill these in and press Save sheet" +
+    "all six ability scores are still 10, and no traits or features are written. Open the Character Sheet, tap the " +
+    "quill and fill these in; it saves itself" +
     (party ? "" : ". If you play with a party, join it on the Tome first, because each party keeps its own sheet") +
     ". Then ask me again and I'll review it.",
   bard: (party) =>
     "Your sheet's a blank page, your tale's still unsung! No species, no class and no name, all six scores still 10, " +
-    "and no traits or features yet. Open the Ledger, tap the quill, fill these in and press Save sheet" +
+    "and no traits or features yet. Open the Character Sheet, tap the quill and fill these in; it saves itself" +
     (party ? "" : ". Got a party? Join it on the Tome first, for each party keeps its own sheet") +
     ". Then ask again, and I'll sing what I see.",
 };
-/** Recognises a TEMPLATE_REVIEW reply in the history, so "what must I do?" after it gets the same steps. */
-const NO_SHEET_MARK = /press Save sheet/;
+/** Recognises a TEMPLATE_REVIEW reply in the history (this wording or the old "press Save sheet" one),
+ *  so "what must I do?" after it gets the same steps. */
+const NO_SHEET_MARK = /fill these in; it saves itself|press Save sheet/;
 
 // A cut-off question with nothing to lean on ("where must I"): ask again instead of guessing from
 // a weak SRD match on filler words.

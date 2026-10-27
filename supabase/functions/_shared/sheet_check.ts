@@ -39,9 +39,19 @@ export type Sheet = {
   features: string[];
   traits: string[];
   gear: string[];
+  subclass?: string;
+  lineage?: string;
+  /** Traits the player wrote for a species that is not in the SRD: the table's homebrew. */
+  homebrew?: Homebrew;
+  /** The weapon in hand, as one line ("Longsword +5 to hit, 1d8 Slashing"). */
+  weapon?: string;
+  spells?: string[];
   /** true when this came from the old short brief: missing fields there are unknown, not empty. */
   partial?: boolean;
 };
+
+/** Homebrew species traits from the sheet (only sent for a species outside the SRD). */
+export type Homebrew = { bonuses?: string; size?: string; speed?: number; abilities: string[] };
 
 // Keep equal to src/lib/sheetLists.ts (sheet_check_test.ts checks it).
 export const RACES = ["Dragonborn", "Dwarf", "Elf", "Gnome", "Goliath", "Halfling", "Human", "Orc", "Tiefling"];
@@ -183,7 +193,28 @@ export function readSheet(value: unknown): Sheet | null {
     features: entries(v.features, 12),
     traits: entries(v.traits, 8),
     gear: entries(v.gear, 12),
+    subclass: str(v.subclass, 40),
+    lineage: str(v.lineage, 40),
+    homebrew: readHomebrew(v.homebrew),
+    weapon: str(v.weapon, 120),
+    spells: entries(v.spells, 16),
   };
+}
+
+function readHomebrew(value: unknown): Homebrew | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const v = value as Record<string, unknown>;
+  const brew: Homebrew = {
+    bonuses: str(v.bonuses, 80),
+    size: str(v.size, 20),
+    speed: num(v.speed),
+    // One ability per line (the app joins lines with "; "); whole sentences, so not cut at commas.
+    abilities: (Array.isArray(v.abilities) ? v.abilities.map(String) : String(v.abilities ?? "").split(/[\n;]+/))
+      .map((line) => line.replace(/\s+/g, " ").trim().slice(0, 160))
+      .filter((line) => !EMPTY_ENTRY.test(line) && !isJunk(line))
+      .slice(0, 6),
+  };
+  return brew.bonuses || brew.size || brew.speed !== undefined || brew.abilities.length ? brew : undefined;
 }
 
 function known(list: string[], value: string | undefined): string | undefined {
@@ -206,12 +237,17 @@ export function parseBrief(brief: string): Sheet | null {
     return m ? Number(m[1]) : undefined;
   };
   const list = (label: string) => {
-    const m = new RegExp(`\\b${label}:\\s*([^\\n]*?)(?=\\.\\s+(?:Skills|Gear|Traits|Features):|\\n|$)`, "i").exec(brief);
+    const m = new RegExp(
+      `\\b${label}:\\s*([^\\n]*?)(?=\\.\\s+(?:Skills|Gear|Traits|Features|In hand|Spells|Homebrew species traits[^:]*):|\\n|$)`,
+      "i",
+    ).exec(brief);
     return m ? entries(m[1].replace(/\.$/, "")) : [];
   };
   const firstLine = brief.split(/[.\n]/)[0];
   const words = firstLine.split(/\s+/);
   const hp = /\bHP\s*(-?\d+)\s*\/\s*(-?\d+)/i.exec(brief);
+  const homebrew = /\bHomebrew species traits[^:]*:\s*(.*?)(?=\.\s+(?:In hand|Spells):|\n|$)/i.exec(brief);
+  const weapon = /\bIn hand:\s*(.*?)(?=\.\s+Spells:|\n|$)/i.exec(brief);
   return {
     race: words.map((w) => known(RACES, w)).find(Boolean),
     class: words.map((w) => known(CLASSES, w)).find(Boolean),
@@ -226,12 +262,15 @@ export function parseBrief(brief: string): Sheet | null {
     features: list("Features"),
     traits: list("Traits"),
     gear: list("Gear"),
+    homebrew: homebrew ? { abilities: [homebrew[1].replace(/\.$/, "").slice(0, 300)] } : undefined,
+    weapon: weapon ? weapon[1].replace(/\.$/, "").slice(0, 120) : undefined,
+    spells: list("Spells"),
     partial: true,
   };
 }
 
-/** The Ledger's blank starting sheet (EMPTY in src/screens/LedgerScreen.tsx): what a new player sees
- *  before they fill anything in. It is drawn on the phone and only stored on "Save sheet", so the
+/** The Character Sheet's blank starting sheet (EMPTY_DRAFT in src/lib/character.ts): what a new player
+ *  sees before they fill anything in. It is drawn on the phone and only stored after the first edit, so the
  *  app sends no sheet for it; the Sage reviews this instead. Keep equal to EMPTY. */
 export const TEMPLATE_SHEET: Sheet = {
   level: 1,
@@ -276,17 +315,52 @@ export function checkSheet(sheet: Sheet): Finding[] {
 
   // Race and class. A custom one is allowed by the app, so it is only a note.
   if (!sheet.partial || sheet.race !== undefined) {
-    if (!sheet.race) add("fix", "Species", "No species (race) is chosen.", `Pick one, such as ${RACES.slice(0, 3).join(", ")} or ${RACES[6]}.`, REFS.species);
-    else if (!race) add("suggest", "Species", `"${sheet.race}" is not one of the SRD species.`, "That is fine if your DM allows it; check it with them.", REFS.species);
+    if (!sheet.race) {
+      add(
+        "fix",
+        "Species",
+        "No species (race) is chosen.",
+        `Pick one, such as ${RACES.slice(0, 3).join(", ")} or ${RACES[6]}.`,
+        REFS.species,
+      );
+    } else if (!race && sheet.homebrew) {
+      add(
+        "suggest",
+        "Species",
+        `"${sheet.race}" is homebrew, not an SRD species; its traits are written on your sheet.`,
+        "Those traits are used as your table's homebrew; your DM has the final say on anything they do not cover.",
+        REFS.species,
+      );
+    } else if (!race) {
+      add(
+        "suggest",
+        "Species",
+        `"${sheet.race}" is not one of the SRD species.`,
+        "Write its traits in the Homebrew species box on your Character Sheet, so they can be used as your table's homebrew.",
+        REFS.species,
+      );
+    }
   }
   if (!sheet.partial || sheet.class !== undefined) {
     if (!sheet.class) add("fix", "Class", "No class is chosen.", "Pick one of the twelve classes.", REFS.chooseClass);
-    else if (!klass) add("suggest", "Class", `"${sheet.class}" is not one of the SRD classes.`, "That is fine if your DM allows it; check it with them.", REFS.chooseClass);
+    else if (!klass) {
+      add(
+        "suggest",
+        "Class",
+        `"${sheet.class}" is not one of the SRD classes.`,
+        "That is fine if your DM allows it; check it with them.",
+        REFS.chooseClass,
+      );
+    }
   }
-  if (!sheet.partial && !sheet.name) add("suggest", "Name", "The character has no name.", "Give them one.", REFS.create);
+  if (!sheet.partial && !sheet.name) {
+    add("suggest", "Name", "The character has no name.", "Give them one.", REFS.create);
+  }
 
   if (level === undefined) {
-    if (!sheet.partial) add("fix", "Level", "No level is set.", "Set a level from 1 to 20; new characters start at 1.", REFS.level);
+    if (!sheet.partial) {
+      add("fix", "Level", "No level is set.", "Set a level from 1 to 20; new characters start at 1.", REFS.level);
+    }
   } else if (level < 1 || level > 20) {
     add("fix", "Level", `Level ${level} is outside 1 to 20.`, "Set a level from 1 to 20.", REFS.level);
   }
@@ -300,26 +374,70 @@ export function checkSheet(sheet: Sheet): Finding[] {
       continue;
     }
     if (score > cap) {
-      add("fix", name, `${name} is ${score}, but a player character's score can't go above ${cap}${cap === 20 ? " at this level" : ""}.`, `Lower it to ${cap} or less.`, REFS.adjust);
+      add(
+        "fix",
+        name,
+        `${name} is ${score}, but a player character's score can't go above ${cap}${
+          cap === 20 ? " at this level" : ""
+        }.`,
+        `Lower it to ${cap} or less.`,
+        REFS.adjust,
+      );
     } else if (score < 1) {
-      add("fix", name, `${name} is ${score}; scores start at 1.`, "Raise it to at least 1; creation scores are 3 or more.", REFS.generate);
+      add(
+        "fix",
+        name,
+        `${name} is ${score}; scores start at 1.`,
+        "Raise it to at least 1; creation scores are 3 or more.",
+        REFS.generate,
+      );
     }
   }
 
   if (!sheet.partial && allTens(sheet)) {
-    add("fix", "Ability Scores", "All six ability scores are still the starting 10.", "Set them with the standard array (15, 14, 13, 12, 10, 8), point buy or a roll.", REFS.generate);
+    add(
+      "fix",
+      "Ability Scores",
+      "All six ability scores are still the starting 10.",
+      "Set them with the standard array (15, 14, 13, 12, 10, 8), point buy or a roll.",
+      REFS.generate,
+    );
   }
 
   // Hit points, Armor Class, Speed. 0 current HP is legal (down and dying); a 0 maximum is not.
   if (sheet.hp_max !== undefined && sheet.hp_max <= 0) {
-    add("fix", "Hit Points", `Maximum Hit Points are ${sheet.hp_max}.`, "At level 1 it is your class's Hit Die maximum plus your Constitution modifier.", REFS.numbers);
+    add(
+      "fix",
+      "Hit Points",
+      `Maximum Hit Points are ${sheet.hp_max}.`,
+      "At level 1 it is your class's Hit Die maximum plus your Constitution modifier.",
+      REFS.numbers,
+    );
   } else if (sheet.hp_current !== undefined && sheet.hp_current < 0) {
-    add("fix", "Hit Points", `Current Hit Points are ${sheet.hp_current}; they never drop below 0.`, "Set them to 0 or more.", REFS.numbers);
+    add(
+      "fix",
+      "Hit Points",
+      `Current Hit Points are ${sheet.hp_current}; they never drop below 0.`,
+      "Set them to 0 or more.",
+      REFS.numbers,
+    );
   } else if (sheet.hp_current !== undefined && sheet.hp_max !== undefined && sheet.hp_current > sheet.hp_max) {
-    add("fix", "Hit Points", `Current Hit Points (${sheet.hp_current}) are above the maximum (${sheet.hp_max}).`, "Lower them to the maximum; extra points are Temporary Hit Points.", REFS.numbers);
+    add(
+      "fix",
+      "Hit Points",
+      `Current Hit Points (${sheet.hp_current}) are above the maximum (${sheet.hp_max}).`,
+      "Lower them to the maximum; extra points are Temporary Hit Points.",
+      REFS.numbers,
+    );
   }
   if (sheet.ac !== undefined && sheet.ac <= 0) {
-    add("fix", "Armor Class", `Armor Class is ${sheet.ac}.`, "Without armor it is 10 plus your Dexterity modifier.", REFS.numbers);
+    add(
+      "fix",
+      "Armor Class",
+      `Armor Class is ${sheet.ac}.`,
+      "Without armor it is 10 plus your Dexterity modifier.",
+      REFS.numbers,
+    );
   }
   if (sheet.speed !== undefined && sheet.speed <= 0) {
     add("fix", "Speed", `Speed is ${sheet.speed} ft.`, "Use your species' Speed, usually 30 ft.", REFS.species);
@@ -338,10 +456,22 @@ export function checkSheet(sheet: Sheet): Finding[] {
   junk("Traits", sheet.traits, "Replace it with your species traits, or clear it.", REFS.species);
   junk("Gear", sheet.gear, "Replace it with your starting equipment from your class and background.", REFS.equipment);
   if (!sheet.partial && !badFeatures && !sheet.features.length) {
-    add("suggest", "Features", "No class features are written down.", klass ? `A level 1 ${klass} has ${LEVEL_1[klass]}.` : "Pick a class, then write down its level 1 features.", REFS.features);
+    add(
+      "suggest",
+      "Features",
+      "No class features are written down.",
+      klass ? `A level 1 ${klass} has ${LEVEL_1[klass]}.` : "Pick a class, then write down its level 1 features.",
+      REFS.features,
+    );
   }
-  if (!sheet.partial && !sheet.traits.length) {
-    add("suggest", "Traits", "No species traits are written down.", race ? `Write down the ${race} traits.` : "Pick a species, then write down its traits.", REFS.species);
+  if (!sheet.partial && !sheet.traits.length && !sheet.homebrew) {
+    add(
+      "suggest",
+      "Traits",
+      "No species traits are written down.",
+      race ? `Write down the ${race} traits.` : "Pick a species, then write down its traits.",
+      REFS.species,
+    );
   }
 
   // Gentle notes on the scores.
@@ -352,13 +482,29 @@ export function checkSheet(sheet: Sheet): Finding[] {
     const top = Math.max(...all);
     if (best < top) {
       const topName = ABILITIES.find(([k]) => sheet.scores[k] === top)![1];
-      const mainNames = main.map((k) => ABILITY_NAME[k]).join(main.length > 1 && klass === "Fighter" ? " or " : " and ");
-      add("suggest", "Ability Scores", `${mainNames} is a ${klass}'s main ability, but your highest score is ${topName}.`, `Consider putting your best score in ${mainNames}.`, REFS.chooseClass);
+      const mainNames = main.map((k) => ABILITY_NAME[k]).join(
+        main.length > 1 && klass === "Fighter" ? " or " : " and ",
+      );
+      add(
+        "suggest",
+        "Ability Scores",
+        `${mainNames} is a ${klass}'s main ability, but your highest score is ${topName}.`,
+        `Consider putting your best score in ${mainNames}.`,
+        REFS.chooseClass,
+      );
     }
     const total = all.reduce((sum, s) => sum + Math.min(Math.max(s, 0), cap), 0);
     const high = 75 + 2 * boosts(level ?? 1) + 6;
     if (total > high || total < 60) {
-      add("suggest", "Ability Scores", `Your scores add up to ${total}, ${total > high ? "well above" : "well below"} the standard array or point buy (about 72 to 75 at level 1).`, "Fine if you rolled them; just check the method with your DM.", REFS.generate);
+      add(
+        "suggest",
+        "Ability Scores",
+        `Your scores add up to ${total}, ${
+          total > high ? "well above" : "well below"
+        } the standard array or point buy (about 72 to 75 at level 1).`,
+        "Fine if you rolled them; just check the method with your DM.",
+        REFS.generate,
+      );
     }
   }
 
@@ -368,8 +514,27 @@ export function checkSheet(sheet: Sheet): Finding[] {
 /** The sheet as short labelled lines for the model ("Speed: 30 ft"), so nothing reads like an error. */
 export function labelledSheet(sheet: Sheet): string {
   const lines: string[] = [];
-  const who = [sheet.name && `Name: ${sheet.name}`, sheet.race && `Species: ${sheet.race}`, sheet.class && `Class: ${sheet.class}`, sheet.level !== undefined && `Level: ${sheet.level}`];
+  const who = [
+    sheet.name && `Name: ${sheet.name}`,
+    sheet.race && `Species: ${sheet.race}`,
+    sheet.lineage && `Lineage: ${sheet.lineage}`,
+    sheet.class && `Class: ${sheet.class}`,
+    sheet.subclass && `Subclass: ${sheet.subclass}`,
+    sheet.level !== undefined && `Level: ${sheet.level}`,
+  ];
   lines.push(who.filter(Boolean).join("; "));
+  const brew = sheet.homebrew;
+  if (brew) {
+    const parts = [
+      brew.bonuses && `Ability bonuses ${brew.bonuses}`,
+      brew.size && `Size ${brew.size}`,
+      brew.speed !== undefined && `Speed ${brew.speed} ft`,
+      brew.abilities.length && `Abilities: ${brew.abilities.join(", ")}`,
+    ];
+    lines.push(
+      `Homebrew species traits (the table's homebrew, written on the sheet): ${parts.filter(Boolean).join("; ")}`,
+    );
+  }
   const pb = sheet.level !== undefined ? 2 + Math.floor((Math.min(20, Math.max(1, sheet.level)) - 1) / 4) : undefined;
   const combat = [
     sheet.hp_max !== undefined && `Hit Points: ${sheet.hp_current ?? sheet.hp_max} of ${sheet.hp_max}`,
@@ -378,7 +543,9 @@ export function labelledSheet(sheet: Sheet): string {
     pb !== undefined && `Proficiency Bonus: +${pb}`,
   ];
   lines.push(combat.filter(Boolean).join("; "));
-  const scores = ABILITIES.filter(([k]) => sheet.scores[k] !== undefined).map(([k, name]) => `${name} ${sheet.scores[k]}`);
+  const scores = ABILITIES.filter(([k]) => sheet.scores[k] !== undefined).map(([k, name]) =>
+    `${name} ${sheet.scores[k]}`
+  );
   if (scores.length) lines.push(`Ability scores: ${scores.join(", ")}`);
   const list = (label: string, items: string[], max: number) => {
     if (items.length) lines.push(`${label}: ${items.slice(0, max).join(", ")}`);
@@ -388,6 +555,8 @@ export function labelledSheet(sheet: Sheet): string {
   list("Features", sheet.features, 6);
   list("Traits", sheet.traits, 4);
   list("Gear", sheet.gear, 6);
+  if (sheet.weapon) lines.push(`Weapon in hand: ${sheet.weapon}`);
+  list("Spells", sheet.spells ?? [], 16);
   return lines.filter(Boolean).join("\n");
 }
 

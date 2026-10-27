@@ -124,14 +124,16 @@ for (const voice of VOICES) {
     assertEquals(sent.length, 0);
     assertEquals(result.retrieval, "sheet");
     assertFalse(/splendid/i.test(result.reply));
-    for (const word of ["species", "class", "10", "Ledger", "Save sheet"]) assert(result.reply.includes(word), word);
+    for (const word of ["species", "class", "10", "Character Sheet", "saves itself"]) {
+      assert(result.reply.includes(word), word);
+    }
   });
 
   Deno.test(`eval no-saved-sheet (${label}): a sheet question with no sheet gets the same incomplete review`, async () => {
     const { sent, result } = await askMocked({ question: "check my sheet", ...voice });
     assertEquals(sent.length, 0);
     assertEquals(result.retrieval, "sheet");
-    assert(result.reply.includes("Save sheet"), result.reply);
+    assert(result.reply.includes("saves itself"), result.reply);
     assertEquals(result.model, "none");
   });
 
@@ -186,3 +188,37 @@ for (const voice of VOICES) {
     assertFalse(system.includes("Never refuse just because an extract is missing"));
   });
 }
+
+Deno.test("homebrew species: the Sage gets the sheet's homebrew traits and the rule to use them, not just 'ask your DM'", async () => {
+  const character = {
+    name: "Ryn",
+    race: "Owlfolk",
+    class: "Bard",
+    level: 1,
+    hp_current: 9,
+    hp_max: 9,
+    ac: 12,
+    speed: 25,
+    str: 8,
+    dex: 14,
+    con: 12,
+    int: 10,
+    wis: 12,
+    cha: 15,
+    skills: ["Performance"],
+    languages: "Common",
+    features: "Bardic Inspiration",
+    traits: [],
+    gear: ["Lute"],
+    homebrew: { bonuses: "+2 DEX, +1 WIS", size: "Small", speed: 25, abilities: "Flight 30 ft" },
+  };
+  const { sent } = await askMocked({ question: "check my character sheet", character, mode: "sage", style: "plain" });
+  assertEquals(sent.length, 1);
+  const system = sent[0].messages[0].content;
+  assertStringIncludes(system, "homebrew species traits");
+  assertStringIncludes(system, "say they are homebrew");
+  const user = lastUser(sent[0]);
+  assertStringIncludes(user, "Homebrew species traits (the table's homebrew, written on the sheet)");
+  assertStringIncludes(user, "Flight 30 ft");
+  assertFalse(/check it with them/i.test(user), user);
+});
