@@ -18,7 +18,7 @@ export const GUIDANCE: Tip[] = [
   },
   {
     title: "Keep the Codex",
-    body: "Party notes and items live here for everyone. Your weapons and spells live here too. Tap your own note to change it.",
+    body: "Party notes and items live here for everyone. Your weapons and spells live here too. Tap your own note to change it. Press and hold your own note or item to delete it.",
   },
   {
     title: "Roll the dice",
