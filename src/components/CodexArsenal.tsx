@@ -79,6 +79,7 @@ function Field({
   multiline,
   keyboard,
   maxLength,
+  onBlur,
 }: {
   label: string;
   value: string;
@@ -87,6 +88,7 @@ function Field({
   multiline?: boolean;
   keyboard?: KeyboardTypeOptions;
   maxLength?: number;
+  onBlur?: () => void;
 }) {
   const { s, fs } = useScale();
   const line = fs(22);
@@ -116,6 +118,7 @@ function Field({
             placeholderTextColor={colors.placeholder}
             keyboardType={keyboard}
             maxLength={maxLength}
+            onBlur={onBlur}
           />
           <InkStroke seed={label.length + 3} />
         </>
@@ -286,6 +289,8 @@ function WeaponForm({
   const [picking, setPicking] = useState(false);
   const set = (change: Partial<WeaponDraft>) => setDraft((d) => ({ ...d, ...change }));
   const suggested = toHitFor(draft.properties);
+  // Phone number pads have no "+": type 3 and it reads +3 once you leave the box (start with - for a minus).
+  const signHit = () => setHit((text) => (/^\d{1,2}$/.test(text.trim()) ? `+${text.trim()}` : text));
   const save = () => {
     const typed = /^\s*[+-]?\d{1,2}\s*$/.test(hit) ? Number(hit.replace("+", "")) : null;
     onSave({ ...draft, to_hit: typed });
@@ -320,7 +325,7 @@ function WeaponForm({
           <Field label="Damage type" value={draft.damage_type} onChange={(damage_type) => set({ damage_type })} placeholder="Slashing" maxLength={40} />
         </View>
         <View>
-          <Field label="To hit" value={hit} onChange={setHit} placeholder={signed(suggested.value)} keyboard="numeric" maxLength={3} />
+          <Field label="To hit" value={hit} onChange={setHit} onBlur={signHit} placeholder={signed(suggested.value)} keyboard="numeric" maxLength={3} />
           <Text style={[styles.hint, { fontSize: fs(12), lineHeight: fs(16), marginTop: s(3) }]}>
             Suggested {signed(suggested.value)} ({suggested.why}). Leave it blank to use that.
           </Text>
