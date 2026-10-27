@@ -14,6 +14,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import CreatePartyScreen from "./src/screens/CreatePartyScreen";
 import JoinPartyScreen from "./src/screens/JoinPartyScreen";
 import TabBar from "./src/components/TabBar";
+import { GuidancePopup } from "./src/components/Guidance";
 import type { AppScreen } from "./src/navigation/screens";
 import { colors } from "./src/theme";
 import { loadedSageScreen, loadSageScreen, runPreload } from "./src/lib/preload";
@@ -156,6 +157,8 @@ function Gate() {
         ) : null}
         {/* Every page, the dashboard too, sits above the tab bar (never under it). */}
         <TabBar current={screen} onOpen={setScreen} />
+        {/* The how-to tips, once per account on this phone (keyed so a new sign-in checks again). */}
+        <GuidancePopup key={user.id} userId={user.id} />
       </View>
     </PartyProvider>
   );

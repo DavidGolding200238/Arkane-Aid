@@ -26,7 +26,7 @@ function loadSpeech(): SpeechModule | null {
 
 // Game words the recogniser would otherwise mishear.
 const TERMS = [
-  "Sage", "Scribe", "Codex", "Ledger", "d20", "cantrip", "saving throw", "advantage", "disadvantage", "initiative", "spell slot",
+  "Sage", "Scribe", "Codex", "Sheet", "d20", "cantrip", "saving throw", "advantage", "disadvantage", "initiative", "spell slot",
   "player sheet", "character sheet", "Arbiter", "warlock", "halfling", "proficiency", "ability score", "Strength",
 ];
 /** South African English first; phones without that speech pack fall back to US English for the rest of the session. */

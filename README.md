@@ -20,7 +20,7 @@ A live table stalls every time someone has to look up a rule, write down what ha
 
 Arkane Aid is a player-side companion.
 
-The Sage answers a ruling in a few short spoken sentences, grounded in the official 5e rules. The Scribe turns what the table just said into a note in the Codex. The Ledger holds your character sheet for the current party. None of it replaces the dungeon master.
+The Sage answers a ruling in a few short spoken sentences, grounded in the official 5e rules. The Scribe turns what the table just said into a note in the Codex. The Character Sheet holds your character for the current party and saves itself as you type. None of it replaces the dungeon master.
 
 ### Target users
 
@@ -80,15 +80,17 @@ Switch the Sage screen to Scribe mode, say or type what just happened, and the S
 
 ### Codex
 
-The session book, with All, Notes, Items and Ledger tabs. Add a note or an item, or long-press a card to delete it. Only the current party's entries show.
+The session book, with All, Notes, Items, Weapons, Spells and Sheet tabs. Add a note or an item, tap your own note to edit it, or long-press a card to delete it. Only the current party's entries show.
 
-### Ledger
+Weapons and Spells are your own, per party. Pick from the SRD list or write your own. Exactly one weapon is in hand; it sits at the top and the Sage uses it. The to-hit box suggests STR (or DEX for Finesse and ranged weapons) plus your Proficiency Bonus. Spells are grouped in level tabs, Cantrip to 9th. The Sheet tab opens the Character Sheet.
 
-The character sheet: name, race, class, level, hit points, armour class, speed, proficiency bonus, the six abilities, skills, languages, features, background, traits, equipment and a portrait from the gallery. Race and class pick from the official lists, with a custom option. One sheet per person per party, which you can edit, save or delete.
+### Character Sheet
+
+The character sheet: name, species, lineage, class, subclass, level, hit points, armour class, speed, proficiency bonus, the six abilities, skills, languages, features, background, traits, equipment and a portrait from the gallery. Species and class pick from the official 2024 lists (SRD 5.2.1), with a custom option; a custom species gets a Homebrew box for its traits, which the Sage treats as your table's homebrew. The sheet saves itself 0.8 s after you stop typing, and when you leave, switch tab or party, or put the app away. A blank sheet is never saved. One sheet per person per party.
 
 ### Tome (settings)
 
-Shows which party you are in. Account options cover sign out, creating or joining a party, switching the active party and reloading. Guidance has quick how-to tips. Voice Personality picks Wizard, Arbiter or Bard, and a toggle turns spoken replies on or off. Both choices are saved on the device.
+Shows which party you are in. Account options cover sign out, creating or joining a party, switching the active party and reloading. Guidance has the how-to tips, which also pop up once (with a Got it button) the first time each account opens the app on a phone. Voice Personality picks Wizard, Arbiter or Bard, and a toggle turns spoken replies on or off. Both choices are saved on the device.
 
 ---
 
@@ -136,7 +138,7 @@ If an older Arkane Aid or a development build is already on the phone, uninstall
 2. Wait for the splash screen to finish loading.
 3. Sign up with an email and password, or sign in.
 4. Create a party, or join one with a code from your dungeon master.
-5. Fill in your sheet in the Ledger, then open the Sage and ask a ruling.
+5. Fill in your Character Sheet (Codex, Sheet tab), then open the Sage and ask a ruling.
 6. Allow the microphone the first time you hold the orb to speak.
 
 You stay signed in between launches.
@@ -186,6 +188,8 @@ supabase db push                          # runs supabase/migrations in order
 supabase secrets set GROQ_API_KEY=YOUR-GROQ-KEY
 supabase functions deploy sage
 ```
+
+Migration `20261027000007_sheet_rework.sql` adds the sheet's subclass, lineage and homebrew species traits and the `character_weapons` and `character_spells` tables (Row Level Security: only you change yours; your party can read them). Until it is pushed the sheet still saves without those fields, and the Weapons and Spells tabs say the database needs updating.
 
 Then seed the meaning search once (needs Deno). The service role key is only typed into this command, never saved to a file:
 
@@ -259,7 +263,7 @@ android.permission.RECORD_AUDIO (voice input, only while the orb is held)
 
 1. The player signs in.
 2. They create a party or join one with a code.
-3. They fill in a sheet for that party in the Ledger.
+3. They fill in a Character Sheet for that party.
 4. At the table they ask the Sage a ruling, by voice or text, and hear the answer.
 5. They tell the Scribe what just happened, and the line lands in the Codex.
 6. Switching party loads only that party's sheet and notes.
@@ -273,10 +277,10 @@ android.permission.RECORD_AUDIO (voice input, only while the orb is held)
 | Splash | Loads fonts, art and the orb before the app opens |
 | Login and Sign up | Email authentication |
 | Reset password | New password from the emailed link |
-| Home | Dashboard with seals for Sage, Codex, Ledger and Tome |
+| Home | Dashboard with seals for Sage, Codex and Tome |
 | Sage | Ask a ruling or scribe a note, by voice or text |
-| Codex | Session notes and items for the current party |
-| Ledger | Character sheet for the current party |
+| Codex | Session notes, items, weapons and spells for the current party |
+| Character Sheet (LedgerScreen) | Character sheet for the current party |
 | Tome | Account, parties, guidance and voice personality |
 | Create and Join party | Make a party code or use one |
 
@@ -291,7 +295,7 @@ Parchment, ink and torn-paper panels, with a red, blue or green fire orb that ma
 ```
 App.tsx                 auth gate, screens and tab bar
 src/
-  screens/              Splash, Login, ResetPassword, Home, Sage, Codex, Ledger, Settings (Tome), CreateParty, JoinParty
+  screens/              Splash, Login, ResetPassword, Home, Sage, Codex, Ledger (Character Sheet), Settings (Tome), CreateParty, JoinParty
   components/           orb and flames, Sage input and reply card, page header and fades, buttons, panels, tab bar
   context/              AuthContext, PartyContext, VoiceContext
   lib/                  Supabase client, parties, character, codex, Sage client, voice, hold to talk
@@ -344,7 +348,7 @@ Active branch: Apk-Build
 
 The best way to evaluate the app is the preview APK on an Android phone.
 
-The loop to walk is: sign up, create or join a party, fill the sheet in the Ledger, ask the Sage a ruling by holding the orb, scribe a note, then check it in the Codex.
+The loop to walk is: sign up, create or join a party, fill in the Character Sheet, ask the Sage a ruling by holding the orb, scribe a note, then check it in the Codex.
 
 ## Credits
 

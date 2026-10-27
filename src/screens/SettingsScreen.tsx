@@ -19,6 +19,7 @@ import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
 import { RefreshIcon } from "../components/icons";
 import { CornerOrnaments, Flourish, INK_COLOR, InkButton, InkOutline, INK_RADIUS } from "../components/Ink";
+import { GuidanceTips } from "../components/Guidance";
 import Rule from "../components/Rule";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
@@ -171,14 +172,6 @@ function IndexEntry({
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
 type Section = "account" | "guidance" | null;
-
-const TIPS = [
-  { title: "Sign in", body: "Use your email and password. Your sheet and notes follow your account to any phone." },
-  { title: "Gather a party", body: "The DM taps Create party and shares the 6-character code. Players tap Join party and enter it." },
-  { title: "Fill your Ledger", body: "Add your portrait, abilities, HP, AC and gear so the Sage can read your sheet." },
-  { title: "Ask the Sage", body: "Type or speak any rule or lore question. Rough spelling is fine; it reads your sheet when it helps." },
-  { title: "Scribe the Codex", body: "Keep session notes, quests and lore in the Codex so the whole party sees the same story." },
-];
 
 // "Tome": the settings screen. Under the d20 and "Bound to" sits an index page, like an old book's:
 // Account (sign-in and parties) and Guidance (quick how-to tips) each drop open beneath their entry,
@@ -408,16 +401,8 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
           />
           {open === "guidance" ? (
             <View style={[styles.dropdown, { paddingTop: s(4), paddingBottom: s(16), gap: s(10) }]}>
-                <SectionTitle size={fs(18)}>How to use the Tome</SectionTitle>
-                {TIPS.map((tip, index) => (
-                  <View key={tip.title} style={[styles.row, { gap: s(10) }]}>
-                    <Text style={[styles.tipNumber, { fontSize: fs(20), width: s(18) }]}>{index + 1}</Text>
-                    <View style={styles.flex}>
-                      <Text style={[styles.tipTitle, { fontSize: fs(15) }]}>{tip.title}</Text>
-                      <Text style={[styles.body, { fontSize: fs(14), lineHeight: fs(20) }]}>{tip.body}</Text>
-                    </View>
-                  </View>
-                ))}
+                <SectionTitle size={fs(18)}>How to use Arkane Aid</SectionTitle>
+                <GuidanceTips />
             </View>
           ) : null}
           <Rule color={INK_COLOR} />
