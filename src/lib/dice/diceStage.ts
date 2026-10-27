@@ -302,10 +302,9 @@ export class DiceStage {
     this.halfW = this.halfH * aspect;
     const tray = this.root.getObjectByName("tray");
     if (tray) tray.scale.set(this.halfW * 1.6, this.halfH * 1.6, 1);
-    // A resize mid-throw lands the dice at once, and still reports the throw as settled.
-    const wasThrowing = !this.settledNotified;
-    if (this.live.length) this.layout(this.live.map((l) => l.die), false);
-    if (wasThrowing) this.emit("settled");
+    // A resize mid-throw lets the throw finish (re-laying out would land the dice at once and
+    // skip the animation); resting dice are laid out again to fit the new tray.
+    if (this.live.length && !this.busy) this.layout(this.live.map((l) => l.die), false);
     this.emit("wake");
   }
 

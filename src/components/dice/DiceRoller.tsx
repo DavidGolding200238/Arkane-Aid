@@ -163,7 +163,7 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
         </View>
 
         <View
-          style={[styles.tray, { borderRadius: s(radius.panel * 2), marginTop: s(8), borderColor: nat === 20 ? colors.gold : colors.panelStroke, borderWidth: nat === 20 ? 3 : 1.5 }]}
+          style={[styles.tray, { borderRadius: s(radius.panel * 2), marginTop: s(8), borderColor: nat === 20 ? colors.gold : colors.panelStroke, borderWidth: nat === 20 ? 3 : 1.5, padding: nat === 20 ? 0 : 1.5 }]}
           onLayout={(e) => {
             if (e.nativeEvent.layout.width > 0 && e.nativeEvent.layout.height > 0) setTrayReady(true);
           }}
@@ -182,7 +182,7 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
           ) : null}
         </View>
 
-        <View style={[styles.result, { minHeight: s(78), marginTop: s(8) }]} accessibilityLiveRegion="polite">
+        <View style={[styles.result, { height: s(122), marginTop: s(8) }]} accessibilityLiveRegion="polite">
           {text && result ? (
             <>
               <Text style={[styles.total, { fontSize: fs(40), color: nat === 20 ? colors.gold : nat === 1 ? colors.wordmark : colors.ink }]}>
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   closeText: { color: colors.ink, fontFamily: fonts.headingBold },
   tray: { flex: 1, minHeight: 160, overflow: "hidden", backgroundColor: TRAY_BG },
   trayNote: { position: "absolute", left: 0, right: 0, textAlign: "center", color: colors.panel, fontFamily: fonts.body, opacity: 0.8 },
-  result: { alignItems: "center", justifyContent: "center" },
+  result: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
   total: { fontFamily: fonts.stat, textAlign: "center" },
   expression: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center" },
   breakdown: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
