@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   Alert,
+  AppState,
   Image,
   KeyboardAvoidingView,
   Pressable,
@@ -19,21 +20,24 @@ import {
   addEquipment,
   addTrait,
   deleteCharacter,
+  EMPTY_DRAFT,
+  EMPTY_RACE_TRAITS,
   loadCharacter,
   loadEquipment,
   loadTraits,
   removeEquipment,
   removeTrait,
   proficiencyBonus,
-  saveCharacter,
   SKILLS,
   uploadPortrait,
   type Character,
   type CharacterDraft,
   type Equipment,
+  type RaceTraits,
   type Trait,
 } from "../lib/character";
 import { errorText } from "../lib/parties";
+import { SheetAutosave, type SaveStatus } from "../lib/sheetAutosave";
 import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
 import { ScrollFades, useFadeSizes } from "../components/PageFade";
@@ -56,7 +60,7 @@ import {
   RuledLines,
 } from "../components/Ink";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
-import { CLASSES, RACES } from "../lib/sheetLists";
+import { CLASSES, isCustomRace, LINEAGES, RACES, SUBCLASSES } from "../lib/sheetLists";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
 const portraitArt = require("../../assets/images/ledger/portrait-placeholder.jpg");
@@ -159,52 +163,65 @@ const STATS = [
 type StatKey = (typeof STATS)[number][0];
 
 
-const EMPTY: CharacterDraft = {
-  name: "",
-  class: "",
-  race: "",
-  background: "",
-  level: 1,
-  hp_current: 10,
-  hp_max: 10,
-  ac: 10,
-  speed: 30,
-  languages: "",
-  features: "",
-  skills: [],
-  str: 10,
-  dex: 10,
-  con: 10,
-  int: 10,
-  wis: 10,
-  cha: 10,
-};
+const EMPTY = EMPTY_DRAFT;
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
-type Picker = "race" | "class" | null;
+type PickField = "race" | "class" | "lineage" | "subclass";
+type Picker = PickField | null;
 
-function clampStat(value: string) {
-  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
-  if (Number.isNaN(n)) return 1;
-  return Math.min(30, Math.max(1, n));
-}
-
-function clampLevel(value: string) {
-  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
-  if (Number.isNaN(n)) return 1;
-  return Math.min(20, Math.max(1, n));
-}
-
-function clampHp(value: string, min: number) {
-  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
-  if (Number.isNaN(n)) return min;
-  return Math.min(999, Math.max(min, n));
-}
-
-function clampRange(value: string, min: number, max: number, fallback: number) {
-  const n = Number.parseInt(value.replace(/[^0-9]/g, ""), 10);
-  if (Number.isNaN(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
+// A number box you can type in freely. While focused it keeps its own text, so clearing it
+// to type a new number does not snap back to the minimum (the old Level bug: "" became 1 at
+// once, so typing 5 gave 15). A typed number inside min..max is kept straight away; anything
+// else is clamped (or put back, if empty) when the box loses focus.
+function NumberBox({
+  value,
+  min,
+  max,
+  onCommit,
+  style,
+  allowEmpty = false,
+  placeholder,
+  accessibilityLabel,
+}: {
+  value: number | null;
+  min: number;
+  max: number;
+  onCommit: (value: number | null) => void;
+  style: StyleProp<TextStyle>;
+  allowEmpty?: boolean;
+  placeholder?: string;
+  accessibilityLabel?: string;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const shown = value === null ? "" : String(value);
+  return (
+    <TextInput
+      style={style}
+      keyboardType="number-pad"
+      selectTextOnFocus
+      maxLength={3}
+      value={text ?? shown}
+      placeholder={placeholder}
+      placeholderTextColor={colors.placeholder}
+      accessibilityLabel={accessibilityLabel}
+      onFocus={() => setText(shown)}
+      onChangeText={(next) => {
+        const digits = next.replace(/[^0-9]/g, "").slice(0, 3);
+        setText(digits);
+        const n = Number.parseInt(digits, 10);
+        if (!Number.isNaN(n) && n >= min && n <= max && n !== value) onCommit(n);
+        else if (!digits && allowEmpty && value !== null) onCommit(null);
+      }}
+      onBlur={() => {
+        const n = Number.parseInt(text ?? "", 10);
+        if (!Number.isNaN(n)) {
+          const clamped = Math.min(max, Math.max(min, n));
+          if (clamped !== value) onCommit(clamped);
+        }
+        setText(null);
+      }}
+    />
+  );
 }
 
 function draftFrom(row: Character | null): CharacterDraft {
@@ -213,6 +230,9 @@ function draftFrom(row: Character | null): CharacterDraft {
     name: row.name ?? "",
     class: row.class ?? "",
     race: row.race ?? "",
+    subclass: row.subclass ?? "",
+    lineage: row.lineage ?? "",
+    raceTraits: row.race_traits ?? EMPTY_RACE_TRAITS,
     background: row.background ?? "",
     level: row.level ?? 1,
     hp_current: row.hp_current ?? 10,
@@ -245,21 +265,70 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const [traitName, setTraitName] = useState("");
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState<Picker>(null);
-  const [customRace, setCustomRace] = useState(false);
-  const [customClass, setCustomClass] = useState(false);
+  const [custom, setCustom] = useState<Record<PickField, boolean>>({
+    race: false,
+    class: false,
+    lineage: false,
+    subclass: false,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState<SaveStatus>("idle");
   // Layout for the Sage page's soft fades: the page size, and the scroll area's place on it.
   const fade = useFadeSizes();
   const [screen, setScreen] = useState({ w: 0, h: 0 });
   const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
 
+  // Autosave (src/lib/sheetAutosave.ts): every edit goes through update(), which saves 800 ms
+  // after the last one; leaving, going back, a party switch or the app going to the
+  // background saves at once. Opening the sheet alone never saves.
+  const [saver] = useState(() => new SheetAutosave());
+  useEffect(() => {
+    saver.listen({
+      status: (pid, next) => {
+        if (pid === saver.partyId) setStatus(next);
+      },
+      saved: (pid, saved) => {
+        if (pid !== saver.partyId) return;
+        setRow((current) => ({ ...saved, portrait_url: saved.portrait_url ?? current?.portrait_url ?? null }));
+      },
+      error: (pid, message) => {
+        if (pid === saver.partyId) setError(message);
+      },
+    });
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background" || state === "inactive") saver.flush();
+    });
+    return () => {
+      sub.remove();
+      // Leaving the sheet (back, another tab): save what is pending.
+      saver.flush();
+      saver.listen(null);
+    };
+  }, [saver]);
+
+  /** Every sheet edit: keeps the new draft and saves it soon. */
+  const update = (change: (current: CharacterDraft) => CharacterDraft) => {
+    // Built on the saver's copy, so two edits in one event both stick.
+    const next = change(saver.latest(draft));
+    setDraft(next);
+    saver.edit(next);
+  };
+
   const load = useCallback(async () => {
     setBusy(true);
     try {
+      // A party switch while edits are pending: save them to the old party's sheet first.
+      saver.switchParty(partyId);
+      // Let any save still running finish first, so the sheet read back is the newest.
+      await saver.settled();
       const next = await loadCharacter(partyId);
+      if (saver.partyId !== partyId) return;
+      const loaded = draftFrom(next);
+      saver.loaded(partyId, next, loaded);
       setRow(next);
-      setDraft(draftFrom(next));
+      setDraft(loaded);
+      setStatus("idle");
       setGear(next ? await loadEquipment(next.id) : []);
       setTraits(next ? await loadTraits(next.id) : []);
       setError("");
@@ -268,19 +337,19 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [partyId]);
+  }, [partyId, saver]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch from Supabase when the party changes
     load();
   }, [load]);
 
-  const setStat = (key: StatKey, value: string) => {
-    setDraft((current) => ({ ...current, [key]: clampStat(value) }));
+  const setStat = (key: StatKey, value: number) => {
+    update((current) => ({ ...current, [key]: value }));
   };
 
   const toggleSkill = (skill: string) => {
-    setDraft((current) => {
+    update((current) => {
       const on = current.skills.includes(skill);
       return {
         ...current,
@@ -289,27 +358,16 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     });
   };
 
-  const persist = async () => {
-    setBusy(true);
-    try {
-      const saved = await saveCharacter(partyId, draft, row);
-      setRow(saved);
-      setDraft(draftFrom(saved));
-      setEditing(false);
-      setPicker(null);
-      setError("");
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
+  const setRaceTraits = (change: Partial<RaceTraits>) => {
+    update((current) => ({ ...current, raceTraits: { ...current.raceTraits, ...change } }));
   };
 
-  const ensureRow = async () => {
-    if (row) return row;
-    const saved = await saveCharacter(partyId, draft, null);
-    setRow(saved);
-    return saved;
+  // Portrait, equipment and traits hang off a saved sheet: save it now if there is none yet.
+  const ensureRow = () => saver.ensureRow(partyId);
+
+  const goBack = () => {
+    saver.flush();
+    onBack();
   };
 
   const pickPortrait = async () => {
@@ -404,9 +462,12 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         onPress: async () => {
           setBusy(true);
           try {
-            await deleteCharacter(row);
+            const latest = await saver.discard(partyId);
+            await deleteCharacter(latest ?? row);
+            saver.deleted(partyId, EMPTY);
             setRow(null);
             setDraft(EMPTY);
+            setStatus("idle");
             setGear([]);
             setTraits([]);
             setEditing(false);
@@ -421,10 +482,19 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     ]);
   };
 
-  const choose = (field: "race" | "class", value: string) => {
-    setDraft((current) => ({ ...current, [field]: value }));
-    if (field === "race") setCustomRace(false);
-    if (field === "class") setCustomClass(false);
+  // Race and class choices clear a lineage or subclass that belonged to the old one.
+  const setField = (field: PickField, value: string) => {
+    update((current) => {
+      const next = { ...current, [field]: value };
+      if (field === "race" && value !== current.race) next.lineage = "";
+      if (field === "class" && value !== current.class) next.subclass = "";
+      return next;
+    });
+  };
+
+  const choose = (field: PickField, value: string) => {
+    setField(field, value);
+    setCustom((current) => ({ ...current, [field]: false, ...(field === "race" ? { lineage: false } : {}), ...(field === "class" ? { subclass: false } : {}) }));
     setPicker(null);
   };
 
@@ -433,7 +503,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   // Ability boxes: three per row, Figma proportions 91 x 90 with a 28 high header.
   const pageW = Math.min(width, MAX_SHEET);
   const pagePad = s(12);
-  // Save / Delete span the page.
+  // Delete spans the page.
   const actionW = pageW - pagePad * 2;
   const sheetPad = s(16);
   const statGap = s(14);
@@ -468,9 +538,11 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     </View>
   );
 
-  const renderPicker = (field: "race" | "class", options: string[]) => {
+  const PICK_TITLES: Record<PickField, string> = { race: "Race", class: "Class", lineage: "Lineage", subclass: "Subclass" };
+  const PICK_SEEDS: Record<PickField, number> = { race: 21, class: 23, lineage: 25, subclass: 27 };
+  const renderPicker = (field: PickField, options: string[], title = PICK_TITLES[field]) => {
     if (picker !== field) return null;
-    const custom = field === "race" ? customRace : customClass;
+    const isCustom = custom[field];
     const current = draft[field];
     return (
       <View
@@ -484,9 +556,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           },
         ]}
       >
-        <InkOutline fill={HOLDER_FILL} radius={s(INK_RADIUS)} seed={field === "race" ? 21 : 23} />
+        <InkOutline fill={HOLDER_FILL} radius={s(INK_RADIUS)} seed={PICK_SEEDS[field]} />
         <SectionTitle center size={fs(15)}>
-          {field === "race" ? "Race" : "Class"}
+          {title}
         </SectionTitle>
         {options.map((option) => {
           const on = current === option;
@@ -503,26 +575,81 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           );
         })}
         <Pressable
-          onPress={() => (field === "race" ? setCustomRace(true) : setCustomClass(true))}
-          style={[styles.option, { paddingVertical: s(8), paddingHorizontal: s(10) }, custom && styles.optionOn]}
+          onPress={() => setCustom((c) => ({ ...c, [field]: true }))}
+          style={[styles.option, { paddingVertical: s(8), paddingHorizontal: s(10) }, isCustom && styles.optionOn]}
         >
-          <Text style={[styles.optionText, custom && styles.optionTextOn, { fontSize: fs(15) }]}>Custom</Text>
+          <Text style={[styles.optionText, isCustom && styles.optionTextOn, { fontSize: fs(15) }]}>Custom</Text>
         </Pressable>
-        {custom ? (
+        {isCustom ? (
           <View style={{ margin: s(10) }}>
             <TextInput
               style={[styles.lineInput, { fontSize: fs(15), paddingVertical: s(6) }]}
               value={current}
-              onChangeText={(value) => setDraft((next) => ({ ...next, [field]: value }))}
-              placeholder={field === "race" ? "Custom race" : "Custom class"}
+              onChangeText={(value) => setField(field, value)}
+              placeholder={`Custom ${PICK_TITLES[field].toLowerCase()}`}
               placeholderTextColor={colors.placeholder}
+              maxLength={40}
             />
-            <InkStroke seed={field === "race" ? 5 : 6} />
+            <InkStroke seed={PICK_SEEDS[field] - 16} />
           </View>
         ) : null}
       </View>
     );
   };
+
+  const lineageFor = LINEAGES[draft.race];
+  const subclassFor = SUBCLASSES[draft.class];
+  const homebrew = isCustomRace(draft.race);
+  const META_EMPTY: Record<PickField, string> = {
+    race: "Choose race",
+    class: "Choose class",
+    lineage: lineageFor ? "Choose lineage" : "None",
+    subclass: draft.class ? "Choose subclass" : "Pick a class first",
+  };
+  const metaRow = (fields: PickField[], top: number) => (
+    <View style={[styles.metaRow, { marginTop: top, gap: s(12) }]}>
+      {fields.map((field) => {
+        const value = draft[field];
+        // Lineage only for species that have one; a subclass once a class is set.
+        const open = field === "lineage" ? !!lineageFor : field === "subclass" ? !!draft.class : true;
+        const boxStyle = [
+          styles.metaBox,
+          {
+            paddingHorizontal: s(10),
+            paddingTop: s(6),
+            paddingBottom: s(8),
+          },
+        ];
+        const inner = (
+          <>
+            <InkOutline seed={PICK_SEEDS[field] - 18} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
+            <FieldLabel size={fs(11)}>{PICK_TITLES[field]}</FieldLabel>
+            <Text
+              style={[styles.meta, { fontSize: fs(15), marginTop: s(2) }, !value && styles.metaEmpty]}
+              numberOfLines={1}
+            >
+              {value || (editing ? META_EMPTY[field] : "\u2014")}
+            </Text>
+          </>
+        );
+        return editing && (open || value) ? (
+          <Pressable
+            key={field}
+            style={boxStyle}
+            accessibilityRole="button"
+            accessibilityLabel={`Choose ${PICK_TITLES[field].toLowerCase()}`}
+            onPress={() => setPicker(picker === field ? null : field)}
+          >
+            {inner}
+          </Pressable>
+        ) : (
+          <View key={field} style={boxStyle}>
+            {inner}
+          </View>
+        );
+      })}
+    </View>
+  );
 
   const listItem = (name: string, onRemove: () => void, key: string) => (
     <Pressable key={key} onPress={() => (editing ? onRemove() : undefined)} disabled={!editing} style={styles.listRow}>
@@ -569,7 +696,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             multiline
             scrollEnabled={false}
             value={value}
-            onChangeText={(next) => setDraft((current) => ({ ...current, [field]: next }))}
+            onChangeText={(next) => update((current) => ({ ...current, [field]: next }))}
             placeholder={placeholder}
             placeholderTextColor={colors.placeholder}
           />
@@ -586,7 +713,12 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       <StatusBar style="dark" />
       <Image source={parchment} style={styles.parchment} resizeMode="cover" />
 
-      <PageHeader title="Ledger" subtitle={partyName} onBack={onBack} />
+      <PageHeader
+        title="Character Sheet"
+        subtitle={STATUS_TEXT[status] ? `${STATUS_TEXT[status]} \u00b7 ${partyName}` : partyName}
+        onBack={goBack}
+        ruleWidth={s(200)}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -628,7 +760,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                   scrollEnabled={false}
                   submitBehavior="blurAndSubmit"
                   value={draft.name}
-                  onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
+                  onChangeText={(name) => update((current) => ({ ...current, name }))}
+                  maxLength={120}
                   placeholder="Name"
                   placeholderTextColor={colors.placeholder}
                 />
@@ -646,6 +779,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               size={edit}
               accessibilityLabel={editing ? "Stop editing" : "Edit sheet"}
               onPress={() => {
+                // Done editing: save at once rather than after the pause.
+                if (editing) saver.flush();
                 setEditing((on) => !on);
                 setPicker(null);
               }}
@@ -702,42 +837,26 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           </View>
 
           {/* Race and Class: labelled fill-in boxes, as on a printed sheet. Editing opens the same pickers. */}
-          <View style={[styles.metaRow, { marginTop: s(14), gap: s(12) }]}>
-            {(["race", "class"] as const).map((field) => {
-              const value = draft[field];
-              const boxStyle = [
-                styles.metaBox,
-                {
-                  paddingHorizontal: s(10),
-                  paddingTop: s(6),
-                  paddingBottom: s(8),
-                },
-              ];
-              const inner = (
-                <>
-                  <InkOutline seed={field === "race" ? 3 : 7} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
-                  <FieldLabel size={fs(11)}>{field === "race" ? "Race" : "Class"}</FieldLabel>
-                  <Text
-                    style={[styles.meta, { fontSize: fs(15), marginTop: s(2) }, !value && styles.metaEmpty]}
-                    numberOfLines={1}
-                  >
-                    {value || (editing ? (field === "race" ? "Choose race" : "Choose class") : "\u2014")}
-                  </Text>
-                </>
-              );
-              return editing ? (
-                <Pressable key={field} style={boxStyle} onPress={() => setPicker(picker === field ? null : field)}>
-                  {inner}
-                </Pressable>
-              ) : (
-                <View key={field} style={boxStyle}>
-                  {inner}
-                </View>
-              );
-            })}
-          </View>
+          {metaRow(["race", "class"], s(14))}
           {renderPicker("race", RACES)}
           {renderPicker("class", CLASSES)}
+          {/* Lineage (Elf, Gnome, Tiefling, Dragonborn, Goliath) and subclass, under the choice they belong to. */}
+          {lineageFor || draft.lineage || draft.class || draft.subclass
+            ? metaRow(
+                [
+                  ...(lineageFor || draft.lineage ? (["lineage"] as const) : []),
+                  ...(draft.class || draft.subclass ? (["subclass"] as const) : []),
+                ],
+                s(10),
+              )
+            : null}
+          {renderPicker("lineage", lineageFor?.options ?? [], lineageFor?.title)}
+          {renderPicker("subclass", subclassFor ? [subclassFor] : [])}
+          {editing ? (
+            <Text style={[styles.note, { fontSize: fs(12.5), marginTop: s(8) }]}>
+              2024 rules (SRD 5.2.1): Orc is a starting species, and subraces are now lineages.
+            </Text>
+          ) : null}
 
           {/* Same grid as before: Level over AC, HP over Bonus, the middle of the first row empty. */}
           <View style={[styles.vitalRow, { marginTop: s(12) }]}>
@@ -749,16 +868,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 41,
                 holderW,
                 editing ? (
-                  <TextInput
+                  <NumberBox
                     style={vitalInput}
-                    keyboardType="number-pad"
-                    value={String(draft.level)}
-                    onChangeText={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        level: clampLevel(value),
-                      }))
-                    }
+                    value={draft.level}
+                    min={1}
+                    max={20}
+                    accessibilityLabel="Level"
+                    onCommit={(n) => update((current) => ({ ...current, level: n ?? current.level }))}
                   />
                 ) : (
                   <Text style={vitalValue}>{draft.level}</Text>
@@ -778,29 +894,23 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 hpW,
                 editing ? (
                   <View style={styles.hpEdit}>
-                    <TextInput
-                      style={[vitalInput, { fontSize: fs(17) }]}
-                      keyboardType="number-pad"
-                      value={String(draft.hp_current)}
-                      onChangeText={(value) =>
-                        setDraft((current) => ({
-                          ...current,
-                          hp_current: clampHp(value, 0),
-                        }))
-                      }
-                    />
+                    <NumberBox
+                    style={[vitalInput, { fontSize: fs(17) }]}
+                    value={draft.hp_current}
+                    min={0}
+                    max={999}
+                    accessibilityLabel="Current HP"
+                    onCommit={(n) => update((current) => ({ ...current, hp_current: n ?? current.hp_current }))}
+                  />
                     <Text style={[styles.hpSlash, { fontSize: fs(17) }]}>/</Text>
-                    <TextInput
-                      style={[vitalInput, { fontSize: fs(17) }]}
-                      keyboardType="number-pad"
-                      value={String(draft.hp_max)}
-                      onChangeText={(value) =>
-                        setDraft((current) => ({
-                          ...current,
-                          hp_max: clampHp(value, 1),
-                        }))
-                      }
-                    />
+                    <NumberBox
+                    style={[vitalInput, { fontSize: fs(17) }]}
+                    value={draft.hp_max}
+                    min={1}
+                    max={999}
+                    accessibilityLabel="Max HP"
+                    onCommit={(n) => update((current) => ({ ...current, hp_max: n ?? current.hp_max }))}
+                  />
                   </View>
                 ) : (
                   <Text style={vitalValue} numberOfLines={1} adjustsFontSizeToFit>
@@ -820,16 +930,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 45,
                 holderW,
                 editing ? (
-                  <TextInput
+                  <NumberBox
                     style={vitalInput}
-                    keyboardType="number-pad"
-                    value={String(draft.ac)}
-                    onChangeText={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        ac: clampRange(value, 0, 30, 10),
-                      }))
-                    }
+                    value={draft.ac}
+                    min={0}
+                    max={30}
+                    accessibilityLabel="Armor class"
+                    onCommit={(n) => update((current) => ({ ...current, ac: n ?? current.ac }))}
                   />
                 ) : (
                   <Text style={vitalValue}>{draft.ac}</Text>
@@ -844,16 +951,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 47,
                 holderW,
                 editing ? (
-                  <TextInput
+                  <NumberBox
                     style={vitalInput}
-                    keyboardType="number-pad"
-                    value={String(draft.speed)}
-                    onChangeText={(value) =>
-                      setDraft((current) => ({
-                        ...current,
-                        speed: clampRange(value, 0, 120, 30),
-                      }))
-                    }
+                    value={draft.speed}
+                    min={0}
+                    max={120}
+                    accessibilityLabel="Speed"
+                    onCommit={(n) => update((current) => ({ ...current, speed: n ?? current.speed }))}
                   />
                 ) : (
                   <Text style={vitalValue}>{draft.speed}</Text>
@@ -875,11 +979,15 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
               <StatFrame key={key} label={label} width={boxW} labelSize={fs(15)}>
                 {editing ? (
                   <View style={styles.statEdit}>
-                    <TextInput
+                    <NumberBox
                       style={[styles.statInput, { fontSize: fs(26), width: boxW * 0.6 }]}
-                      keyboardType="number-pad"
-                      value={String(draft[key])}
-                      onChangeText={(value) => setStat(key, value)}
+                      value={draft[key]}
+                      min={1}
+                      max={30}
+                      accessibilityLabel={label}
+                      onCommit={(n) => {
+                        if (n !== null) setStat(key, n);
+                      }}
                     />
                     <Rule width={boxW * 0.46} color={colors.rule} />
                   </View>
@@ -890,6 +998,88 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
             ))}
           </View>
         </ParchmentPanel>
+
+        {homebrew && (editing || draft.raceTraits.bonuses || draft.raceTraits.size || draft.raceTraits.speed !== null || draft.raceTraits.abilities) ? (
+          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle size={fs(18)}>Homebrew species</SectionTitle>
+            <Text style={[styles.note, styles.noteLeft, { fontSize: fs(13), marginBottom: s(6) }]}>
+              {draft.race} is not in the rules, so write its traits here. The Sage uses them as your table&apos;s homebrew.
+            </Text>
+            {(
+              [
+                ["bonuses", "Ability bonuses", "+2 STR, +1 CON"],
+                ["size", "Size", "Medium"],
+              ] as const
+            ).map(([key, label, hint]) => (
+              <View key={key} style={{ marginTop: s(6) }}>
+                <FieldLabel size={fs(11)}>{label}</FieldLabel>
+                {editing ? (
+                  <>
+                    <TextInput
+                      style={[styles.lineInput, { fontSize: fs(15), paddingVertical: s(4) }]}
+                      value={draft.raceTraits[key]}
+                      onChangeText={(value) => setRaceTraits({ [key]: value })}
+                      placeholder={hint}
+                      placeholderTextColor={colors.placeholder}
+                      maxLength={key === "size" ? 20 : 80}
+                    />
+                    <InkStroke seed={key.length + 50} />
+                  </>
+                ) : (
+                  <Text style={draft.raceTraits[key] ? storyText : [storyText, emptyText]}>{draft.raceTraits[key] || "\u2014"}</Text>
+                )}
+              </View>
+            ))}
+            <View style={{ marginTop: s(6) }}>
+              <FieldLabel size={fs(11)}>Speed (ft)</FieldLabel>
+              {editing ? (
+                <View style={{ width: holderW }}>
+                  {holder(
+                    52,
+                    holderW,
+                    <NumberBox
+                      style={vitalInput}
+                      value={draft.raceTraits.speed}
+                      min={0}
+                      max={120}
+                      allowEmpty
+                      placeholder="30"
+                      accessibilityLabel="Homebrew speed"
+                      onCommit={(speed) => setRaceTraits({ speed })}
+                    />,
+                  )}
+                </View>
+              ) : (
+                <Text style={draft.raceTraits.speed !== null ? storyText : [storyText, emptyText]}>
+                  {draft.raceTraits.speed !== null ? `${draft.raceTraits.speed} ft` : "\u2014"}
+                </Text>
+              )}
+            </View>
+            <View style={{ marginTop: s(8) }}>
+              <FieldLabel size={fs(11)}>Abilities</FieldLabel>
+              <View style={{ minHeight: storyLine * 2 }}>
+                <RuledLines lineHeight={storyLine} />
+                {editing ? (
+                  <TextInput
+                    style={[styles.storyInput, { fontSize: fs(15), lineHeight: storyLine, minHeight: s(66) }]}
+                    multiline
+                    scrollEnabled={false}
+                    value={draft.raceTraits.abilities}
+                    onChangeText={(abilities) => setRaceTraits({ abilities })}
+                    placeholder={"One per line, e.g. Darkvision 60 ft"}
+                    placeholderTextColor={colors.placeholder}
+                    maxLength={600}
+                  />
+                ) : (
+                  <Text style={draft.raceTraits.abilities ? storyText : [storyText, emptyText]}>
+                    {draft.raceTraits.abilities || "None written."}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </ParchmentPanel>
+        ) : null}
 
         <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
           <CornerOrnaments size={s(16)} inset={s(5)} />
@@ -904,7 +1094,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
                 multiline
                 scrollEnabled={false}
                 value={draft.background}
-                onChangeText={(background) => setDraft((current) => ({ ...current, background }))}
+                onChangeText={(background) => update((current) => ({ ...current, background }))}
                 placeholder="Background story"
                 placeholderTextColor={colors.placeholder}
               />
@@ -992,9 +1182,8 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
         {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
 
-        {editing ? (
+        {editing && row ? (
           <View style={[styles.actions, { marginTop: s(14), gap: s(10) }]}>
-            <InkButton label="Save sheet" variant="red" width={actionW} height={s(44)} seed={33} onPress={persist} busy={busy} />
             {row ? (
               <InkButton
                 label="Delete sheet"
@@ -1015,6 +1204,13 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
     </KeyboardAvoidingView>
   );
 }
+
+const STATUS_TEXT: Record<SaveStatus, string> = {
+  idle: "",
+  saving: "Saving\u2026",
+  saved: "Saved",
+  error: "Couldn't save, retrying",
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.wash },
@@ -1176,6 +1372,7 @@ const styles = StyleSheet.create({
   addField: { flex: 1, minWidth: 0 },
   // Muted italic serif, like a scribe's note at the foot of the page.
   note: { fontFamily: fonts.heading, fontStyle: "italic", color: colors.muted, textAlign: "center" },
+  noteLeft: { textAlign: "left" },
   link: { color: colors.wordmark },
   error: {
     fontFamily: fonts.body,

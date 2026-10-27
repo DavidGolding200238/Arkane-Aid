@@ -1,6 +1,24 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
 import { errorText } from "./parties";
+import { type Spell, type Weapon, spellLine, suggestedToHit, weaponLine } from "./arsenal";
+import { isCustomRace } from "./sheetLists";
+
+/** What a player writes for a custom (homebrew) species. Stored as characters.race_traits. */
+export type RaceTraits = {
+  /** Ability score increases, as written: "+2 STR, +1 CON". */
+  bonuses: string;
+  size: string;
+  /** Walking speed in feet, or null when not written. */
+  speed: number | null;
+  /** A short list of the species' abilities, one per line. */
+  abilities: string;
+};
+
+export const EMPTY_RACE_TRAITS: RaceTraits = { bonuses: "", size: "", speed: null, abilities: "" };
+
+const hasRaceTraits = (t: RaceTraits | null | undefined): t is RaceTraits =>
+  !!t && !!(t.bonuses.trim() || t.size.trim() || t.speed !== null || t.abilities.trim());
 
 export type Character = {
   id: string;
@@ -9,6 +27,9 @@ export type Character = {
   name: string;
   class: string | null;
   race: string | null;
+  subclass: string | null;
+  lineage: string | null;
+  race_traits: RaceTraits | null;
   background: string | null;
   level: number;
   hp_current: number;
@@ -47,6 +68,9 @@ export type CharacterDraft = {
   name: string;
   class: string;
   race: string;
+  subclass: string;
+  lineage: string;
+  raceTraits: RaceTraits;
   background: string;
   level: number;
   hp_current: number;
@@ -64,13 +88,50 @@ export type CharacterDraft = {
   cha: number;
 };
 
+/** The blank sheet a new character starts from. Opening it never saves it; only a real edit does. */
+export const EMPTY_DRAFT: CharacterDraft = {
+  name: "",
+  class: "",
+  race: "",
+  subclass: "",
+  lineage: "",
+  raceTraits: EMPTY_RACE_TRAITS,
+  background: "",
+  level: 1,
+  hp_current: 10,
+  hp_max: 10,
+  ac: 10,
+  speed: 30,
+  languages: "",
+  features: "",
+  skills: [],
+  str: 10,
+  dex: 10,
+  con: 10,
+  int: 10,
+  wis: 10,
+  cha: 10,
+};
+
+const NEW_COLUMNS_SQL =
+  "Subclass, lineage and homebrew traits need the latest database update (npx supabase db push, migration 20261027000007). Everything else is saved.";
+
+/** The sheet saved, but without subclass, lineage and homebrew traits: the database is missing them. */
+export class SheetUpdateNeeded extends Error {
+  saved: Character;
+  constructor(saved: Character) {
+    super(NEW_COLUMNS_SQL);
+    this.saved = saved;
+  }
+}
+
 const SHEET_SQL =
   "Run supabase/003_level_hp_traits.sql in the SQL editor once. It adds level, HP, and the traits list.";
 const COMBAT_SQL =
   "Run supabase/004_sheet_combat.sql in the SQL editor once. It adds armor class, speed, skills, languages, and features.";
 
 const SHEET_WORDS =
-  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|ac|armor|speed|skill|language|spell|feature|can i|do i|am i)\b/i;
+  /\b(my|mine|me|i|i'm|im|character|sheet|strength|dexterity|constitution|intelligence|wisdom|charisma|str|dex|con|int|wis|cha|class|race|species|gear|equipment|trait|traits|background|inventory|level|hp|hit|ac|armor|speed|skill|language|spell|spells|cast|weapon|weapons|attack|sword|subclass|lineage|homebrew|feature|can i|do i|am i)\b/i;
 
 export const SKILLS = [
   "Acrobatics",
@@ -136,7 +197,19 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
     languages: row.languages ?? null,
     features: row.features ?? null,
     skills: Array.isArray(row.skills) ? row.skills : [],
+    subclass: row.subclass ?? null,
+    lineage: row.lineage ?? null,
+    race_traits: readRaceTraits(row.race_traits),
   };
+}
+
+function readRaceTraits(value: unknown): RaceTraits | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const str = (x: unknown) => (typeof x === "string" ? x : "");
+  const speed = typeof v.speed === "number" && Number.isFinite(v.speed) ? Math.round(v.speed) : null;
+  const traits = { bonuses: str(v.bonuses), size: str(v.size), speed, abilities: str(v.abilities) };
+  return hasRaceTraits(traits) ? traits : null;
 }
 
 export function needsSheet(question: string) {
@@ -164,12 +237,44 @@ export type SheetData = {
   features: string;
   traits: string[];
   gear: string[];
+  subclass: string;
+  lineage: string;
+  /** Only for a custom species: the traits the player wrote, which are the table's homebrew. */
+  homebrew: { bonuses: string; size: string; speed: number | null; abilities: string } | null;
+  /** The weapon in hand, as one line ("Longsword +5 to hit, 1d8 Slashing"). */
+  weapon: string;
+  spells: string[];
 };
+
+/** The Codex's weapons and spells, sent with the sheet. */
+export type Arsenal = { weapons?: Weapon[]; spells?: Spell[] };
+
+function homebrewOf(character: Character) {
+  if (!isCustomRace(character.race ?? "") || !hasRaceTraits(character.race_traits)) return null;
+  const t = character.race_traits;
+  return {
+    bonuses: clip(t.bonuses, 80),
+    size: clip(t.size, 20),
+    speed: t.speed,
+    abilities: clip(lines(t.abilities), 300),
+  };
+}
+
+function inHand(character: Character, weapons: Weapon[] = []) {
+  const weapon = weapons.find((w) => w.in_hand);
+  if (!weapon) return "";
+  return weaponLine(weapon, suggestedToHit(weapon.properties, character, proficiencyBonus(character.level)));
+}
 
 // Keeps one-per-line lists apart once clip folds the whitespace: "Rage\nWeapon Mastery" -> "Rage; Weapon Mastery".
 const lines = (value: string | null) => (value ?? "").replace(/\s*\n+\s*/g, "; ");
 
-export function sheetData(character: Character | null, gear: Equipment[], traits: Trait[] = []): SheetData | null {
+export function sheetData(
+  character: Character | null,
+  gear: Equipment[],
+  traits: Trait[] = [],
+  arsenal: Arsenal = {}
+): SheetData | null {
   if (!character) return null;
   return {
     name: clip(character.name, 40),
@@ -191,14 +296,26 @@ export function sheetData(character: Character | null, gear: Equipment[], traits
     features: clip(lines(character.features), 400),
     traits: traits.slice(0, 8).map((t) => clip(t.name, 40)).filter(Boolean),
     gear: gear.slice(0, 12).map((g) => clip(g.name, 40)).filter(Boolean),
+    subclass: clip(character.subclass, 40),
+    lineage: clip(character.lineage, 40),
+    homebrew: homebrewOf(character),
+    weapon: inHand(character, arsenal.weapons),
+    spells: (arsenal.spells ?? []).slice(0, 30).map((s) => clip(spellLine(s), 50)),
   };
 }
 
-export function sheetBrief(character: Character | null, gear: Equipment[], traits: Trait[] = []): string {
+export function sheetBrief(
+  character: Character | null,
+  gear: Equipment[],
+  traits: Trait[] = [],
+  arsenal: Arsenal = {}
+): string {
   if (!character) return "";
   const name = clip(character.name, 24) || "Unnamed";
-  const race = clip(character.race, 16);
-  const klass = clip(character.class, 16);
+  const lineage = clip(character.lineage, 24);
+  const subclass = clip(character.subclass, 28);
+  const race = [clip(character.race, 16), lineage ? `(${lineage})` : ""].filter(Boolean).join(" ");
+  const klass = [clip(character.class, 16), subclass ? `(${subclass})` : ""].filter(Boolean).join(" ");
   const who = [name, race, klass, `L${character.level}`].filter(Boolean).join(" ");
   const combat = `AC${character.ac} SPD${character.speed} PB+${proficiencyBonus(character.level)} HP ${character.hp_current}/${character.hp_max}`;
   const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
@@ -214,6 +331,22 @@ export function sheetBrief(character: Character | null, gear: Equipment[], trait
     .filter(Boolean)
     .join(", ");
   const features = clip(character.features, 80);
+  const brew = homebrewOf(character);
+  const homebrew = brew
+    ? `Homebrew species traits (written on the sheet): ${[
+        brew.bonuses,
+        brew.size ? `Size ${brew.size}` : "",
+        brew.speed !== null ? `Speed ${brew.speed} ft` : "",
+        brew.abilities,
+      ]
+        .filter(Boolean)
+        .join("; ")}`
+    : "";
+  const weapon = inHand(character, arsenal.weapons);
+  const spells = (arsenal.spells ?? [])
+    .slice(0, 16)
+    .map((s) => clip(spellLine(s), 32))
+    .join(", ");
   return [
     who,
     combat,
@@ -222,6 +355,9 @@ export function sheetBrief(character: Character | null, gear: Equipment[], trait
     gearLine ? `Gear: ${gearLine}` : "",
     traitLine ? `Traits: ${traitLine}` : "",
     features ? `Features: ${features}` : "",
+    homebrew,
+    weapon ? `In hand: ${weapon}` : "",
+    spells ? `Spells: ${spells}` : "",
   ]
     .filter(Boolean)
     .join(". ");
@@ -240,6 +376,9 @@ export async function saveCharacter(
     class: draft.class.trim() || null,
     race: draft.race.trim() || null,
     background: draft.background.trim() || null,
+    subclass: draft.subclass.trim() || null,
+    lineage: draft.lineage.trim() || null,
+    race_traits: isCustomRace(draft.race) && hasRaceTraits(draft.raceTraits) ? draft.raceTraits : null,
     level: draft.level,
     hp_current: draft.hp_current,
     hp_max: draft.hp_max,
@@ -257,30 +396,51 @@ export async function saveCharacter(
     updated_at: new Date().toISOString(),
   };
 
-  try {
+  const write = async (values: Record<string, unknown>) => {
     if (existing) {
       const { data, error } = await supabase
         .from("characters")
-        .update(row)
+        .update(values)
         .eq("id", existing.id)
         .select("*")
         .single();
       if (error) throw error;
       return data as Character;
     }
-    const { data, error } = await supabase.from("characters").insert(row).select("*").single();
+    const { data, error } = await supabase.from("characters").insert(values).select("*").single();
     if (error) throw error;
     return data as Character;
+  };
+
+  try {
+    return await write(row);
   } catch (err) {
     const message = String(errorText(err)).toLowerCase();
-    if (message.includes("ac") || message.includes("speed") || message.includes("skills") || message.includes("features")) {
-      throw new Error(COMBAT_SQL);
+    // Before migration 20261027000007 the three new columns are missing: save the rest so no
+    // edit is lost, then say what is missing.
+    if (/subclass|lineage|race_traits/.test(message)) {
+      const { subclass: _s, lineage: _l, race_traits: _r, ...rest } = row;
+      let saved: Character;
+      try {
+        saved = await write(rest);
+      } catch (inner) {
+        throw mapSaveError(inner);
+      }
+      throw new SheetUpdateNeeded(saved);
     }
-    if (message.includes("level") || message.includes("hp_")) {
-      throw new Error(SHEET_SQL);
-    }
-    throw err;
+    throw mapSaveError(err);
   }
+}
+
+function mapSaveError(err: unknown) {
+  const message = String(errorText(err)).toLowerCase();
+  if (message.includes("ac") || message.includes("speed") || message.includes("skills") || message.includes("features")) {
+    return new Error(COMBAT_SQL);
+  }
+  if (message.includes("level") || message.includes("hp_")) {
+    return new Error(SHEET_SQL);
+  }
+  return err;
 }
 
 export async function deleteCharacter(character: Character): Promise<void> {
