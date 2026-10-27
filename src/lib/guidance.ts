@@ -22,7 +22,7 @@ export const GUIDANCE: Tip[] = [
   },
   {
     title: "Roll the dice",
-    body: "Tap the d20 on Home to open the dice. Tap Roll or shake your phone. Advantage and Disadvantage work on a single d20. Ask the Sage any dice rule.",
+    body: "Tap the d20 on Home. Check rolls a skill, save, attack or death save from your Character Sheet with every bonus shown; set a DC to see if it worked. Free roll throws any dice. Tap Roll or shake your phone.",
   },
   {
     title: "Open the Tome",
