@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
 import {
   addCodexEntry,
   loadCodex,
   removeCodexEntry,
+  updateCodexEntry,
   type CodexEntry,
   type CodexKind,
 } from "../lib/codex";
@@ -14,35 +16,15 @@ import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
 import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
+import NoteSheet from "../components/NoteSheet";
+import { SpellList, WeaponList } from "../components/CodexArsenal";
 import Rule from "../components/Rule";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
-import { CornerOrnaments, InkButton, InkOutline, InkStroke, RuledLines, INK_RADIUS } from "../components/Ink";
+import { InkButton, InkStroke, RuledLines } from "../components/Ink";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
 const parchment = require("../../assets/images/backgrounds/parchment.png");
-// The Ledger sections' light paper (no torn edge: it is clipped off), so each note is its own small sheet.
-const notePaper = require("../../assets/images/panels/panel-ledger-cream-fill.jpg");
-
-// One note's sheet: the Ledger panel paper, drawn a little oversize and clipped so its baked border never
-// shows, edged in a fine hand-inked line with the Ledger's corner curls. Fills its parent.
-function NoteSheet({ seed }: { seed: number }) {
-  const { s } = useScale();
-  const bleed = s(6);
-  const clip = s(1.2);
-  return (
-    <>
-      <View pointerEvents="none" style={[styles.sheetClip, { top: clip, left: clip, right: clip, bottom: clip, borderRadius: s(INK_RADIUS) }]}>
-        <View style={{ position: "absolute", top: -bleed, left: -bleed, right: -bleed, bottom: -bleed }}>
-          <Image source={notePaper} style={styles.sheetPaper} resizeMode="cover" />
-        </View>
-      </View>
-      <InkOutline seed={seed} radius={s(INK_RADIUS)} />
-      <CornerOrnaments size={s(12)} inset={s(4)} />
-    </>
-  );
-}
-
-// Printed section heading, as on the Ledger: red Cinzel with an illuminated first letter and a
+// Printed section heading, as on the Character Sheet: red Cinzel with an illuminated first letter and a
 // drawn underline as wide as the text.
 function SectionTitle({ children, size }: { children: string; size: number }) {
   return (
@@ -56,14 +38,19 @@ function SectionTitle({ children, size }: { children: string; size: number }) {
   );
 }
 
-type Tab = "all" | "note" | "item";
+type Tab = "all" | "note" | "item" | "weapon" | "spell";
 
+// "Sheet" opens the Character Sheet (the "ledger" screen).
 const TABS: { id: Tab | "ledger"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "note", label: "Notes" },
   { id: "item", label: "Items" },
-  { id: "ledger", label: "Ledger" },
+  { id: "weapon", label: "Weapons" },
+  { id: "spell", label: "Spells" },
+  { id: "ledger", label: "Sheet" },
 ];
+
+const HEADINGS: Partial<Record<Tab, string>> = { weapon: "Weapons", spell: "Spells" };
 
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
 
@@ -82,6 +69,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const { s, fs } = useScale();
   const { width } = useWindowDimensions();
   const { selected } = useParty();
+  const { user } = useAuth();
   const partyId = selected?.party.id ?? null;
   const fontsLoaded = useAppFonts();
   const [tab, setTab] = useState<Tab>("all");
@@ -91,6 +79,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
   const [writing, setWriting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  // The note being edited (null: the form adds a new one).
+  const [editingId, setEditingId] = useState<string | null>(null);
   // Layout for the Sage page's soft fades: the page size, and the notes list's place on it
   // (the book's top plus the list's top inside the book).
   const fade = useFadeSizes();
@@ -130,17 +120,33 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
       onOpen("ledger");
       return;
     }
+    // Weapons and Spells have their own forms, so an open note form closes when moving to or from them.
+    if (HEADINGS[id] || HEADINGS[tab]) closeForm();
     setTab(id);
+  };
+
+  const closeForm = () => {
+    setWriting(false);
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+  };
+
+  // Tap your own note to edit it in the form above the list.
+  const edit = (row: CodexEntry) => {
+    setEditingId(row.id);
+    setTitle(row.title ?? "");
+    setBody(row.body);
+    setWriting(true);
   };
 
   const save = async () => {
     if (!partyId) return;
     setBusy(true);
     try {
-      await addCodexEntry(partyId, kindFor(tab), title, body);
-      setTitle("");
-      setBody("");
-      setWriting(false);
+      if (editingId) await updateCodexEntry(editingId, title, body);
+      else await addCodexEntry(partyId, kindFor(tab), title, body);
+      closeForm();
       setRows(await loadCodex(partyId));
       setError("");
     } catch (err) {
@@ -189,7 +195,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
       >
         <View style={{ paddingHorizontal: pagePad, paddingTop: s(6), paddingBottom: s(8) }}>
           <View style={styles.sessionRow}>
-            <SectionTitle size={fs(18)}>Session notes</SectionTitle>
+            <SectionTitle size={fs(18)}>{HEADINGS[tab] ?? "Session notes"}</SectionTitle>
             <InkButton
               variant={writing ? "parchment" : "red"}
               label={writing ? "Close" : "Add"}
@@ -197,7 +203,8 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
               width={s(70)}
               height={s(32)}
               seed={writing ? 42 : 41}
-              onPress={() => setWriting((on) => !on)}
+              onPress={() => (writing ? closeForm() : setWriting(true))}
+              disabled={!partyId}
             />
           </View>
 
@@ -214,8 +221,10 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                   accessibilityState={{ selected: on }}
                 >
                   <Text
-                    style={[styles.tabLabel, on && styles.tabOn, { fontSize: fs(16), lineHeight: fs(24) }]}
+                    style={[styles.tabLabel, on && styles.tabOn, { fontSize: fs(15), lineHeight: fs(24) }]}
                     numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
                   >
                     {item.label}
                   </Text>
@@ -229,7 +238,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
           </View>
           <Rule color={colors.rule} style={{ marginTop: s(1), opacity: 0.55 }} />
 
-          {writing ? (
+          {writing && !HEADINGS[tab] ? (
             <View style={[styles.form, { marginTop: s(10), gap: s(10) }]}>
               <View>
                 <TextInput
@@ -258,7 +267,7 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
               </View>
               <InkButton
                 variant="red"
-                label={`Save ${tab === "item" ? "item" : "note"}`}
+                label={editingId ? "Save changes" : `Save ${tab === "item" ? "item" : "note"}`}
                 width={saveW}
                 height={s(42)}
                 seed={43}
@@ -293,19 +302,24 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
                 Join
               </Text>
             </Text>
+          ) : tab === "weapon" ? (
+            <WeaponList partyId={partyId} adding={writing} onCloseAdd={closeForm} width={saveW} />
+          ) : tab === "spell" ? (
+            <SpellList partyId={partyId} adding={writing} onCloseAdd={closeForm} width={saveW} />
           ) : shown.length === 0 && !busy ? (
             <Text style={[styles.empty, { fontSize: fs(14) }]}>Nothing recorded yet.</Text>
           ) : null}
 
-          {shown.map((row, i) => (
+          {(HEADINGS[tab] ? [] : shown).map((row, i) => (
             <Pressable
               key={row.id}
+              onPress={row.author_id === user?.id ? () => edit(row) : undefined}
               onLongPress={() => drop(row.id)}
-              accessibilityHint="Long press to delete"
+              accessibilityHint={row.author_id === user?.id ? "Tap to edit, long press to delete" : "Long press to delete"}
               style={({ pressed }) => pressed && styles.cardPressed}
             >
               <View style={[styles.card, { minHeight: s(132), padding: s(14), paddingBottom: s(10) }]}>
-                {/* Each note is its own light-paper sheet on the page, like the Ledger's Equipment and
+                {/* Each note is its own light-paper sheet on the page, like the Character Sheet's Equipment and
                     Traits sections: fine pen frame, corner curls, ruled lines. */}
                 <NoteSheet seed={70 + i} />
                 <View style={[styles.cardTop, { gap: s(8) }]}>
@@ -355,8 +369,6 @@ const styles = StyleSheet.create({
     opacity: 0.28,
   },
   book: { flex: 1 },
-  sheetClip: { position: "absolute", overflow: "hidden" },
-  sheetPaper: { width: "100%", height: "100%" },
   sessionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   // Same printed heading as the Ledger's section titles.
   sectionTitle: { alignSelf: "flex-start", flexShrink: 1 },
@@ -369,7 +381,8 @@ const styles = StyleSheet.create({
   sectionRule: { marginTop: -3 },
   dropCap: { fontFamily: fonts.titleBold, color: colors.wordmark },
   tabs: { flexDirection: "row" },
-  tab: { flex: 1, alignItems: "center" },
+  // Six tabs share the row by their own widths (Weapons is the longest), so all fit from 360dp up.
+  tab: { flexGrow: 1, alignItems: "center" },
   tabLabel: { fontFamily: fonts.headingBold, color: colors.ink, letterSpacing: 0.3 },
   tabOn: { color: colors.activeTab },
   tabMark: { marginTop: -2 },

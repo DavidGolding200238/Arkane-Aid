@@ -54,3 +54,15 @@ export async function removeCodexEntry(id: string): Promise<void> {
   const { error } = await supabase.from("codex_entries").delete().eq("id", id);
   if (error) throw error;
 }
+
+/** Saves changes to one of your own notes or items (row security allows only the author). */
+export async function updateCodexEntry(id: string, title: string, body: string): Promise<void> {
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("Write something before saving.");
+  if (trimmed.length > 4000) throw new Error("Codex entries stop at 4000 characters.");
+  const { error } = await supabase
+    .from("codex_entries")
+    .update({ title: title.trim() || null, body: trimmed })
+    .eq("id", id);
+  if (error) throw error;
+}
