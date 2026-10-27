@@ -11,6 +11,7 @@ import {
   type CodexEntry,
   type CodexKind,
 } from "../lib/codex";
+import type { Character } from "../lib/character";
 import { errorText } from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import PageHeader from "../components/PageHeader";
@@ -18,6 +19,7 @@ import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
 import NoteSheet from "../components/NoteSheet";
 import { SpellList, WeaponList } from "../components/CodexArsenal";
+import { ArchiveList } from "../components/CodexArchive";
 import Rule from "../components/Rule";
 import FadeRow from "../components/FadeRow";
 import { ChevronDownIcon, QuillIcon } from "../components/icons";
@@ -39,9 +41,9 @@ function SectionTitle({ children, size }: { children: string; size: number }) {
   );
 }
 
-type Tab = "all" | "note" | "item" | "weapon" | "spell";
+type Tab = "all" | "note" | "item" | "weapon" | "spell" | "archive";
 
-// "Sheet" opens the Character Sheet (the "ledger" screen).
+// "Sheet" opens the Character Sheet (the "ledger" screen). "Archive" lists all your sheets.
 const TABS: { id: Tab | "ledger"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "note", label: "Notes" },
@@ -49,11 +51,19 @@ const TABS: { id: Tab | "ledger"; label: string }[] = [
   { id: "weapon", label: "Weapons" },
   { id: "spell", label: "Spells" },
   { id: "ledger", label: "Sheet" },
+  { id: "archive", label: "Archive" },
 ];
 
-const HEADINGS: Partial<Record<Tab, string>> = { weapon: "Weapons", spell: "Spells" };
+const HEADINGS: Partial<Record<Tab, string>> = { weapon: "Weapons", spell: "Spells", archive: "Archive" };
 
-type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
+type Props = {
+  onBack: () => void;
+  onOpen: (screen: AppScreen) => void;
+  /** Opens a retired sheet from the Archive tab, read-only. */
+  onViewRetired: (character: Character) => void;
+  /** The tab to open on: the Archive when coming back from a retired sheet. */
+  initialTab?: "archive";
+};
 
 function shortDate(iso: string) {
   const date = new Date(iso);
@@ -66,14 +76,14 @@ function kindFor(tab: Tab): CodexKind {
   return "note";
 }
 
-export default function CodexScreen({ onBack, onOpen }: Props) {
+export default function CodexScreen({ onBack, onOpen, onViewRetired, initialTab }: Props) {
   const { s, fs } = useScale();
   const { width } = useWindowDimensions();
   const { selected } = useParty();
   const { user } = useAuth();
   const partyId = selected?.party.id ?? null;
   const fontsLoaded = useAppFonts();
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "all");
   const [rows, setRows] = useState<CodexEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -196,18 +206,20 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
         onLayout={(e) => setBookY(e.nativeEvent.layout.y)}
       >
         <View style={{ paddingHorizontal: pagePad, paddingTop: s(6), paddingBottom: s(8) }}>
-          <View style={styles.sessionRow}>
+          <View style={[styles.sessionRow, { minHeight: s(32) }]}>
             <SectionTitle size={fs(18)}>{HEADINGS[tab] ?? "Session notes"}</SectionTitle>
-            <InkButton
-              variant={writing ? "parchment" : "red"}
-              label={writing ? "Close" : "Add"}
-              labelColor={writing ? colors.wordmark : undefined}
-              width={s(70)}
-              height={s(32)}
-              seed={writing ? 42 : 41}
-              onPress={() => (writing ? closeForm() : setWriting(true))}
-              disabled={!partyId}
-            />
+            {tab === "archive" ? null : (
+              <InkButton
+                variant={writing ? "parchment" : "red"}
+                label={writing ? "Close" : "Add"}
+                labelColor={writing ? colors.wordmark : undefined}
+                width={s(70)}
+                height={s(32)}
+                seed={writing ? 42 : 41}
+                onPress={() => (writing ? closeForm() : setWriting(true))}
+                disabled={!partyId}
+              />
+            )}
           </View>
 
           {/* The tabs scroll sideways, at their own widths with even gaps, reaching to the screen
@@ -295,7 +307,9 @@ export default function CodexScreen({ onBack, onOpen }: Props) {
           keyboardShouldPersistTaps="handled"
           onLayout={(e) => setList({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
         >
-          {!partyId ? (
+          {tab === "archive" ? (
+            <ArchiveList onView={onViewRetired} />
+          ) : !partyId ? (
             <Text style={[styles.empty, { fontSize: fs(14) }]}>
               Not in a party yet.{" "}
               <Text style={styles.link} onPress={() => onOpen("create")}>

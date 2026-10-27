@@ -24,10 +24,12 @@ const TABS: { id: TabId; label: string; Icon: typeof HomeIcon }[] = [
 ];
 
 // Which tab is lit for each screen. The Character Sheet ("ledger") is opened from the Codex
-// (its Sheet tab), so it lights Codex; Create and Join party live under the Tome.
+// (its Sheet tab), and a retired sheet from its Archive tab, so both light Codex; Create and Join
+// party live under the Tome.
 export function tabFor(screen: AppScreen): TabId {
   switch (screen) {
     case "ledger":
+    case "retired":
       return "codex";
     case "create":
     case "join":

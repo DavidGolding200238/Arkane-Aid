@@ -16,6 +16,7 @@ import JoinPartyScreen from "./src/screens/JoinPartyScreen";
 import TabBar from "./src/components/TabBar";
 import { GuidancePopup } from "./src/components/Guidance";
 import type { AppScreen } from "./src/navigation/screens";
+import type { Character } from "./src/lib/character";
 import { colors } from "./src/theme";
 import { loadedSageScreen, loadSageScreen, runPreload } from "./src/lib/preload";
 
@@ -69,7 +70,7 @@ class ScreenError extends Component<{ children: ReactNode; onBack: () => void },
 
 // Where each screen's back arrow goes; Android's own back button and gesture follow the same map.
 function backFrom(screen: AppScreen): AppScreen {
-  if (screen === "ledger") return "codex";
+  if (screen === "ledger" || screen === "retired") return "codex";
   if (screen === "create" || screen === "join") return "settings";
   return "home";
 }
@@ -80,6 +81,14 @@ function Gate() {
   const [progress, setProgress] = useState(0);
   const [preloaded, setPreloaded] = useState(false);
   const [screen, setScreen] = useState<AppScreen>("home");
+  // The retired sheet open read-only, and whether the Codex reopens on its Archive tab (coming
+  // back from that sheet). Any other way into the Codex opens it as usual.
+  const [retired, setRetired] = useState<Character | null>(null);
+  const [codexTab, setCodexTab] = useState<"archive" | undefined>(undefined);
+  const open = useCallback((next: AppScreen) => {
+    setCodexTab(undefined);
+    setScreen(next);
+  }, []);
   const [resetting, setResetting] = useState(false);
 
   // The splash waits for real work: fonts, the main screens' art, the fire loops, and the Sage's
@@ -140,15 +149,29 @@ function Gate() {
   return (
     <PartyProvider>
       <View style={styles.root}>
-        {screen === "home" ? <HomeScreen onOpen={setScreen} /> : null}
+        {screen === "home" ? <HomeScreen onOpen={open} /> : null}
         {screen === "sage" ? (
           <ScreenError onBack={() => setScreen("home")}>
             <SageEntry onBack={() => setScreen("home")} onOpenTome={() => setScreen("settings")} />
           </ScreenError>
         ) : null}
-        {screen === "codex" ? <CodexScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
-        {screen === "ledger" ? <LedgerScreen onBack={() => setScreen(backFrom("ledger"))} onOpen={setScreen} /> : null}
-        {screen === "settings" ? <SettingsScreen onBack={() => setScreen("home")} onOpen={setScreen} /> : null}
+        {screen === "codex" ? (
+          <CodexScreen
+            onBack={() => open("home")}
+            onOpen={open}
+            initialTab={codexTab}
+            onViewRetired={(character) => {
+              setRetired(character);
+              setCodexTab("archive");
+              setScreen("retired");
+            }}
+          />
+        ) : null}
+        {screen === "ledger" ? <LedgerScreen onBack={() => open(backFrom("ledger"))} onOpen={open} /> : null}
+        {screen === "retired" && retired ? (
+          <LedgerScreen retired={retired} onBack={() => setScreen("codex")} onOpen={open} />
+        ) : null}
+        {screen === "settings" ? <SettingsScreen onBack={() => open("home")} onOpen={open} /> : null}
         {screen === "create" ? (
           <CreatePartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
@@ -156,7 +179,7 @@ function Gate() {
           <JoinPartyScreen onBack={() => setScreen("settings")} onDone={() => setScreen("settings")} />
         ) : null}
         {/* Every page, the dashboard too, sits above the tab bar (never under it). */}
-        <TabBar current={screen} onOpen={setScreen} />
+        <TabBar current={screen} onOpen={open} />
         {/* The how-to tips, once per account on this phone (keyed so a new sign-in checks again). */}
         <GuidancePopup key={user.id} userId={user.id} />
       </View>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Image,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   useAnimatedValue,
   View,
 } from "react-native";
@@ -18,14 +20,24 @@ import PageHeader from "../components/PageHeader";
 import { ScrollFades, useFadeSizes } from "../components/PageFade";
 import CircleButton from "../components/CircleButton";
 import { RefreshIcon } from "../components/icons";
-import { CornerOrnaments, Flourish, INK_COLOR, InkButton, InkOutline, INK_RADIUS } from "../components/Ink";
+import { CornerOrnaments, Flourish, INK_COLOR, InkButton, InkOutline, INK_RADIUS, InkStroke } from "../components/Ink";
 import { GuidanceTips } from "../components/Guidance";
 import Rule from "../components/Rule";
 import VoiceCarousel from "../components/VoiceCarousel";
 import { useAuth } from "../context/AuthContext";
 import { useParty } from "../context/PartyContext";
 import { useVoice } from "../context/VoiceContext";
-import { errorText, myProfile, partySeats, type Profile, type Seat } from "../lib/parties";
+import {
+  deleteParty,
+  errorText,
+  leaveParty,
+  myProfile,
+  partySeats,
+  transferDm,
+  type Membership,
+  type Profile,
+  type Seat,
+} from "../lib/parties";
 import type { AppScreen } from "../navigation/screens";
 import { colors, fonts, inkText, useAppFonts, useScale } from "../theme";
 
@@ -170,6 +182,148 @@ function IndexEntry({
   );
 }
 
+// The active party's own actions, under its card. A player can leave (their sheet retires to their
+// Archive). The DM can hand the party to another member, or delete it after typing its exact name.
+function PartyActions({ row, seats, width, onDone }: { row: Membership; seats: Seat[]; width: number; onDone: () => Promise<void> }) {
+  const { s, fs } = useScale();
+  const [mode, setMode] = useState<"hand" | "delete" | null>(null);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const party = row.party;
+  const isDm = party.created_by === row.user_id;
+  const others = seats.filter((seat) => seat.user_id !== row.user_id);
+  const gap = s(10);
+  const half = Math.floor((width - gap) / 2);
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await action();
+      setMode(null);
+      setTyped("");
+      setError("");
+      // Reload the parties: one that is gone stops being the active party.
+      await onDone();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leave = () =>
+    Alert.alert("Leave party", "Your character sheet moves to the Archive. Party notes you wrote stay with the party.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Leave", style: "destructive", onPress: () => run(() => leaveParty(party.id)) },
+    ]);
+
+  const handTo = (seat: Seat) =>
+    Alert.alert("Hand over DM", `Make ${seat.name} the DM of ${party.name}? You stay in the party as a player.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Hand over", onPress: () => run(() => transferDm(party.id, seat.user_id)) },
+    ]);
+
+  const toggle = (next: "hand" | "delete") => {
+    setMode((now) => (now === next ? null : next));
+    setTyped("");
+    setError("");
+  };
+
+  return (
+    <View style={{ marginTop: s(10) }}>
+      {isDm ? (
+        <View style={[styles.row, { gap }]}>
+          <PaperButton label="Hand over DM" variant="parchment" width={half} height={s(36)} seed={67} onPress={() => toggle("hand")} disabled={busy} />
+          <PaperButton
+            label="Delete party"
+            variant="parchment"
+            labelColor={colors.wordmark}
+            width={half}
+            height={s(36)}
+            seed={69}
+            onPress={() => toggle("delete")}
+            disabled={busy}
+          />
+        </View>
+      ) : (
+        <PaperButton
+          label="Leave party"
+          variant="parchment"
+          labelColor={colors.wordmark}
+          width={width}
+          height={s(36)}
+          seed={67}
+          onPress={leave}
+          busy={busy}
+        />
+      )}
+
+      {mode === "hand" ? (
+        <View style={{ marginTop: s(10) }}>
+          <Text style={[styles.label, { fontSize: fs(13) }]}>Pick the new DM</Text>
+          {others.length === 0 ? (
+            <Text style={[styles.footnote, styles.left, { fontSize: fs(13), marginTop: s(4) }]}>
+              No one else is in the party yet. Share the code {party.code}.
+            </Text>
+          ) : (
+            others.map((seat) => (
+              <View key={seat.user_id}>
+                <Pressable
+                  onPress={() => handTo(seat)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Make ${seat.name} the DM`}
+                  style={({ pressed }) => [{ paddingVertical: s(8) }, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.body, { fontSize: fs(15) }]} numberOfLines={1}>
+                    {seat.name}
+                  </Text>
+                </Pressable>
+                <Rule color={INK_COLOR} style={styles.faint} />
+              </View>
+            ))
+          )}
+        </View>
+      ) : null}
+
+      {mode === "delete" ? (
+        <View style={{ marginTop: s(10), gap: s(8) }}>
+          <Text style={[styles.error, { fontSize: fs(13), lineHeight: fs(18) }]}>
+            Everyone&apos;s character sheets go to their Archive. The party&apos;s chat and shared notes are deleted forever.
+          </Text>
+          <Text style={[styles.footnote, styles.left, { fontSize: fs(13) }]}>Type {party.name} to confirm.</Text>
+          <View>
+            <TextInput
+              style={[styles.body, styles.input, { fontSize: fs(15), paddingVertical: s(5) }]}
+              value={typed}
+              onChangeText={setTyped}
+              placeholder={party.name}
+              placeholderTextColor={colors.placeholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="Party name"
+            />
+            <InkStroke seed={71} />
+          </View>
+          <InkButton
+            label="Delete party forever"
+            variant="red"
+            width={width}
+            height={s(40)}
+            seed={73}
+            onPress={() => run(() => deleteParty(party.id))}
+            disabled={typed !== party.name}
+            busy={busy}
+          />
+        </View>
+      ) : null}
+
+      {error ? <Text style={[styles.error, { fontSize: fs(13), marginTop: s(6) }]}>{error}</Text> : null}
+    </View>
+  );
+}
+
 type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
 type Section = "account" | "guidance" | null;
 
@@ -240,6 +394,8 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
   // Create | Join share one row inside the parties panel, equal width.
   const pairGap = s(10);
   const pairW = Math.floor((width - pagePad * 2 - panelPad * 2 - pairGap) / 2) - s(2);
+  // The width inside a party card (its padding is s(14) a side), for the active party's actions.
+  const cardInnerW = Math.floor(width - pagePad * 2 - panelPad * 2 - s(28)) - s(2);
   // The index page reaches indexBleed past the page margin; its padding keeps the dropdowns' contents
   // where the old panels' contents were (page margin + panel padding).
   const indexBleed = s(12);
@@ -365,9 +521,11 @@ export default function SettingsScreen({ onBack, onOpen }: Props) {
                             {seat.name} · {seat.role}
                           </Text>
                         ))}
-                        {!on ? (
+                        {on ? (
+                          <PartyActions row={row} seats={seats[row.party.id] ?? []} width={cardInnerW} onDone={refresh} />
+                        ) : (
                           <Text style={[styles.hint, { fontSize: fs(12), marginTop: s(4) }]}>Tap to make active</Text>
-                        ) : null}
+                        )}
                       </InkCard>
                     </Pressable>
                   );
@@ -502,4 +660,6 @@ const styles = StyleSheet.create({
   tagText: { fontFamily: fonts.headingBold, color: colors.cream, letterSpacing: 0.8 },
   tipNumber: { fontFamily: fonts.stat, color: colors.wordmark, textAlign: "center" },
   tipTitle: { fontFamily: fonts.headingBold, ...inkText.heading },
+  input: { width: "100%" },
+  faint: { opacity: 0.35 },
 });

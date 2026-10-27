@@ -20,11 +20,14 @@ import {
   addEquipment,
   addTrait,
   CHECK_COLUMNS_HINT,
+  copyFromArchive,
+  deleteArchived,
   deleteCharacter,
   EMPTY_DRAFT,
   EMPTY_RACE_TRAITS,
   loadCharacter,
   loadEquipment,
+  loadMySheets,
   loadTraits,
   removeEquipment,
   removeTrait,
@@ -37,7 +40,7 @@ import {
   type RaceTraits,
   type Trait,
 } from "../lib/character";
-import { ABILITIES, classSaves, type AbilityKey } from "../lib/dice/checkRules";
+import { ABILITIES, classSaves, hasJackOfAllTrades, type AbilityKey } from "../lib/dice/checkRules";
 import { errorText } from "../lib/parties";
 import { SheetAutosave, type SaveStatus } from "../lib/sheetAutosave";
 import type { AppScreen } from "../navigation/screens";
@@ -167,7 +170,12 @@ type StatKey = (typeof STATS)[number][0];
 
 const EMPTY = EMPTY_DRAFT;
 
-type Props = { onBack: () => void; onOpen: (screen: AppScreen) => void };
+type Props = {
+  onBack: () => void;
+  onOpen: (screen: AppScreen) => void;
+  /** A retired sheet from the Archive: shown read-only, in place of the party's sheet. */
+  retired?: Character;
+};
 type PickField = "race" | "class" | "lineage" | "subclass";
 type Picker = PickField | null;
 
@@ -246,7 +254,6 @@ function draftFrom(row: Character | null): CharacterDraft {
     skills: row.skills ?? [],
     expertise: row.expertise ?? [],
     saveProfs: row.save_profs ?? [],
-    jackOfAllTrades: row.jack_of_all_trades ?? false,
     str: row.str,
     dex: row.dex,
     con: row.con,
@@ -256,11 +263,12 @@ function draftFrom(row: Character | null): CharacterDraft {
   };
 }
 
-export default function LedgerScreen({ onBack, onOpen }: Props) {
+export default function LedgerScreen({ onBack, onOpen, retired }: Props) {
   const { width, height, s, fs } = useScale();
   const { selected } = useParty();
   const partyId = selected?.party.id ?? null;
   const partyName = selected?.party.name ?? "No party";
+  const wasIn = `Was in ${retired?.archived_party_name || "a party"}`;
   const fontsLoaded = useAppFonts();
   const [row, setRow] = useState<Character | null>(null);
   const [draft, setDraft] = useState<CharacterDraft>(EMPTY);
@@ -283,6 +291,11 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const fade = useFadeSizes();
   const [screen, setScreen] = useState({ w: 0, h: 0 });
   const [scrollBox, setScrollBox] = useState({ y: 0, h: 0 });
+  // The party whose sheet has been read (so "no sheet here" is known, not just not loaded yet),
+  // and the retired sheets From Archive can copy (null while loading).
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [archive, setArchive] = useState<Character[] | null>(null);
+  const [choosing, setChoosing] = useState(false);
 
   // Autosave (src/lib/sheetAutosave.ts): every edit goes through update(), which saves 800 ms
   // after the last one; leaving, going back, a party switch or the app going to the
@@ -322,6 +335,21 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
   const load = useCallback(async () => {
     setBusy(true);
+    if (retired) {
+      // Read-only: nothing here goes through the autosave.
+      try {
+        setRow(retired);
+        setDraft(draftFrom(retired));
+        setGear(await loadEquipment(retired.id));
+        setTraits(await loadTraits(retired.id));
+        setError("");
+      } catch (err) {
+        setError(errorText(err));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       // A party switch while edits are pending: save them to the old party's sheet first.
       saver.switchParty(partyId);
@@ -336,18 +364,76 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       setStatus("idle");
       setGear(next ? await loadEquipment(next.id) : []);
       setTraits(next ? await loadTraits(next.id) : []);
+      setLoadedFor(partyId);
       setError("");
     } catch (err) {
       setError(errorText(err));
     } finally {
       setBusy(false);
     }
-  }, [partyId, saver]);
+  }, [partyId, saver, retired]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch from Supabase when the party changes
     load();
   }, [load]);
+
+  // No sheet in this party yet: offer a new character or a copy of a retired one.
+  const noSheet = !retired && !!partyId && loadedFor === partyId && !row && !editing;
+  useEffect(() => {
+    if (!noSheet) return;
+    let live = true;
+    loadMySheets()
+      .then((rows) => live && setArchive(rows.filter((item) => item.retired).map((item) => item.character)))
+      .catch(() => live && setArchive([]));
+    return () => {
+      live = false;
+    };
+  }, [noSheet]);
+
+  const bringBack = (character: Character) => {
+    if (!partyId) return;
+    const name = character.name.trim() || "this character";
+    Alert.alert("Bring back from the Archive", `Copy ${name} into ${partyName}? The retired sheet stays in your Archive.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Copy",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await copyFromArchive(character.id, partyId);
+            setChoosing(false);
+            await load();
+          } catch (err) {
+            setError(errorText(err));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const deleteForever = () => {
+    if (!retired) return;
+    Alert.alert("Delete forever", `Delete ${retired.name.trim() || "this sheet"} for good? This can't be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete forever",
+        style: "destructive",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await deleteArchived(retired);
+            onBack();
+          } catch (err) {
+            setError(errorText(err));
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
 
   const setStat = (key: StatKey, value: number) => {
     update((current) => ({ ...current, [key]: value }));
@@ -526,6 +612,9 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const pagePad = s(12);
   // Delete spans the page.
   const actionW = pageW - pagePad * 2;
+  // New character and From Archive, side by side inside the chooser's panel.
+  const choiceGap = s(10);
+  const choiceW = Math.floor((actionW - s(16) * 2 - choiceGap) / 2);
   const sheetPad = s(16);
   const statGap = s(14);
   const boxW = Math.floor((pageW - pagePad * 2 - sheetPad * 2 - 2 - statGap * 2) / 3);
@@ -540,9 +629,11 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const storyLine = fs(22);
   const listLine = fs(26);
   const storyText: StyleProp<TextStyle> = [styles.story, { fontSize: fs(15), lineHeight: storyLine }];
-  // The Expertise, Jack of All Trades and saves controls show once the database has their columns
+  // The Expertise and saves controls show once the database has their columns
   // (a new sheet assumes it does; saveCharacter copes if not).
   const checkColumns = row ? row.has_check_columns : true;
+  // Jack of All Trades follows the class and level (a Bard from level 2); there is nothing to tick.
+  const joat = hasJackOfAllTrades(draft);
   const defaultSaves = classSaves(draft.class);
   const savesShown = ABILITIES.filter((a) => defaultSaves.includes(a.key) || draft.saveProfs.includes(a.key)).map((a) => a.short);
   const emptyText: StyleProp<TextStyle> = [styles.empty, { fontSize: fs(15) }];
@@ -741,7 +832,7 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
 
       <PageHeader
         title="Character Sheet"
-        subtitle={STATUS_TEXT[status] ? `${STATUS_TEXT[status]} \u00b7 ${partyName}` : partyName}
+        subtitle={retired ? wasIn : STATUS_TEXT[status] ? `${STATUS_TEXT[status]} \u00b7 ${partyName}` : partyName}
         onBack={goBack}
         ruleWidth={s(200)}
       />
@@ -760,533 +851,593 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         keyboardShouldPersistTaps="handled"
         onLayout={(e) => setScrollBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
       >
-        <ParchmentPanel
-          variant="ledger"
-          contentStyle={{
-            paddingHorizontal: sheetPad,
-            paddingTop: s(12),
-            paddingBottom: s(14),
-          }}
-        >
-          <View style={styles.nameRow}>
-            <View style={{ width: edit }} />
-            {editing ? (
-              <View style={[styles.nameEdit, { marginHorizontal: s(6) }]}>
-                {/* Wraps onto a second line like the read-only name instead of running under the quill. */}
-                <TextInput
-                  style={[
-                    styles.nameInput,
-                    {
-                      fontSize: fs(18),
-                      lineHeight: fs(24),
-                      paddingVertical: s(2),
-                    },
-                  ]}
-                  multiline
-                  scrollEnabled={false}
-                  submitBehavior="blurAndSubmit"
-                  value={draft.name}
-                  onChangeText={(name) => update((current) => ({ ...current, name }))}
-                  maxLength={120}
-                  placeholder="Name"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Rule color={colors.rule} />
-              </View>
-            ) : (
-              <View style={[styles.nameEdit, { marginHorizontal: s(6) }]}>
-                <Text style={[styles.name, { fontSize: fs(18) }]} numberOfLines={2}>
-                  {draft.name || "Unnamed"}
-                </Text>
-                <Rule width={s(150)} color={colors.ink} style={{ marginTop: s(3) }} />
-              </View>
-            )}
-            <CircleButton
-              size={edit}
-              accessibilityLabel={editing ? "Stop editing" : "Edit sheet"}
-              onPress={() => {
-                // Done editing: save at once rather than after the pause.
-                if (editing) saver.flush();
-                setEditing((on) => !on);
-                setPicker(null);
-              }}
-              style={editing && styles.editOn}
-            >
-              {/* Editing: the red button reads as pressed in, with a dark inked ring inside its rim. */}
-              {editing ? (
-                <View style={[styles.editPressed, { width: edit, height: edit, borderRadius: edit / 2 }]}>
-                  <InkRing size={edit} color={colors.ink} strokeWidth={s(1.2)} seed={13} dots={false} />
-                </View>
-              ) : null}
-              <QuillVectorIcon circleSize={edit} />
-            </CircleButton>
-          </View>
-
-          <View style={[styles.portraitBox, { width: ring, height: ring, marginTop: s(6) }]}>
-            {/* Second, finer ring with four studs: a framed portrait even before a picture is added. */}
-            <View style={styles.portraitRing} pointerEvents="none">
-              <InkRing size={ring} seed={9} />
-            </View>
-            <Pressable
-              onPress={pickPortrait}
-              accessibilityRole="imagebutton"
-              accessibilityLabel="Change portrait"
-              style={[
-                styles.portraitWrap,
-                {
-                  width: portrait * PORTRAIT_PHOTO,
-                  height: portrait * PORTRAIT_PHOTO,
-                  borderRadius: (portrait * PORTRAIT_PHOTO) / 2,
-                },
-              ]}
-            >
-              {row?.portrait_url ? (
-                <Image source={{ uri: row.portrait_url }} style={styles.fill} />
-              ) : (
-                <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
-              )}
-            </Pressable>
-            <View
-              style={[
-                styles.portraitInk,
-                {
-                  width: portrait,
-                  height: portrait,
-                  top: (ring - portrait) / 2,
-                  left: (ring - portrait) / 2,
-                },
-              ]}
-              pointerEvents="none"
-            >
-              <Image source={portraitInk} style={styles.fill} resizeMode="stretch" />
-            </View>
-          </View>
-
-          {/* Race and Class: labelled fill-in boxes, as on a printed sheet. Editing opens the same pickers. */}
-          {metaRow(["race", "class"], s(14))}
-          {renderPicker("race", RACES)}
-          {renderPicker("class", CLASSES)}
-          {/* Lineage (Elf, Gnome, Tiefling, Dragonborn, Goliath) and subclass, under the choice they belong to. */}
-          {lineageFor || draft.lineage || draft.class || draft.subclass
-            ? metaRow(
-                [
-                  ...(lineageFor || draft.lineage ? (["lineage"] as const) : []),
-                  ...(draft.class || draft.subclass ? (["subclass"] as const) : []),
-                ],
-                s(10),
-              )
-            : null}
-          {renderPicker("lineage", lineageFor?.options ?? [], lineageFor?.title)}
-          {renderPicker("subclass", subclassFor ? [subclassFor] : [])}
-          {editing ? (
-            <Text style={[styles.note, { fontSize: fs(12.5), marginTop: s(8) }]}>
-              2024 rules (SRD 5.2.1): Orc is a starting species, and subraces are now lineages.
-            </Text>
-          ) : null}
-
-          {/* Same grid as before: Level over AC, HP over Bonus, the middle of the first row empty. */}
-          <View style={[styles.vitalRow, { marginTop: s(12) }]}>
-            <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
-              <Text style={vitalLabel} numberOfLines={1}>
-                Level
-              </Text>
-              {holder(
-                41,
-                holderW,
-                editing ? (
-                  <NumberBox
-                    style={vitalInput}
-                    value={draft.level}
-                    min={1}
-                    max={20}
-                    accessibilityLabel="Level"
-                    onCommit={(n) => update((current) => ({ ...current, level: n ?? current.level }))}
-                  />
-                ) : (
-                  <Text style={vitalValue}>{draft.level}</Text>
-                ),
-              )}
-            </View>
-            {/* The empty middle cell carries a small printer's flourish, so the gap reads as intended. */}
-            <View style={[styles.vital, styles.vitalMid, { paddingBottom: (holderH - flourishW * 0.3) / 2 }]}>
-              <Flourish width={flourishW} color={colors.cardStroke} />
-            </View>
-            <View style={styles.vital}>
-              <Text style={vitalLabel} numberOfLines={1}>
-                HP
-              </Text>
-              {holder(
-                43,
-                hpW,
-                editing ? (
-                  <View style={styles.hpEdit}>
-                    <NumberBox
-                    style={[vitalInput, { fontSize: fs(17) }]}
-                    value={draft.hp_current}
-                    min={0}
-                    max={999}
-                    accessibilityLabel="Current HP"
-                    onCommit={(n) => update((current) => ({ ...current, hp_current: n ?? current.hp_current }))}
-                  />
-                    <Text style={[styles.hpSlash, { fontSize: fs(17) }]}>/</Text>
-                    <NumberBox
-                    style={[vitalInput, { fontSize: fs(17) }]}
-                    value={draft.hp_max}
-                    min={1}
-                    max={999}
-                    accessibilityLabel="Max HP"
-                    onCommit={(n) => update((current) => ({ ...current, hp_max: n ?? current.hp_max }))}
-                  />
-                  </View>
-                ) : (
-                  <Text style={vitalValue} numberOfLines={1} adjustsFontSizeToFit>
-                    {draft.hp_current}/{draft.hp_max}
-                  </Text>
-                ),
-              )}
-            </View>
-          </View>
-
-          <View style={[styles.vitalRow, { marginTop: s(8) }]}>
-            <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
-              <Text style={vitalLabel} numberOfLines={1}>
-                AC
-              </Text>
-              {holder(
-                45,
-                holderW,
-                editing ? (
-                  <NumberBox
-                    style={vitalInput}
-                    value={draft.ac}
-                    min={0}
-                    max={30}
-                    accessibilityLabel="Armor class"
-                    onCommit={(n) => update((current) => ({ ...current, ac: n ?? current.ac }))}
-                  />
-                ) : (
-                  <Text style={vitalValue}>{draft.ac}</Text>
-                ),
-              )}
-            </View>
-            <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
-              <Text style={vitalLabel} numberOfLines={1}>
-                Speed
-              </Text>
-              {holder(
-                47,
-                holderW,
-                editing ? (
-                  <NumberBox
-                    style={vitalInput}
-                    value={draft.speed}
-                    min={0}
-                    max={120}
-                    accessibilityLabel="Speed"
-                    onCommit={(n) => update((current) => ({ ...current, speed: n ?? current.speed }))}
-                  />
-                ) : (
-                  <Text style={vitalValue}>{draft.speed}</Text>
-                ),
-              )}
-            </View>
-            <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
-              <Text style={vitalLabel} numberOfLines={1}>
-                Bonus
-              </Text>
-              {holder(49, holderW, <Text style={vitalValue}>+{proficiencyBonus(draft.level)}</Text>)}
-            </View>
-          </View>
-
-          <Rule color={colors.ink} thickness={1.4} style={{ marginTop: s(12), marginBottom: s(12) }} />
-
-          <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
-            {STATS.map(([key, label]) => (
-              <StatFrame key={key} label={label} width={boxW} labelSize={fs(15)}>
-                {editing ? (
-                  <View style={styles.statEdit}>
-                    <NumberBox
-                      style={[styles.statInput, { fontSize: fs(26), width: boxW * 0.6 }]}
-                      value={draft[key]}
-                      min={1}
-                      max={30}
-                      accessibilityLabel={label}
-                      onCommit={(n) => {
-                        if (n !== null) setStat(key, n);
-                      }}
-                    />
-                    <Rule width={boxW * 0.46} color={colors.rule} />
-                  </View>
-                ) : (
-                  <Text style={statValue}>{draft[key]}</Text>
-                )}
-              </StatFrame>
-            ))}
-          </View>
-        </ParchmentPanel>
-
-        {homebrew && (editing || draft.raceTraits.bonuses || draft.raceTraits.size || draft.raceTraits.speed !== null || draft.raceTraits.abilities) ? (
-          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+        {noSheet ? (
+          <ParchmentPanel variant="ledger" contentStyle={{ padding: s(16) }}>
             <CornerOrnaments size={s(16)} inset={s(5)} />
-            <SectionTitle size={fs(18)}>Homebrew species</SectionTitle>
-            <Text style={[styles.note, styles.noteLeft, { fontSize: fs(13), marginBottom: s(6) }]}>
-              {draft.race} is not in the rules, so write its traits here. The Sage uses them as your table&apos;s homebrew.
+            <SectionTitle center size={fs(18)}>
+              No character yet
+            </SectionTitle>
+            <Text style={[styles.note, { fontSize: fs(13) }]}>
+              Start a new character for {partyName}, or bring back a copy of a retired one.
             </Text>
-            {(
-              [
-                ["bonuses", "Ability bonuses", "+2 STR, +1 CON"],
-                ["size", "Size", "Medium"],
-              ] as const
-            ).map(([key, label, hint]) => (
-              <View key={key} style={{ marginTop: s(6) }}>
-                <FieldLabel size={fs(11)}>{label}</FieldLabel>
-                {editing ? (
-                  <>
-                    <TextInput
-                      style={[styles.lineInput, { fontSize: fs(15), paddingVertical: s(4) }]}
-                      value={draft.raceTraits[key]}
-                      onChangeText={(value) => setRaceTraits({ [key]: value })}
-                      placeholder={hint}
-                      placeholderTextColor={colors.placeholder}
-                      maxLength={key === "size" ? 20 : 80}
-                    />
-                    <InkStroke seed={key.length + 50} />
-                  </>
-                ) : (
-                  <Text style={draft.raceTraits[key] ? storyText : [storyText, emptyText]}>{draft.raceTraits[key] || "\u2014"}</Text>
-                )}
-              </View>
-            ))}
-            <View style={{ marginTop: s(6) }}>
-              <FieldLabel size={fs(11)}>Speed (ft)</FieldLabel>
-              {editing ? (
-                <View style={{ width: holderW }}>
-                  {holder(
-                    52,
-                    holderW,
-                    <NumberBox
-                      style={vitalInput}
-                      value={draft.raceTraits.speed}
-                      min={0}
-                      max={120}
-                      allowEmpty
-                      placeholder="30"
-                      accessibilityLabel="Homebrew speed"
-                      onCommit={(speed) => setRaceTraits({ speed })}
-                    />,
-                  )}
-                </View>
-              ) : (
-                <Text style={draft.raceTraits.speed !== null ? storyText : [storyText, emptyText]}>
-                  {draft.raceTraits.speed !== null ? `${draft.raceTraits.speed} ft` : "\u2014"}
-                </Text>
-              )}
+            <View style={[styles.choiceRow, { marginTop: s(12), gap: choiceGap }]}>
+              <InkButton
+                label="New character"
+                variant="red"
+                seed={61}
+                width={choiceW}
+                height={s(44)}
+                onPress={() => setEditing(true)}
+                disabled={busy}
+              />
+              <InkButton
+                label="From Archive"
+                variant="parchment"
+                labelColor={colors.wordmark}
+                seed={62}
+                width={choiceW}
+                height={s(44)}
+                onPress={() => setChoosing((on) => !on)}
+                disabled={busy || !archive?.length}
+              />
             </View>
-            <View style={{ marginTop: s(8) }}>
-              <FieldLabel size={fs(11)}>Abilities</FieldLabel>
-              <View style={{ minHeight: storyLine * 2 }}>
-                <RuledLines lineHeight={storyLine} />
-                {editing ? (
+            {archive && archive.length === 0 ? (
+              <Text style={[styles.note, { fontSize: fs(12), marginTop: s(8) }]}>
+                No retired sheets yet. A sheet retires to the Archive when you leave its party.
+              </Text>
+            ) : null}
+            {choosing && archive?.length ? (
+              <View style={[styles.picker, { marginTop: s(12), paddingTop: s(10), paddingBottom: s(8), paddingHorizontal: s(8) }]}>
+                <InkOutline fill={HOLDER_FILL} radius={s(INK_RADIUS)} seed={63} />
+                <SectionTitle center size={fs(15)}>
+                  Pick a retired sheet
+                </SectionTitle>
+                {archive.map((character) => (
+                  <View key={character.id}>
+                    <Pressable
+                      onPress={() => bringBack(character)}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      style={[styles.option, { paddingVertical: s(8), paddingHorizontal: s(10) }]}
+                    >
+                      <Text style={[styles.optionText, { fontSize: fs(15) }]} numberOfLines={1}>
+                        {character.name.trim() || "Unnamed"}
+                      </Text>
+                      <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12.5) }]} numberOfLines={1}>
+                        {[character.class?.trim() || "No class", `Level ${character.level}`, `Was in ${character.archived_party_name || "a party"}`].join(" \u00b7 ")}
+                      </Text>
+                    </Pressable>
+                    <Rule color={colors.rule} style={styles.optionRule} />
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </ParchmentPanel>
+        ) : (
+          <>
+          <ParchmentPanel
+            variant="ledger"
+            contentStyle={{
+              paddingHorizontal: sheetPad,
+              paddingTop: s(12),
+              paddingBottom: s(14),
+            }}
+          >
+            <View style={styles.nameRow}>
+              <View style={{ width: edit }} />
+              {editing ? (
+                <View style={[styles.nameEdit, { marginHorizontal: s(6) }]}>
+                  {/* Wraps onto a second line like the read-only name instead of running under the quill. */}
                   <TextInput
-                    style={[styles.storyInput, { fontSize: fs(15), lineHeight: storyLine, minHeight: s(66) }]}
+                    style={[
+                      styles.nameInput,
+                      {
+                        fontSize: fs(18),
+                        lineHeight: fs(24),
+                        paddingVertical: s(2),
+                      },
+                    ]}
                     multiline
                     scrollEnabled={false}
-                    value={draft.raceTraits.abilities}
-                    onChangeText={(abilities) => setRaceTraits({ abilities })}
-                    placeholder={"One per line, e.g. Darkvision 60 ft"}
+                    submitBehavior="blurAndSubmit"
+                    value={draft.name}
+                    onChangeText={(name) => update((current) => ({ ...current, name }))}
+                    maxLength={120}
+                    placeholder="Name"
                     placeholderTextColor={colors.placeholder}
-                    maxLength={600}
                   />
-                ) : (
-                  <Text style={draft.raceTraits.abilities ? storyText : [storyText, emptyText]}>
-                    {draft.raceTraits.abilities || "None written."}
+                  <Rule color={colors.rule} />
+                </View>
+              ) : (
+                <View style={[styles.nameEdit, { marginHorizontal: s(6) }]}>
+                  <Text style={[styles.name, { fontSize: fs(18) }]} numberOfLines={2}>
+                    {draft.name || "Unnamed"}
                   </Text>
+                  <Rule width={s(150)} color={colors.ink} style={{ marginTop: s(3) }} />
+                </View>
+              )}
+              {/* A retired sheet is read-only: no quill. */}
+              {retired ? (
+                <View style={{ width: edit }} />
+              ) : (
+                <CircleButton
+                  size={edit}
+                  accessibilityLabel={editing ? "Stop editing" : "Edit sheet"}
+                  onPress={() => {
+                    // Done editing: save at once rather than after the pause.
+                    if (editing) saver.flush();
+                    setEditing((on) => !on);
+                    setPicker(null);
+                  }}
+                  style={editing && styles.editOn}
+                >
+                  {/* Editing: the red button reads as pressed in, with a dark inked ring inside its rim. */}
+                  {editing ? (
+                    <View style={[styles.editPressed, { width: edit, height: edit, borderRadius: edit / 2 }]}>
+                      <InkRing size={edit} color={colors.ink} strokeWidth={s(1.2)} seed={13} dots={false} />
+                    </View>
+                  ) : null}
+                  <QuillVectorIcon circleSize={edit} />
+                </CircleButton>
+              )}
+            </View>
+
+            <View style={[styles.portraitBox, { width: ring, height: ring, marginTop: s(6) }]}>
+              {/* Second, finer ring with four studs: a framed portrait even before a picture is added. */}
+              <View style={styles.portraitRing} pointerEvents="none">
+                <InkRing size={ring} seed={9} />
+              </View>
+              <Pressable
+                onPress={pickPortrait}
+                disabled={!!retired}
+                accessibilityRole="imagebutton"
+                accessibilityLabel="Change portrait"
+                style={[
+                  styles.portraitWrap,
+                  {
+                    width: portrait * PORTRAIT_PHOTO,
+                    height: portrait * PORTRAIT_PHOTO,
+                    borderRadius: (portrait * PORTRAIT_PHOTO) / 2,
+                  },
+                ]}
+              >
+                {row?.portrait_url ? (
+                  <Image source={{ uri: row.portrait_url }} style={styles.fill} />
+                ) : (
+                  <Image source={portraitArt} style={styles.fill} resizeMode="cover" />
+                )}
+              </Pressable>
+              <View
+                style={[
+                  styles.portraitInk,
+                  {
+                    width: portrait,
+                    height: portrait,
+                    top: (ring - portrait) / 2,
+                    left: (ring - portrait) / 2,
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                <Image source={portraitInk} style={styles.fill} resizeMode="stretch" />
+              </View>
+            </View>
+
+            {/* Race and Class: labelled fill-in boxes, as on a printed sheet. Editing opens the same pickers. */}
+            {metaRow(["race", "class"], s(14))}
+            {renderPicker("race", RACES)}
+            {renderPicker("class", CLASSES)}
+            {/* Lineage (Elf, Gnome, Tiefling, Dragonborn, Goliath) and subclass, under the choice they belong to. */}
+            {lineageFor || draft.lineage || draft.class || draft.subclass
+              ? metaRow(
+                  [
+                    ...(lineageFor || draft.lineage ? (["lineage"] as const) : []),
+                    ...(draft.class || draft.subclass ? (["subclass"] as const) : []),
+                  ],
+                  s(10),
+                )
+              : null}
+            {renderPicker("lineage", lineageFor?.options ?? [], lineageFor?.title)}
+            {renderPicker("subclass", subclassFor ? [subclassFor] : [])}
+            {editing ? (
+              <Text style={[styles.note, { fontSize: fs(12.5), marginTop: s(8) }]}>
+                2024 rules (SRD 5.2.1): Orc is a starting species, and subraces are now lineages.
+              </Text>
+            ) : null}
+
+            {/* Same grid as before: Level over AC, HP over Bonus, the middle of the first row empty. */}
+            <View style={[styles.vitalRow, { marginTop: s(12) }]}>
+              <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
+                <Text style={vitalLabel} numberOfLines={1}>
+                  Level
+                </Text>
+                {holder(
+                  41,
+                  holderW,
+                  editing ? (
+                    <NumberBox
+                      style={vitalInput}
+                      value={draft.level}
+                      min={1}
+                      max={20}
+                      accessibilityLabel="Level"
+                      onCommit={(n) => update((current) => ({ ...current, level: n ?? current.level }))}
+                    />
+                  ) : (
+                    <Text style={vitalValue}>{draft.level}</Text>
+                  ),
+                )}
+              </View>
+              {/* The empty middle cell carries a small printer's flourish, so the gap reads as intended. */}
+              <View style={[styles.vital, styles.vitalMid, { paddingBottom: (holderH - flourishW * 0.3) / 2 }]}>
+                <Flourish width={flourishW} color={colors.cardStroke} />
+              </View>
+              <View style={styles.vital}>
+                <Text style={vitalLabel} numberOfLines={1}>
+                  HP
+                </Text>
+                {holder(
+                  43,
+                  hpW,
+                  editing ? (
+                    <View style={styles.hpEdit}>
+                      <NumberBox
+                      style={[vitalInput, { fontSize: fs(17) }]}
+                      value={draft.hp_current}
+                      min={0}
+                      max={999}
+                      accessibilityLabel="Current HP"
+                      onCommit={(n) => update((current) => ({ ...current, hp_current: n ?? current.hp_current }))}
+                    />
+                      <Text style={[styles.hpSlash, { fontSize: fs(17) }]}>/</Text>
+                      <NumberBox
+                      style={[vitalInput, { fontSize: fs(17) }]}
+                      value={draft.hp_max}
+                      min={1}
+                      max={999}
+                      accessibilityLabel="Max HP"
+                      onCommit={(n) => update((current) => ({ ...current, hp_max: n ?? current.hp_max }))}
+                    />
+                    </View>
+                  ) : (
+                    <Text style={vitalValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {draft.hp_current}/{draft.hp_max}
+                    </Text>
+                  ),
                 )}
               </View>
             </View>
-          </ParchmentPanel>
-        ) : null}
 
-        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
-          <CornerOrnaments size={s(16)} inset={s(5)} />
-          <SectionTitle center size={fs(18)}>
-            Background
-          </SectionTitle>
-          <View style={{ minHeight: storyLine * 3 }}>
-            <RuledLines lineHeight={storyLine} />
-            {editing ? (
-              <TextInput
-                style={[styles.storyInput, { fontSize: fs(15), lineHeight: storyLine, minHeight: s(88) }]}
-                multiline
-                scrollEnabled={false}
-                value={draft.background}
-                onChangeText={(background) => update((current) => ({ ...current, background }))}
-                placeholder="Background story"
-                placeholderTextColor={colors.placeholder}
-              />
-            ) : (
-              <Text style={draft.background ? storyText : [storyText, emptyText]}>{draft.background || "No story yet."}</Text>
-            )}
-          </View>
-        </ParchmentPanel>
-
-        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
-          <CornerOrnaments size={s(16)} inset={s(5)} />
-          <SectionTitle size={fs(18)}>Skills</SectionTitle>
-          {editing ? (
-            <>
-              <View style={[styles.chips, { gap: s(6) }]}>
-                {SKILLS.map((skill, i) => {
-                  const on = draft.skills.includes(skill);
-                  const expert = on && draft.expertise.includes(skill);
-                  return (
-                    <Pressable
-                      key={skill}
-                      onPress={() => toggleSkill(skill)}
-                      accessibilityRole="button"
-                      accessibilityLabel={skill}
-                      accessibilityState={{ selected: on }}
-                      style={[styles.chip, styles.chipRow, { paddingHorizontal: s(10), paddingVertical: s(5), gap: s(6) }]}
-                    >
-                      <InkOutline
-                        seed={60 + i}
-                        radius={s(INK_RADIUS)}
-                        color={on ? colors.wordmark : INK_COLOR}
-                        fill={on ? colors.primary : "rgba(254,252,235,0.7)"}
-                      />
-                      <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
-                      {/* Expertise, only on a proficient skill: its own small mark inside the chip. */}
-                      {on && checkColumns ? (
-                        <Pressable
-                          onPress={() => toggleExpertise(skill)}
-                          hitSlop={s(8)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${skill} expertise`}
-                          accessibilityState={{ selected: expert }}
-                          style={[styles.expertMark, { width: s(18), height: s(18) }]}
-                        >
-                          {expert ? (
-                            <View style={[StyleSheet.absoluteFill, { borderRadius: s(9), margin: s(2), backgroundColor: colors.cream }]} />
-                          ) : null}
-                          <View style={StyleSheet.absoluteFill}>
-                            <InkRing size={s(18)} color={colors.cream} seed={80 + i} dots={false} />
-                          </View>
-                          <Text style={[styles.expertLetter, { fontSize: fs(10), color: expert ? colors.primary : colors.cream }]}>E</Text>
-                        </Pressable>
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {checkColumns ? (
-                <>
-                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
-                    Tap E on a proficient skill for Expertise (double Proficiency Bonus).
-                  </Text>
-                  <Pressable
-                    onPress={() => update((current) => ({ ...current, jackOfAllTrades: !current.jackOfAllTrades }))}
-                    accessibilityRole="checkbox"
-                    accessibilityLabel="Jack of All Trades"
-                    accessibilityState={{ checked: draft.jackOfAllTrades }}
-                    style={[styles.checkRow, { marginTop: s(12), gap: s(8), minHeight: s(32) }]}
-                  >
-                    <View style={{ width: s(20), height: s(20), alignItems: "center", justifyContent: "center" }}>
-                      <InkOutline
-                        seed={97}
-                        radius={s(INK_RADIUS)}
-                        color={draft.jackOfAllTrades ? colors.wordmark : INK_COLOR}
-                        fill={draft.jackOfAllTrades ? colors.primary : "rgba(254,252,235,0.7)"}
-                      />
-                      {draft.jackOfAllTrades ? <Text style={[styles.checkMark, { fontSize: fs(14) }]}>{"\u2713"}</Text> : null}
-                    </View>
-                    <Text style={[styles.chipText, { fontSize: fs(14), flexShrink: 1 }]}>
-                      Jack of All Trades
-                      <Text style={[styles.empty, { fontSize: fs(12) }]}> (half PB on other skills)</Text>
-                    </Text>
-                  </Pressable>
-                  <View style={{ marginTop: s(12) }}>
-                    <FieldLabel size={fs(13)}>Saving throws</FieldLabel>
-                  </View>
-                  <View style={[styles.chips, { gap: s(6), marginTop: s(6) }]}>
-                    {ABILITIES.map((a, i) => {
-                      const byClass = defaultSaves.includes(a.key);
-                      const on = byClass || draft.saveProfs.includes(a.key);
-                      return (
-                        <Pressable
-                          key={a.key}
-                          onPress={() => (byClass ? undefined : toggleSave(a.key))}
-                          disabled={byClass}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${a.name} save${byClass ? ", from your class" : ""}`}
-                          accessibilityState={{ selected: on, disabled: byClass }}
-                          style={[styles.chip, { paddingHorizontal: s(10), paddingVertical: s(5), minWidth: s(48), alignItems: "center" }]}
-                        >
-                          <InkOutline
-                            seed={88 + i}
-                            radius={s(INK_RADIUS)}
-                            color={on ? colors.wordmark : INK_COLOR}
-                            fill={byClass ? colors.wordmark : on ? colors.primary : "rgba(254,252,235,0.7)"}
-                          />
-                          <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{a.short}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
-                    {defaultSaves.length
-                      ? `${draft.class.trim()} saves are marked. Tick any others you're proficient in.`
-                      : "Tick the saves you're proficient in."}
-                  </Text>
-                </>
-              ) : row ? (
-                <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(8) }]}>{CHECK_COLUMNS_HINT}</Text>
-              ) : null}
-            </>
-          ) : (
-            <View style={{ minHeight: storyLine * 2 }}>
-              <RuledLines lineHeight={storyLine} />
-              <Text style={draft.skills.length === 0 ? [storyText, emptyText] : storyText}>
-                {draft.skills.length === 0
-                  ? "None marked."
-                  : draft.skills.map((skill) => (draft.expertise.includes(skill) ? `${skill} (expertise)` : skill)).join(", ")}
-              </Text>
-              {checkColumns && (savesShown.length || draft.jackOfAllTrades) ? (
-                <Text style={storyText}>
-                  {[savesShown.length ? `Saves: ${savesShown.join(", ")}` : "", draft.jackOfAllTrades ? "Jack of All Trades" : ""]
-                    .filter(Boolean)
-                    .join(" \u00b7 ")}
+            <View style={[styles.vitalRow, { marginTop: s(8) }]}>
+              <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
+                <Text style={vitalLabel} numberOfLines={1}>
+                  AC
                 </Text>
-              ) : null}
+                {holder(
+                  45,
+                  holderW,
+                  editing ? (
+                    <NumberBox
+                      style={vitalInput}
+                      value={draft.ac}
+                      min={0}
+                      max={30}
+                      accessibilityLabel="Armor class"
+                      onCommit={(n) => update((current) => ({ ...current, ac: n ?? current.ac }))}
+                    />
+                  ) : (
+                    <Text style={vitalValue}>{draft.ac}</Text>
+                  ),
+                )}
+              </View>
+              <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
+                <Text style={vitalLabel} numberOfLines={1}>
+                  Speed
+                </Text>
+                {holder(
+                  47,
+                  holderW,
+                  editing ? (
+                    <NumberBox
+                      style={vitalInput}
+                      value={draft.speed}
+                      min={0}
+                      max={120}
+                      accessibilityLabel="Speed"
+                      onCommit={(n) => update((current) => ({ ...current, speed: n ?? current.speed }))}
+                    />
+                  ) : (
+                    <Text style={vitalValue}>{draft.speed}</Text>
+                  ),
+                )}
+              </View>
+              <View style={[styles.vital, { paddingHorizontal: s(4) }]}>
+                <Text style={vitalLabel} numberOfLines={1}>
+                  Bonus
+                </Text>
+                {holder(49, holderW, <Text style={vitalValue}>+{proficiencyBonus(draft.level)}</Text>)}
+              </View>
             </View>
-          )}
-        </ParchmentPanel>
 
-        {textSection("Languages", draft.languages, "languages", "Common, Elvish", "None listed.")}
-        {textSection("Features", draft.features, "features", "Class features, fighting style, spells", "None yet.")}
+            <Rule color={colors.ink} thickness={1.4} style={{ marginTop: s(12), marginBottom: s(12) }} />
 
-        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
-          <CornerOrnaments size={s(16)} inset={s(5)} />
-          <SectionTitle size={fs(18)}>Equipment</SectionTitle>
-          <View style={{ minHeight: listLine * 2 }}>
-            <RuledLines lineHeight={listLine} />
-            {gear.length === 0 ? <Text style={[emptyText, { lineHeight: listLine }]}>Nothing carried.</Text> : null}
-            {gear.map((item) => listItem(item.name, () => dropGear(item.id), item.id))}
-          </View>
-          {editing ? addRow(gearName, setGearName, "Add equipment", addGear) : null}
-        </ParchmentPanel>
+            <View style={[styles.stats, { columnGap: statGap, rowGap: s(14) }]}>
+              {STATS.map(([key, label]) => (
+                <StatFrame key={key} label={label} width={boxW} labelSize={fs(15)}>
+                  {editing ? (
+                    <View style={styles.statEdit}>
+                      <NumberBox
+                        style={[styles.statInput, { fontSize: fs(26), width: boxW * 0.6 }]}
+                        value={draft[key]}
+                        min={1}
+                        max={30}
+                        accessibilityLabel={label}
+                        onCommit={(n) => {
+                          if (n !== null) setStat(key, n);
+                        }}
+                      />
+                      <Rule width={boxW * 0.46} color={colors.rule} />
+                    </View>
+                  ) : (
+                    <Text style={statValue}>{draft[key]}</Text>
+                  )}
+                </StatFrame>
+              ))}
+            </View>
+          </ParchmentPanel>
 
-        <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
-          <CornerOrnaments size={s(16)} inset={s(5)} />
-          <SectionTitle size={fs(18)}>Traits</SectionTitle>
-          <View style={{ minHeight: listLine * 2 }}>
-            <RuledLines lineHeight={listLine} />
-            {traits.length === 0 ? <Text style={[emptyText, { lineHeight: listLine }]}>No traits yet.</Text> : null}
-            {traits.map((item) => listItem(item.name, () => dropTrait(item.id), item.id))}
-          </View>
-          {editing ? addRow(traitName, setTraitName, "Add a trait", addOneTrait) : null}
-        </ParchmentPanel>
+          {homebrew && (editing || draft.raceTraits.bonuses || draft.raceTraits.size || draft.raceTraits.speed !== null || draft.raceTraits.abilities) ? (
+            <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+              <CornerOrnaments size={s(16)} inset={s(5)} />
+              <SectionTitle size={fs(18)}>Homebrew species</SectionTitle>
+              <Text style={[styles.note, styles.noteLeft, { fontSize: fs(13), marginBottom: s(6) }]}>
+                {draft.race} is not in the rules, so write its traits here. The Sage uses them as your table&apos;s homebrew.
+              </Text>
+              {(
+                [
+                  ["bonuses", "Ability bonuses", "+2 STR, +1 CON"],
+                  ["size", "Size", "Medium"],
+                ] as const
+              ).map(([key, label, hint]) => (
+                <View key={key} style={{ marginTop: s(6) }}>
+                  <FieldLabel size={fs(11)}>{label}</FieldLabel>
+                  {editing ? (
+                    <>
+                      <TextInput
+                        style={[styles.lineInput, { fontSize: fs(15), paddingVertical: s(4) }]}
+                        value={draft.raceTraits[key]}
+                        onChangeText={(value) => setRaceTraits({ [key]: value })}
+                        placeholder={hint}
+                        placeholderTextColor={colors.placeholder}
+                        maxLength={key === "size" ? 20 : 80}
+                      />
+                      <InkStroke seed={key.length + 50} />
+                    </>
+                  ) : (
+                    <Text style={draft.raceTraits[key] ? storyText : [storyText, emptyText]}>{draft.raceTraits[key] || "\u2014"}</Text>
+                  )}
+                </View>
+              ))}
+              <View style={{ marginTop: s(6) }}>
+                <FieldLabel size={fs(11)}>Speed (ft)</FieldLabel>
+                {editing ? (
+                  <View style={{ width: holderW }}>
+                    {holder(
+                      52,
+                      holderW,
+                      <NumberBox
+                        style={vitalInput}
+                        value={draft.raceTraits.speed}
+                        min={0}
+                        max={120}
+                        allowEmpty
+                        placeholder="30"
+                        accessibilityLabel="Homebrew speed"
+                        onCommit={(speed) => setRaceTraits({ speed })}
+                      />,
+                    )}
+                  </View>
+                ) : (
+                  <Text style={draft.raceTraits.speed !== null ? storyText : [storyText, emptyText]}>
+                    {draft.raceTraits.speed !== null ? `${draft.raceTraits.speed} ft` : "\u2014"}
+                  </Text>
+                )}
+              </View>
+              <View style={{ marginTop: s(8) }}>
+                <FieldLabel size={fs(11)}>Abilities</FieldLabel>
+                <View style={{ minHeight: storyLine * 2 }}>
+                  <RuledLines lineHeight={storyLine} />
+                  {editing ? (
+                    <TextInput
+                      style={[styles.storyInput, { fontSize: fs(15), lineHeight: storyLine, minHeight: s(66) }]}
+                      multiline
+                      scrollEnabled={false}
+                      value={draft.raceTraits.abilities}
+                      onChangeText={(abilities) => setRaceTraits({ abilities })}
+                      placeholder={"One per line, e.g. Darkvision 60 ft"}
+                      placeholderTextColor={colors.placeholder}
+                      maxLength={600}
+                    />
+                  ) : (
+                    <Text style={draft.raceTraits.abilities ? storyText : [storyText, emptyText]}>
+                      {draft.raceTraits.abilities || "None written."}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </ParchmentPanel>
+          ) : null}
 
-        {!partyId ? (
+          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(18), minHeight: s(120) }}>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle center size={fs(18)}>
+              Background
+            </SectionTitle>
+            <View style={{ minHeight: storyLine * 3 }}>
+              <RuledLines lineHeight={storyLine} />
+              {editing ? (
+                <TextInput
+                  style={[styles.storyInput, { fontSize: fs(15), lineHeight: storyLine, minHeight: s(88) }]}
+                  multiline
+                  scrollEnabled={false}
+                  value={draft.background}
+                  onChangeText={(background) => update((current) => ({ ...current, background }))}
+                  placeholder="Background story"
+                  placeholderTextColor={colors.placeholder}
+                />
+              ) : (
+                <Text style={draft.background ? storyText : [storyText, emptyText]}>{draft.background || "No story yet."}</Text>
+              )}
+            </View>
+          </ParchmentPanel>
+
+          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle size={fs(18)}>Skills</SectionTitle>
+            {editing ? (
+              <>
+                <View style={[styles.chips, { gap: s(6) }]}>
+                  {SKILLS.map((skill, i) => {
+                    const on = draft.skills.includes(skill);
+                    const expert = on && draft.expertise.includes(skill);
+                    return (
+                      <Pressable
+                        key={skill}
+                        onPress={() => toggleSkill(skill)}
+                        accessibilityRole="button"
+                        accessibilityLabel={skill}
+                        accessibilityState={{ selected: on }}
+                        style={[styles.chip, styles.chipRow, { paddingHorizontal: s(10), paddingVertical: s(5), gap: s(6) }]}
+                      >
+                        <InkOutline
+                          seed={60 + i}
+                          radius={s(INK_RADIUS)}
+                          color={on ? colors.wordmark : INK_COLOR}
+                          fill={on ? colors.primary : "rgba(254,252,235,0.7)"}
+                        />
+                        <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
+                        {/* Expertise, only on a proficient skill: its own small mark inside the chip. */}
+                        {on && checkColumns ? (
+                          <Pressable
+                            onPress={() => toggleExpertise(skill)}
+                            hitSlop={s(8)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${skill} expertise`}
+                            accessibilityState={{ selected: expert }}
+                            style={[styles.expertMark, { width: s(18), height: s(18) }]}
+                          >
+                            {expert ? (
+                              <View style={[StyleSheet.absoluteFill, { borderRadius: s(9), margin: s(2), backgroundColor: colors.cream }]} />
+                            ) : null}
+                            <View style={StyleSheet.absoluteFill}>
+                              <InkRing size={s(18)} color={colors.cream} seed={80 + i} dots={false} />
+                            </View>
+                            <Text style={[styles.expertLetter, { fontSize: fs(10), color: expert ? colors.primary : colors.cream }]}>E</Text>
+                          </Pressable>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {joat ? (
+                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
+                    Jack of All Trades is on: a Bard from level 2 adds half the Proficiency Bonus to other skills.
+                  </Text>
+                ) : null}
+                {checkColumns ? (
+                  <>
+                    <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
+                      Tap E on a proficient skill for Expertise (double Proficiency Bonus).
+                    </Text>
+                    <View style={{ marginTop: s(12) }}>
+                      <FieldLabel size={fs(13)}>Saving throws</FieldLabel>
+                    </View>
+                    <View style={[styles.chips, { gap: s(6), marginTop: s(6) }]}>
+                      {ABILITIES.map((a, i) => {
+                        const byClass = defaultSaves.includes(a.key);
+                        const on = byClass || draft.saveProfs.includes(a.key);
+                        return (
+                          <Pressable
+                            key={a.key}
+                            onPress={() => (byClass ? undefined : toggleSave(a.key))}
+                            disabled={byClass}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${a.name} save${byClass ? ", from your class" : ""}`}
+                            accessibilityState={{ selected: on, disabled: byClass }}
+                            style={[styles.chip, { paddingHorizontal: s(10), paddingVertical: s(5), minWidth: s(48), alignItems: "center" }]}
+                          >
+                            <InkOutline
+                              seed={88 + i}
+                              radius={s(INK_RADIUS)}
+                              color={on ? colors.wordmark : INK_COLOR}
+                              fill={byClass ? colors.wordmark : on ? colors.primary : "rgba(254,252,235,0.7)"}
+                            />
+                            <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{a.short}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
+                      {defaultSaves.length
+                        ? `${draft.class.trim()} saves are marked. Tick any others you're proficient in.`
+                        : "Tick the saves you're proficient in."}
+                    </Text>
+                  </>
+                ) : row ? (
+                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(8) }]}>{CHECK_COLUMNS_HINT}</Text>
+                ) : null}
+              </>
+            ) : (
+              <View style={{ minHeight: storyLine * 2 }}>
+                <RuledLines lineHeight={storyLine} />
+                <Text style={draft.skills.length === 0 ? [storyText, emptyText] : storyText}>
+                  {draft.skills.length === 0
+                    ? "None marked."
+                    : draft.skills.map((skill) => (draft.expertise.includes(skill) ? `${skill} (expertise)` : skill)).join(", ")}
+                </Text>
+                {(checkColumns && savesShown.length) || joat ? (
+                  <Text style={storyText}>
+                    {[checkColumns && savesShown.length ? `Saves: ${savesShown.join(", ")}` : "", joat ? "Jack of All Trades" : ""]
+                      .filter(Boolean)
+                      .join(" \u00b7 ")}
+                  </Text>
+                ) : null}
+              </View>
+            )}
+          </ParchmentPanel>
+
+          {textSection("Languages", draft.languages, "languages", "Common, Elvish", "None listed.")}
+          {textSection("Features", draft.features, "features", "Class features, fighting style, spells", "None yet.")}
+
+          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle size={fs(18)}>Equipment</SectionTitle>
+            <View style={{ minHeight: listLine * 2 }}>
+              <RuledLines lineHeight={listLine} />
+              {gear.length === 0 ? <Text style={[emptyText, { lineHeight: listLine }]}>Nothing carried.</Text> : null}
+              {gear.map((item) => listItem(item.name, () => dropGear(item.id), item.id))}
+            </View>
+            {editing ? addRow(gearName, setGearName, "Add equipment", addGear) : null}
+          </ParchmentPanel>
+
+          <ParchmentPanel variant="ledger" style={{ marginTop: s(10) }} contentStyle={{ padding: s(16) }}>
+            <CornerOrnaments size={s(16)} inset={s(5)} />
+            <SectionTitle size={fs(18)}>Traits</SectionTitle>
+            <View style={{ minHeight: listLine * 2 }}>
+              <RuledLines lineHeight={listLine} />
+              {traits.length === 0 ? <Text style={[emptyText, { lineHeight: listLine }]}>No traits yet.</Text> : null}
+              {traits.map((item) => listItem(item.name, () => dropTrait(item.id), item.id))}
+            </View>
+            {editing ? addRow(traitName, setTraitName, "Add a trait", addOneTrait) : null}
+          </ParchmentPanel>
+          </>
+        )}
+
+        {retired ? (
+          <Text style={[styles.note, { fontSize: fs(13), marginTop: s(12) }]}>
+            Read-only. To play this character again, open a party&apos;s empty sheet and tap From Archive.
+          </Text>
+        ) : !partyId ? (
           <Text style={[styles.note, { fontSize: fs(13), marginTop: s(12) }]}>
             Not in a party yet.{" "}
             <Text style={styles.link} onPress={() => onOpen("create")}>
@@ -1304,6 +1455,21 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
         )}
 
         {error ? <Text style={[styles.error, { fontSize: fs(14) }]}>{error}</Text> : null}
+
+        {retired ? (
+          <View style={[styles.actions, { marginTop: s(14) }]}>
+            <InkButton
+              label="Delete forever"
+              variant="parchment"
+              labelColor={colors.wordmark}
+              seed={36}
+              width={actionW}
+              height={s(44)}
+              onPress={deleteForever}
+              disabled={busy}
+            />
+          </View>
+        ) : null}
 
         {editing && row ? (
           <View style={[styles.actions, { marginTop: s(14), gap: s(10) }]}>
@@ -1491,8 +1657,6 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: "row", alignItems: "center" },
   expertMark: { alignItems: "center", justifyContent: "center" },
   expertLetter: { fontFamily: fonts.headingBold, includeFontPadding: false, textAlignVertical: "center" },
-  checkRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
-  checkMark: { fontFamily: fonts.headingBold, color: colors.cream, includeFontPadding: false },
   listItem: { fontFamily: fonts.heading, color: colors.ink, textAlign: "left", flexShrink: 1 },
   listRow: { flexDirection: "row", alignItems: "flex-start" },
   serifInput: { fontFamily: fonts.heading },
@@ -1509,4 +1673,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   actions: { alignSelf: "stretch" },
+  choiceRow: { flexDirection: "row", justifyContent: "center" },
 });

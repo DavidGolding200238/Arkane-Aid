@@ -25,6 +25,14 @@ export const GUIDANCE: Tip[] = [
     body: "Tap the d20 on Home. Check rolls a skill, save, attack or death save from your Character Sheet with every bonus shown; set a DC to see if it worked. Free roll throws any dice. Tap Roll or shake your phone.",
   },
   {
+    title: "The Archive",
+    body: "The Codex's Archive tab lists all your sheets. When you leave a party, or its DM deletes it, your sheet retires there. Tap a retired sheet to read it. With no sheet in a party, tap From Archive to bring a copy back.",
+  },
+  {
+    title: "Leave or run a party",
+    body: "In the Tome, open Account and your active party. Players can leave; their notes stay with the party. The DM can hand over DM to another member, or delete the party. Deleting erases its chat and Codex for good.",
+  },
+  {
     title: "Open the Tome",
     body: "Sign in with email or Google, make or join a party with its 6-character code, and pick the Sage's voice. These tips stay here.",
   },

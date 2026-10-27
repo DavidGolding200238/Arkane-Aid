@@ -1,1 +1,1 @@
-export type AppScreen = "home" | "sage" | "codex" | "ledger" | "settings" | "create" | "join";
+export type AppScreen = "home" | "sage" | "codex" | "ledger" | "retired" | "settings" | "create" | "join";
