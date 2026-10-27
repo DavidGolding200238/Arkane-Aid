@@ -1,9 +1,9 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
-import { errorText } from "./parties";
+import { archiveRpcError, errorText } from "./parties";
 import { type Spell, type Weapon, spellLine, suggestedToHit, weaponLine } from "./arsenal";
 import { isCustomRace } from "./sheetLists";
-import { abilityName, savesOf } from "./dice/checkRules";
+import { abilityName, hasJackOfAllTrades, savesOf } from "./dice/checkRules";
 import type { CodexEntry } from "./codex";
 
 /** What a player writes for a custom (homebrew) species. Stored as characters.race_traits. */
@@ -45,8 +45,7 @@ export type Character = {
   expertise: string[];
   /** Saving throws ticked on the sheet on top of the class's own ("str", "dex", ...). */
   save_profs: string[];
-  jack_of_all_trades: boolean;
-  /** Not a column: false while the database lacks the three above (migration 20261027000008),
+  /** Not a column: false while the database lacks the two above (migration 20261027000008),
    *  so the sheet hides their controls and the dice roll as before. */
   has_check_columns: boolean;
   str: number;
@@ -56,6 +55,11 @@ export type Character = {
   wis: number;
   cha: number;
   portrait_url: string | null;
+  /** Set when the sheet's party was left or deleted: the sheet is retired to the Archive
+   *  (party_id is then null). Null on every live sheet, and before migration 20261027000009. */
+  archived_at: string | null;
+  /** The party the retired sheet was in. */
+  archived_party_name: string | null;
 };
 
 export type Equipment = {
@@ -92,7 +96,6 @@ export type CharacterDraft = {
   skills: string[];
   expertise: string[];
   saveProfs: string[];
-  jackOfAllTrades: boolean;
   str: number;
   dex: number;
   con: number;
@@ -120,7 +123,6 @@ export const EMPTY_DRAFT: CharacterDraft = {
   skills: [],
   expertise: [],
   saveProfs: [],
-  jackOfAllTrades: false,
   str: 10,
   dex: 10,
   con: 10,
@@ -133,14 +135,14 @@ const NEW_COLUMNS_SQL =
   "Subclass, lineage and homebrew traits need the latest database update (npx supabase db push, migration 20261027000007). Everything else is saved.";
 
 const CHECK_COLUMNS_SQL =
-  "Expertise, Jack of All Trades and extra saves need the latest database update (npx supabase db push, migration 20261027000008). Everything else is saved.";
+  "Expertise and extra saves need the latest database update (npx supabase db push, migration 20261027000008). Everything else is saved.";
 
-/** Shown on the sheet in place of the Expertise, Jack of All Trades and saves controls. */
+/** Shown on the sheet in place of the Expertise and saves controls. */
 export const CHECK_COLUMNS_HINT =
-  "Expertise, Jack of All Trades and extra saves need the latest database update. Run npx supabase db push (migration 20261027000008).";
+  "Expertise and extra saves need the latest database update. Run npx supabase db push (migration 20261027000008).";
 
-/** The sheet saved, but without some fields (subclass, lineage and homebrew traits, or Expertise,
- *  Jack of All Trades and saves): the database is missing them. */
+/** The sheet saved, but without some fields (subclass, lineage and homebrew traits, or Expertise
+ *  and saves): the database is missing them. */
 export class SheetUpdateNeeded extends Error {
   saved: Character;
   constructor(saved: Character, message: string = NEW_COLUMNS_SQL) {
@@ -205,12 +207,67 @@ async function userId() {
 
 export async function loadCharacter(partyId: string | null): Promise<Character | null> {
   const uid = await userId();
-  let query = supabase.from("characters").select("*").eq("user_id", uid);
-  query = partyId ? query.eq("party_id", partyId) : query.is("party_id", null);
-  const { data, error } = await query.limit(1);
+  if (partyId) {
+    const { data, error } = await supabase.from("characters").select("*").eq("user_id", uid).eq("party_id", partyId).limit(1);
+    if (error) throw error;
+    const row = (data?.[0] as Character | undefined) ?? null;
+    return row ? readCharacter(row) : null;
+  }
+  // The no-party sheet. Retired (archived) sheets have no party either, so they're skipped here;
+  // filtered after the read so this still works before migration 20261027000009 adds the column.
+  const { data, error } = await supabase.from("characters").select("*").eq("user_id", uid).is("party_id", null);
   if (error) throw error;
-  const row = (data?.[0] as Character | undefined) ?? null;
+  const row = ((data ?? []) as Character[]).find((c) => !c.archived_at) ?? null;
   return row ? readCharacter(row) : null;
+}
+
+/** One of the user's sheets in the Archive list. partyName is the party it's in now (live sheets)
+ *  or was in (retired ones). */
+export type ArchiveSheet = { character: Character; retired: boolean; partyName: string | null };
+
+/** All of the user's sheets: live ones (in a party, or the no-party sheet) and retired ones. */
+export async function loadMySheets(): Promise<ArchiveSheet[]> {
+  const uid = await userId();
+  const { data, error } = await supabase
+    .from("characters")
+    .select("*, parties(name)")
+    .eq("user_id", uid)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as (Character & { parties?: { name: string } | null })[]).map(({ parties, ...row }) => {
+    const character = readCharacter(row as Character);
+    const retired = !!character.archived_at;
+    return { character, retired, partyName: retired ? character.archived_party_name : parties?.name ?? null };
+  });
+}
+
+/** Copies a retired sheet (with its weapons, spells, equipment and traits) into a party. */
+export async function copyFromArchive(characterId: string, partyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("copy_from_archive", { sheet: characterId, target: partyId });
+  if (error) throw archiveRpcError(error);
+  return data as string;
+}
+
+/** Deletes a retired sheet for good, and its portrait unless a copy of the sheet still shows it. */
+export async function deleteArchived(character: Character): Promise<void> {
+  const uid = await userId();
+  const { error } = await supabase.rpc("delete_archived", { sheet: character.id });
+  if (error) throw archiveRpcError(error);
+  await removePortrait(uid, character.id);
+}
+
+/** Removes a sheet's portrait file, unless another of the user's sheets (a copy from the Archive
+ *  shares its original's picture) still points at it. */
+async function removePortrait(uid: string, characterId: string) {
+  const path = `${uid}/${characterId}.jpg`;
+  const { data, error } = await supabase
+    .from("characters")
+    .select("id, portrait_url")
+    .eq("user_id", uid)
+    .neq("id", characterId);
+  if (error) return;
+  const shared = (data ?? []).some((row: { portrait_url: string | null }) => (row.portrait_url ?? "").includes(`/${path}`));
+  if (!shared) await supabase.storage.from("character-portraits").remove([path]);
 }
 
 const textList = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
@@ -233,8 +290,9 @@ function readCharacter(row: Character): Character {
     race_traits: readRaceTraits(row.race_traits),
     expertise: textList(raw.expertise),
     save_profs: textList(raw.save_profs),
-    jack_of_all_trades: raw.jack_of_all_trades === true,
-    has_check_columns: "expertise" in raw && "save_profs" in raw && "jack_of_all_trades" in raw,
+    has_check_columns: "expertise" in raw && "save_profs" in raw,
+    archived_at: typeof raw.archived_at === "string" ? raw.archived_at : null,
+    archived_party_name: typeof raw.archived_party_name === "string" ? raw.archived_party_name : null,
   };
 }
 
@@ -270,7 +328,8 @@ export type SheetData = {
   /** Proficient skills, an Expertise one marked "Stealth (expertise)". */
   skills: string[];
   /** The Expertise skills, the saving throw proficiencies (class and ticked, "Dexterity") and Jack
-   *  of All Trades. The skills and traits lists carry the same facts for servers that skip these. */
+   *  of All Trades (a Bard from level 2). The skills and traits lists carry the same facts for servers
+   *  that skip these. */
   expertise: string[];
   saves: string[];
   jack_of_all_trades: boolean;
@@ -344,11 +403,12 @@ function saveNames(character: Character) {
   return savesOf(character).map(abilityName);
 }
 
-/** Jack of All Trades and the saves, as two short trait lines the Sage's sheet checker lists. */
+/** Jack of All Trades (a Bard from level 2) and the saves, as two short trait lines the Sage's sheet
+ *  checker lists. */
 function rollTraits(character: Character) {
   const saves = saveNames(character);
   return [
-    character.jack_of_all_trades ? "Jack of All Trades" : "",
+    hasJackOfAllTrades(character) ? "Jack of All Trades" : "",
     saves.length
       ? `Saving throw proficiencies: ${(saves.length > 2 ? saves.map((n) => n.slice(0, 3).toUpperCase()) : saves).join(" and ")}`
       : "",
@@ -383,7 +443,7 @@ export function sheetData(
     skills: skillList(character),
     expertise: character.expertise.filter((skill) => character.skills.includes(skill)),
     saves: saveNames(character),
-    jack_of_all_trades: character.jack_of_all_trades,
+    jack_of_all_trades: hasJackOfAllTrades(character),
     languages: clip(lines(character.languages), 200),
     features: clip(lines(character.features), 800),
     traits: [
@@ -497,7 +557,6 @@ export async function saveCharacter(
     skills: draft.skills,
     expertise: draft.expertise.filter((skill) => draft.skills.includes(skill)),
     save_profs: draft.saveProfs,
-    jack_of_all_trades: draft.jackOfAllTrades,
     str: draft.str,
     dex: draft.dex,
     con: draft.con,
@@ -523,11 +582,11 @@ export async function saveCharacter(
     return readCharacter(data as Character);
   };
 
-  // A sheet loaded from a database without the Expertise, saves and Jack of All Trades columns
+  // A sheet loaded from a database without the Expertise and saves columns
   // never sends them (their controls are hidden), so its saves stay quiet as before.
   const values: Record<string, unknown> = { ...row };
   if (existing && !existing.has_check_columns) for (const key of CHECK_COLUMNS) delete values[key];
-  const touchedChecks = draft.expertise.length > 0 || draft.saveProfs.length > 0 || draft.jackOfAllTrades;
+  const touchedChecks = draft.expertise.length > 0 || draft.saveProfs.length > 0;
 
   // Before migrations 20261027000007 and ...08 their columns are missing: save the rest so no
   // edit is lost, then say what is missing.
@@ -545,7 +604,7 @@ export async function saveCharacter(
         missing.push(NEW_COLUMNS_SQL);
         continue;
       }
-      if (/expertise|save_profs|jack_of_all_trades/.test(message) && "expertise" in values) {
+      if (/expertise|save_profs/.test(message) && "expertise" in values) {
         for (const key of CHECK_COLUMNS) delete values[key];
         if (touchedChecks) missing.push(CHECK_COLUMNS_SQL);
         continue;
@@ -555,7 +614,7 @@ export async function saveCharacter(
   }
 }
 
-const CHECK_COLUMNS = ["expertise", "save_profs", "jack_of_all_trades"];
+const CHECK_COLUMNS = ["expertise", "save_profs"];
 
 function mapSaveError(err: unknown) {
   const message = String(errorText(err)).toLowerCase();
@@ -570,7 +629,7 @@ function mapSaveError(err: unknown) {
 
 export async function deleteCharacter(character: Character): Promise<void> {
   const uid = await userId();
-  await supabase.storage.from("character-portraits").remove([`${uid}/${character.id}.jpg`]);
+  await removePortrait(uid, character.id);
   const { error } = await supabase.from("characters").delete().eq("id", character.id);
   if (error) throw error;
 }

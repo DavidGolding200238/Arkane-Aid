@@ -42,6 +42,35 @@ export async function joinParty(code: string): Promise<Party> {
   return data as Party;
 }
 
+const ARCHIVE_SQL = "This needs the latest database update. Run npx supabase db push (migration 20261027000009).";
+
+/** An RPC from migration 20261027000009 that the database doesn't have yet gets a plain explanation. */
+export function archiveRpcError(err: unknown) {
+  const message = errorText(err);
+  return /could not find the function|does not exist/i.test(message) ? new Error(ARCHIVE_SQL) : err;
+}
+
+async function partyRpc(name: string, args: Record<string, string>) {
+  const { error } = await supabase.rpc(name, args);
+  if (error) throw archiveRpcError(error);
+}
+
+/** A player leaves: their sheet in the party moves to their Archive. The DM can't leave. */
+export function leaveParty(partyId: string) {
+  return partyRpc("leave_party", { target: partyId });
+}
+
+/** The DM hands the party to another member, who becomes the DM. */
+export function transferDm(partyId: string, newDm: string) {
+  return partyRpc("transfer_dm", { target: partyId, new_dm: newDm });
+}
+
+/** The DM deletes the party: every sheet in it moves to its owner's Archive, then the party,
+ *  its chat and its Codex are deleted. */
+export function deleteParty(partyId: string) {
+  return partyRpc("delete_party", { target: partyId });
+}
+
 export type Seat = {
   user_id: string;
   role: MemberRole;
