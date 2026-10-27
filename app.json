@@ -14,8 +14,12 @@
         "backgroundColor": "#E8D7B8"
       },
       "package": "za.co.openwindow.arkaneaid",
+      "permissions": [
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ],
       "blockedPermissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "plugins": [
@@ -33,10 +37,16 @@
         }
       ],
       [
+        "expo-sensors",
+        {
+          "motionPermission": "Arkane Aid uses motion so you can shake your phone to roll dice."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
-            "extraProguardRules": "-keep class expo.modules.gl.** { *; }"
+            "extraProguardRules": "-keep class expo.modules.gl.** { *; }\n-keep class expo.modules.sensors.** { *; }"
           }
         }
       ]
