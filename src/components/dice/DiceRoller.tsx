@@ -3,23 +3,19 @@ import { Animated, Modal, Pressable, StyleSheet, Text, useAnimatedValue, View } 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import NoteSheet from "../NoteSheet";
-import { Flourish, HOLDER_FILL, INK_DARK, INK_RADIUS, InkButton, InkCross, InkOutline, InkRing } from "../Ink";
-import DiceCanvas from "./DiceCanvas";
+import { Flourish, HOLDER_FILL, INK_DARK, INK_RADIUS, InkButton, InkCross, InkOutline, InkRing, InkStroke } from "../Ink";
+import CheckRoll from "./CheckRoll";
+import DiceTray from "./DiceTray";
 import { tapHaptic } from "../../lib/haptics";
 import { DIE_SIDES, type DieSides } from "../../lib/dice/dicePolyhedra";
 import { canUseAdvantage, formatRoll, MAX_PER_DIE, rollPool, type RollMode, type RollResult } from "../../lib/dice/diceRoll";
 import { DiceStage, MAX_SHOWN, type StageDie } from "../../lib/dice/diceStage";
 import { landHaptic, nat1Haptic, nat20Haptic, rattleHaptic } from "../../lib/dice/diceHaptics";
 import { useShake } from "../../lib/dice/useShake";
-import { colors, fonts, inkText, radius, useScale } from "../../theme";
+import { colors, fonts, inkText, useScale } from "../../theme";
 
 const MIN_BONUS = -20;
 const MAX_BONUS_UI = 30;
-const TRAY_BG = "#1C130B";
-/** Gap between the tray and the inked line drawn round it on the paper, in design dp. */
-const TRAY_FRAME = 4;
-/** The tray's own minimum height in dp. */
-const TRAY_MIN = 160;
 
 type Setup = { sides: DieSides; count: number; bonus: number; mode: RollMode };
 
@@ -27,6 +23,15 @@ type Setup = { sides: DieSides; count: number; bonus: number; mode: RollMode };
 let lastSetup: Setup = { sides: 20, count: 1, bonus: 0, mode: "normal" };
 
 type Props = { visible: boolean; onClose: () => void };
+
+type Tab = "check" | "free";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "check", label: "Check" },
+  { key: "free", label: "Free roll" },
+];
+
+// The tab you were on, so reopening the pop-up keeps it (until the app restarts). Check comes first.
+let lastTab: Tab = "check";
 
 /** The dice pop-up. Its contents (and the GL context) only exist while it is open. */
 export default function DiceRoller({ visible, onClose }: Props) {
@@ -50,11 +55,70 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
   const sheetPad = s(12);
   // The Roll button spans the sheet's inner width (backdrop and sheet padding taken off).
   const rollW = width - insets.left - insets.right - s(20) - sheetPad * 2;
-  const trayRadius = s(radius.panel * 2);
+  const [tab, setTab] = useState<Tab>(lastTab);
+  useEffect(() => {
+    lastTab = tab;
+  }, [tab]);
+
+  return (
+    <View style={[styles.backdrop, { paddingTop: insets.top + s(10), paddingBottom: insets.bottom + s(10), paddingLeft: insets.left + s(10), paddingRight: insets.right + s(10) }]}>
+      <View style={[styles.sheet, { padding: sheetPad }]}>
+        <NoteSheet seed={71} />
+        <View style={styles.header}>
+          <View style={[styles.tabs, { gap: s(18) }]} accessibilityRole="tablist">
+            {TABS.map((item) => {
+              const on = item.key === tab;
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => {
+                    if (on) return;
+                    tapHaptic();
+                    setTab(item.key);
+                  }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected: on }}
+                  hitSlop={8}
+                  style={[styles.tab, { height: s(34) }]}
+                >
+                  <Text style={[styles.tabText, { fontSize: fs(17) }, on ? styles.tabTextOn : null]}>{item.label}</Text>
+                  <View style={{ alignSelf: "stretch", opacity: on ? 1 : 0 }}>
+                    <InkStroke color={colors.wordmark} seed={item.key === "check" ? 5 : 9} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable
+            onPress={() => {
+              tapHaptic();
+              onClose();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Close dice"
+            hitSlop={12}
+            style={({ pressed }) => [styles.round, { width: s(34), height: s(34), opacity: pressed ? 0.6 : 1 }]}
+          >
+            <View style={styles.ring} pointerEvents="none">
+              <InkRing size={s(34)} seed={17} dots={false} />
+            </View>
+            <InkCross size={s(14)} color={INK_DARK} seed={7} />
+          </Pressable>
+        </View>
+        {/* Only the open tab exists, with its own tray (and GL view). */}
+        {tab === "check" ? <CheckRoll rollW={rollW} /> : <FreeRoll rollW={rollW} />}
+      </View>
+    </View>
+  );
+}
+
+/** The free roller: any dice, a bonus, advantage on a single d20. */
+function FreeRoll({ rollW }: { rollW: number }) {
+  const { s, fs } = useScale();
   const [setup, setSetupState] = useState<Setup>(lastSetup);
   const [result, setResult] = useState<RollResult | null>(null);
   const [rolling, setRolling] = useState(false);
-  const [trayReady, setTrayReady] = useState(false);
   const [stage] = useState(() => new DiceStage());
   const pending = useRef<RollResult | null>(null);
   const flash = useAnimatedValue(0);
@@ -151,50 +215,14 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
   const total = result ? result.dice.length : setup.count + (mode === "normal" ? 0 : 1);
 
   return (
-    <View style={[styles.backdrop, { paddingTop: insets.top + s(10), paddingBottom: insets.bottom + s(10), paddingLeft: insets.left + s(10), paddingRight: insets.right + s(10) }]}>
-      <View style={[styles.sheet, { padding: sheetPad }]}>
-        <NoteSheet seed={71} />
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => {
-              tapHaptic();
-              onClose();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Close dice"
-            hitSlop={12}
-            style={({ pressed }) => [styles.round, { width: s(34), height: s(34), opacity: pressed ? 0.6 : 1 }]}
-          >
-            <View style={styles.ring} pointerEvents="none">
-              <InkRing size={s(34)} seed={17} dots={false} />
-            </View>
-            <InkCross size={s(14)} color={INK_DARK} seed={7} />
-          </Pressable>
-        </View>
-
-        {/* The dark tray sits inside a hand-inked line on the paper; the line never takes touches or changes the tray's size. */}
-        <View style={[styles.trayFrame, { marginTop: s(8), padding: s(TRAY_FRAME), minHeight: TRAY_MIN + s(TRAY_FRAME) * 2 }]}>
-          <InkOutline seed={73} radius={trayRadius + s(TRAY_FRAME)} />
-          <View
-            style={[styles.tray, { borderRadius: trayRadius, borderColor: nat === 20 ? colors.gold : colors.panelStroke, borderWidth: nat === 20 ? 3 : 1.5, padding: nat === 20 ? 0 : 1.5 }]}
-            onLayout={(e) => {
-              if (e.nativeEvent.layout.width > 0 && e.nativeEvent.layout.height > 0) setTrayReady(true);
-            }}
-          >
-            {trayReady ? <DiceCanvas stage={stage} /> : null}
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, opacity: flash }]} />
-            {total > MAX_SHOWN ? (
-              <Text pointerEvents="none" style={[styles.trayNote, { top: s(8), fontSize: fs(12) }]}>
-                Showing {MAX_SHOWN} of {total} dice · all are counted
-              </Text>
-            ) : null}
-            {!rolling && !result ? (
-              <Text pointerEvents="none" style={[styles.trayNote, { bottom: s(8), fontSize: fs(12) }]}>
-                Shake your phone or tap Roll
-              </Text>
-            ) : null}
-          </View>
-        </View>
+    <>
+        <DiceTray
+          stage={stage}
+          gold={nat === 20}
+          flash={flash}
+          topNote={total > MAX_SHOWN ? `Showing ${MAX_SHOWN} of ${total} dice · all are counted` : null}
+          bottomNote={!rolling && !result ? "Shake your phone or tap Roll" : null}
+        />
 
         <View style={[styles.result, { height: s(122), marginTop: s(8) }]} accessibilityLiveRegion="polite">
           {text && result ? (
@@ -290,8 +318,7 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
         <View style={{ marginTop: s(12) }}>
           <InkButton label={rolling ? "Rolling…" : "Roll"} variant="red" width={rollW} height={s(44)} seed={77} onPress={roll} disabled={rolling} />
         </View>
-      </View>
-    </View>
+    </>
   );
 }
 
@@ -348,13 +375,14 @@ function Stepper({
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(26,24,22,0.72)" },
   sheet: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  tabs: { flexDirection: "row", alignItems: "flex-end", paddingLeft: 4 },
+  tab: { justifyContent: "flex-end" },
+  tabText: { fontFamily: fonts.headingBold, color: colors.muted, textAlign: "center" },
+  tabTextOn: { color: colors.wordmark, ...inkText.red },
   // Close and stepper buttons: a hand-inked ring with the mark centred in it.
   round: { alignItems: "center", justifyContent: "center" },
   ring: { position: "absolute", top: 0, left: 0 },
-  trayFrame: { flex: 1 },
-  tray: { flex: 1, minHeight: TRAY_MIN, overflow: "hidden", backgroundColor: TRAY_BG },
-  trayNote: { position: "absolute", left: 0, right: 0, textAlign: "center", color: colors.panel, fontFamily: fonts.body, opacity: 0.8 },
   result: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
   total: { fontFamily: fonts.title, textAlign: "center", ...inkText.heading },
   expression: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center" },
