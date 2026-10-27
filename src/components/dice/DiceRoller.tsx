@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Modal, Pressable, StyleSheet, Text, useAnimatedValue, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import ThemedButton from "../ThemedButton";
+import NoteSheet from "../NoteSheet";
+import { Flourish, HOLDER_FILL, INK_DARK, INK_RADIUS, InkButton, InkCross, InkOutline, InkRing } from "../Ink";
 import DiceCanvas from "./DiceCanvas";
 import { tapHaptic } from "../../lib/haptics";
 import { DIE_SIDES, type DieSides } from "../../lib/dice/dicePolyhedra";
@@ -10,11 +11,15 @@ import { canUseAdvantage, formatRoll, MAX_PER_DIE, rollPool, type RollMode, type
 import { DiceStage, MAX_SHOWN, type StageDie } from "../../lib/dice/diceStage";
 import { landHaptic, nat1Haptic, nat20Haptic, rattleHaptic } from "../../lib/dice/diceHaptics";
 import { useShake } from "../../lib/dice/useShake";
-import { colors, fonts, radius, useScale } from "../../theme";
+import { colors, fonts, inkText, radius, useScale } from "../../theme";
 
 const MIN_BONUS = -20;
 const MAX_BONUS_UI = 30;
 const TRAY_BG = "#1C130B";
+/** Gap between the tray and the inked line drawn round it on the paper, in design dp. */
+const TRAY_FRAME = 4;
+/** The tray's own minimum height in dp. */
+const TRAY_MIN = 160;
 
 type Setup = { sides: DieSides; count: number; bonus: number; mode: RollMode };
 
@@ -40,8 +45,12 @@ export default function DiceRoller({ visible, onClose }: Props) {
 }
 
 function RollerSheet({ onClose }: { onClose: () => void }) {
-  const { s, fs } = useScale();
+  const { s, fs, width } = useScale();
   const insets = useSafeAreaInsets();
+  const sheetPad = s(12);
+  // The Roll button spans the sheet's inner width (backdrop and sheet padding taken off).
+  const rollW = width - insets.left - insets.right - s(20) - sheetPad * 2;
+  const trayRadius = s(radius.panel * 2);
   const [setup, setSetupState] = useState<Setup>(lastSetup);
   const [result, setResult] = useState<RollResult | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -143,11 +152,9 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <View style={[styles.backdrop, { paddingTop: insets.top + s(10), paddingBottom: insets.bottom + s(10), paddingLeft: insets.left + s(10), paddingRight: insets.right + s(10) }]}>
-      <View style={[styles.sheet, { borderRadius: s(radius.panel * 2), padding: s(12) }]}>
+      <View style={[styles.sheet, { padding: sheetPad }]}>
+        <NoteSheet seed={71} />
         <View style={styles.header}>
-          <Text style={[styles.title, { fontSize: fs(22) }]} accessibilityRole="header">
-            Dice
-          </Text>
           <Pressable
             onPress={() => {
               tapHaptic();
@@ -156,39 +163,51 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
             accessibilityRole="button"
             accessibilityLabel="Close dice"
             hitSlop={12}
-            style={({ pressed }) => [styles.close, { width: s(34), height: s(34), borderRadius: s(17), opacity: pressed ? 0.6 : 1 }]}
+            style={({ pressed }) => [styles.round, { width: s(34), height: s(34), opacity: pressed ? 0.6 : 1 }]}
           >
-            <Text style={[styles.closeText, { fontSize: fs(18) }]}>✕</Text>
+            <View style={styles.ring} pointerEvents="none">
+              <InkRing size={s(34)} seed={17} dots={false} />
+            </View>
+            <InkCross size={s(14)} color={INK_DARK} seed={7} />
           </Pressable>
         </View>
 
-        <View
-          style={[styles.tray, { borderRadius: s(radius.panel * 2), marginTop: s(8), borderColor: nat === 20 ? colors.gold : colors.panelStroke, borderWidth: nat === 20 ? 3 : 1.5, padding: nat === 20 ? 0 : 1.5 }]}
-          onLayout={(e) => {
-            if (e.nativeEvent.layout.width > 0 && e.nativeEvent.layout.height > 0) setTrayReady(true);
-          }}
-        >
-          {trayReady ? <DiceCanvas stage={stage} /> : null}
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, opacity: flash }]} />
-          {total > MAX_SHOWN ? (
-            <Text pointerEvents="none" style={[styles.trayNote, { top: s(8), fontSize: fs(12) }]}>
-              Showing {MAX_SHOWN} of {total} dice · all are counted
-            </Text>
-          ) : null}
-          {!rolling && !result ? (
-            <Text pointerEvents="none" style={[styles.trayNote, { bottom: s(8), fontSize: fs(12) }]}>
-              Shake your phone or tap Roll
-            </Text>
-          ) : null}
+        {/* The dark tray sits inside a hand-inked line on the paper; the line never takes touches or changes the tray's size. */}
+        <View style={[styles.trayFrame, { marginTop: s(8), padding: s(TRAY_FRAME), minHeight: TRAY_MIN + s(TRAY_FRAME) * 2 }]}>
+          <InkOutline seed={73} radius={trayRadius + s(TRAY_FRAME)} />
+          <View
+            style={[styles.tray, { borderRadius: trayRadius, borderColor: nat === 20 ? colors.gold : colors.panelStroke, borderWidth: nat === 20 ? 3 : 1.5, padding: nat === 20 ? 0 : 1.5 }]}
+            onLayout={(e) => {
+              if (e.nativeEvent.layout.width > 0 && e.nativeEvent.layout.height > 0) setTrayReady(true);
+            }}
+          >
+            {trayReady ? <DiceCanvas stage={stage} /> : null}
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, opacity: flash }]} />
+            {total > MAX_SHOWN ? (
+              <Text pointerEvents="none" style={[styles.trayNote, { top: s(8), fontSize: fs(12) }]}>
+                Showing {MAX_SHOWN} of {total} dice · all are counted
+              </Text>
+            ) : null}
+            {!rolling && !result ? (
+              <Text pointerEvents="none" style={[styles.trayNote, { bottom: s(8), fontSize: fs(12) }]}>
+                Shake your phone or tap Roll
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         <View style={[styles.result, { height: s(122), marginTop: s(8) }]} accessibilityLiveRegion="polite">
           {text && result ? (
             <>
-              <Text style={[styles.total, { fontSize: fs(40), color: nat === 20 ? colors.gold : nat === 1 ? colors.wordmark : colors.ink }]}>
+              <Text
+                style={[styles.total, { fontSize: fs(30), lineHeight: fs(36), color: nat === 20 ? colors.gold : nat === 1 ? colors.wordmark : colors.ink }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {result.total}
                 {nat === 20 ? "  Natural 20!" : nat === 1 ? "  Natural 1" : ""}
               </Text>
+              <Flourish width={s(40)} color={colors.cardStroke} />
               <Text style={[styles.expression, { fontSize: fs(15) }]} numberOfLines={1} adjustsFontSizeToFit>
                 {text.expression} = {result.total}
               </Text>
@@ -204,7 +223,7 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
         </View>
 
         <View style={[styles.chips, { marginTop: s(6), gap: s(6) }]}>
-          {DIE_SIDES.map((sides) => {
+          {DIE_SIDES.map((sides, i) => {
             const on = sides === setup.sides;
             return (
               <Pressable
@@ -217,8 +236,9 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
                 accessibilityRole="button"
                 accessibilityState={{ selected: on, disabled: rolling }}
                 accessibilityLabel={`d${sides}`}
-                style={[styles.chip, { height: s(38), borderRadius: s(radius.button) }, on && styles.chipOn]}
+                style={[styles.chip, { height: s(38) }]}
               >
+                <InkOutline seed={80 + i} radius={s(INK_RADIUS)} fill={on ? INK_DARK : HOLDER_FILL} />
                 <Text style={[styles.chipText, { fontSize: fs(15) }, on && styles.chipTextOn]}>d{sides}</Text>
               </Pressable>
             );
@@ -242,8 +262,8 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
           />
         </View>
 
-        <View style={[styles.segment, { marginTop: s(10), borderRadius: s(radius.button), opacity: advantageAllowed ? 1 : 0.45 }]}>
-          {(["disadvantage", "normal", "advantage"] as const).map((m) => {
+        <View style={[styles.segment, { marginTop: s(10), gap: s(6), opacity: advantageAllowed ? 1 : 0.45 }]}>
+          {(["disadvantage", "normal", "advantage"] as const).map((m, i) => {
             const on = mode === m;
             return (
               <Pressable
@@ -256,8 +276,9 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
                 accessibilityRole="button"
                 accessibilityState={{ selected: on, disabled: !advantageAllowed || rolling }}
                 accessibilityHint={advantageAllowed ? undefined : "Only for a single d20"}
-                style={[styles.segmentItem, { height: s(34) }, on && styles.segmentOn]}
+                style={[styles.segmentItem, { height: s(34), paddingHorizontal: s(4) }]}
               >
+                <InkOutline seed={90 + i} radius={s(INK_RADIUS)} fill={on ? INK_DARK : HOLDER_FILL} />
                 <Text style={[styles.segmentText, { fontSize: fs(13) }, on && styles.chipTextOn]} numberOfLines={1} adjustsFontSizeToFit>
                   {m === "disadvantage" ? "Disadvantage" : m === "normal" ? "Normal" : "Advantage"}
                 </Text>
@@ -266,7 +287,9 @@ function RollerSheet({ onClose }: { onClose: () => void }) {
           })}
         </View>
 
-        <ThemedButton label={rolling ? "Rolling…" : "Roll"} onPress={roll} disabled={rolling} style={{ marginTop: s(12) }} />
+        <View style={{ marginTop: s(12) }}>
+          <InkButton label={rolling ? "Rolling…" : "Roll"} variant="red" width={rollW} height={s(44)} seed={77} onPress={roll} disabled={rolling} />
+        </View>
       </View>
     </View>
   );
@@ -286,6 +309,7 @@ function Stepper({
   onPlus?: () => void;
 }) {
   const { s, fs } = useScale();
+  const ring = s(36);
   const button = (sign: "−" | "+", action?: () => void) => (
     <Pressable
       onPress={() => {
@@ -298,17 +322,21 @@ function Stepper({
       accessibilityLabel={`${sign === "+" ? "More" : "Less"} ${label.toLowerCase()}`}
       hitSlop={6}
       style={({ pressed }) => [
-        styles.stepButton,
-        { width: s(36), height: s(36), borderRadius: s(radius.button), opacity: disabled || !action ? 0.35 : pressed ? 0.6 : 1 },
+        styles.round,
+        { width: ring, height: ring, opacity: disabled || !action ? 0.35 : pressed ? 0.6 : 1 },
       ]}
     >
+      <View style={styles.ring} pointerEvents="none">
+        <InkRing size={ring} seed={sign === "+" ? 19 : 23} dots={false} />
+      </View>
       <Text style={[styles.stepSign, { fontSize: fs(20) }]}>{sign}</Text>
     </Pressable>
   );
   return (
-    <View style={[styles.stepper, { borderRadius: s(radius.button), paddingHorizontal: s(6), paddingVertical: s(4) }]}>
+    <View style={[styles.stepper, { gap: s(4) }]}>
       {button("−", onMinus)}
-      <View style={styles.stepMiddle} accessible accessibilityLabel={`${label} ${value}`}>
+      <View style={[styles.stepMiddle, { height: s(44) }]} accessible accessibilityLabel={`${label} ${value}`}>
+        <InkOutline seed={label.length + 50} radius={s(INK_RADIUS)} fill={HOLDER_FILL} />
         <Text style={[styles.stepLabel, { fontSize: fs(11) }]}>{label.toUpperCase()}</Text>
         <Text style={[styles.stepValue, { fontSize: fs(20) }]}>{value}</Text>
       </View>
@@ -319,31 +347,29 @@ function Stepper({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(26,24,22,0.72)" },
-  sheet: { flex: 1, backgroundColor: colors.wash, borderWidth: 1.5, borderColor: colors.panelStroke },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontFamily: fonts.title, color: colors.ink },
-  close: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.panelStroke, backgroundColor: colors.panel },
-  closeText: { color: colors.ink, fontFamily: fonts.headingBold },
-  tray: { flex: 1, minHeight: 160, overflow: "hidden", backgroundColor: TRAY_BG },
+  sheet: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
+  // Close and stepper buttons: a hand-inked ring with the mark centred in it.
+  round: { alignItems: "center", justifyContent: "center" },
+  ring: { position: "absolute", top: 0, left: 0 },
+  trayFrame: { flex: 1 },
+  tray: { flex: 1, minHeight: TRAY_MIN, overflow: "hidden", backgroundColor: TRAY_BG },
   trayNote: { position: "absolute", left: 0, right: 0, textAlign: "center", color: colors.panel, fontFamily: fonts.body, opacity: 0.8 },
   result: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  total: { fontFamily: fonts.stat, textAlign: "center" },
+  total: { fontFamily: fonts.title, textAlign: "center", ...inkText.heading },
   expression: { fontFamily: fonts.headingBold, color: colors.ink, textAlign: "center" },
   breakdown: { fontFamily: fonts.body, color: colors.muted, textAlign: "center" },
   chips: { flexDirection: "row" },
-  chip: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.panelStroke, backgroundColor: colors.panel },
-  chipOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chip: { flex: 1, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: fonts.headingBold, color: colors.ink },
   chipTextOn: { color: colors.cream },
   steppers: { flexDirection: "row" },
-  stepper: { flex: 1, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.panelStroke, backgroundColor: colors.panel },
-  stepButton: { alignItems: "center", justifyContent: "center", backgroundColor: colors.wash },
+  stepper: { flex: 1, flexDirection: "row", alignItems: "center" },
   stepSign: { fontFamily: fonts.headingBold, color: colors.ink },
-  stepMiddle: { flex: 1, alignItems: "center" },
+  stepMiddle: { flex: 1, alignItems: "center", justifyContent: "center" },
   stepLabel: { fontFamily: fonts.headingBold, color: colors.muted, letterSpacing: 1 },
   stepValue: { fontFamily: fonts.stat, color: colors.ink },
-  segment: { flexDirection: "row", overflow: "hidden", borderWidth: 1, borderColor: colors.panelStroke, backgroundColor: colors.panel },
-  segmentItem: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  segmentOn: { backgroundColor: colors.ink },
+  segment: { flexDirection: "row" },
+  segmentItem: { flex: 1, alignItems: "center", justifyContent: "center" },
   segmentText: { fontFamily: fonts.headingBold, color: colors.ink },
 });
