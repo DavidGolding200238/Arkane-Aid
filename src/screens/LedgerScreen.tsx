@@ -19,6 +19,7 @@ import { useParty } from "../context/PartyContext";
 import {
   addEquipment,
   addTrait,
+  CHECK_COLUMNS_HINT,
   deleteCharacter,
   EMPTY_DRAFT,
   EMPTY_RACE_TRAITS,
@@ -36,6 +37,7 @@ import {
   type RaceTraits,
   type Trait,
 } from "../lib/character";
+import { ABILITIES, classSaves, type AbilityKey } from "../lib/dice/checkRules";
 import { errorText } from "../lib/parties";
 import { SheetAutosave, type SaveStatus } from "../lib/sheetAutosave";
 import type { AppScreen } from "../navigation/screens";
@@ -242,6 +244,9 @@ function draftFrom(row: Character | null): CharacterDraft {
     languages: row.languages ?? "",
     features: row.features ?? "",
     skills: row.skills ?? [],
+    expertise: row.expertise ?? [],
+    saveProfs: row.save_profs ?? [],
+    jackOfAllTrades: row.jack_of_all_trades ?? false,
     str: row.str,
     dex: row.dex,
     con: row.con,
@@ -354,7 +359,23 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
       return {
         ...current,
         skills: on ? current.skills.filter((item) => item !== skill) : [...current.skills, skill],
+        // Expertise needs the proficiency: dropping the skill drops it too.
+        expertise: on ? current.expertise.filter((item) => item !== skill) : current.expertise,
       };
+    });
+  };
+
+  const toggleExpertise = (skill: string) => {
+    update((current) => {
+      const on = current.expertise.includes(skill);
+      return { ...current, expertise: on ? current.expertise.filter((item) => item !== skill) : [...current.expertise, skill] };
+    });
+  };
+
+  const toggleSave = (key: AbilityKey) => {
+    update((current) => {
+      const on = current.saveProfs.includes(key);
+      return { ...current, saveProfs: on ? current.saveProfs.filter((item) => item !== key) : [...current.saveProfs, key] };
     });
   };
 
@@ -519,6 +540,11 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
   const storyLine = fs(22);
   const listLine = fs(26);
   const storyText: StyleProp<TextStyle> = [styles.story, { fontSize: fs(15), lineHeight: storyLine }];
+  // The Expertise, Jack of All Trades and saves controls show once the database has their columns
+  // (a new sheet assumes it does; saveCharacter copes if not).
+  const checkColumns = row ? row.has_check_columns : true;
+  const defaultSaves = classSaves(draft.class);
+  const savesShown = ABILITIES.filter((a) => defaultSaves.includes(a.key) || draft.saveProfs.includes(a.key)).map((a) => a.short);
   const emptyText: StyleProp<TextStyle> = [styles.empty, { fontSize: fs(15) }];
 
   // Level, HP, AC, Speed and Bonus: a red caption over an inked holder you could write in.
@@ -1108,32 +1134,129 @@ export default function LedgerScreen({ onBack, onOpen }: Props) {
           <CornerOrnaments size={s(16)} inset={s(5)} />
           <SectionTitle size={fs(18)}>Skills</SectionTitle>
           {editing ? (
-            <View style={[styles.chips, { gap: s(6) }]}>
-              {SKILLS.map((skill, i) => {
-                const on = draft.skills.includes(skill);
-                return (
+            <>
+              <View style={[styles.chips, { gap: s(6) }]}>
+                {SKILLS.map((skill, i) => {
+                  const on = draft.skills.includes(skill);
+                  const expert = on && draft.expertise.includes(skill);
+                  return (
+                    <Pressable
+                      key={skill}
+                      onPress={() => toggleSkill(skill)}
+                      accessibilityRole="button"
+                      accessibilityLabel={skill}
+                      accessibilityState={{ selected: on }}
+                      style={[styles.chip, styles.chipRow, { paddingHorizontal: s(10), paddingVertical: s(5), gap: s(6) }]}
+                    >
+                      <InkOutline
+                        seed={60 + i}
+                        radius={s(INK_RADIUS)}
+                        color={on ? colors.wordmark : INK_COLOR}
+                        fill={on ? colors.primary : "rgba(254,252,235,0.7)"}
+                      />
+                      <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
+                      {/* Expertise, only on a proficient skill: its own small mark inside the chip. */}
+                      {on && checkColumns ? (
+                        <Pressable
+                          onPress={() => toggleExpertise(skill)}
+                          hitSlop={s(8)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${skill} expertise`}
+                          accessibilityState={{ selected: expert }}
+                          style={[styles.expertMark, { width: s(18), height: s(18) }]}
+                        >
+                          {expert ? (
+                            <View style={[StyleSheet.absoluteFill, { borderRadius: s(9), margin: s(2), backgroundColor: colors.cream }]} />
+                          ) : null}
+                          <View style={StyleSheet.absoluteFill}>
+                            <InkRing size={s(18)} color={colors.cream} seed={80 + i} dots={false} />
+                          </View>
+                          <Text style={[styles.expertLetter, { fontSize: fs(10), color: expert ? colors.primary : colors.cream }]}>E</Text>
+                        </Pressable>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {checkColumns ? (
+                <>
+                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
+                    Tap E on a proficient skill for Expertise (double Proficiency Bonus).
+                  </Text>
                   <Pressable
-                    key={skill}
-                    onPress={() => toggleSkill(skill)}
-                    style={[styles.chip, { paddingHorizontal: s(10), paddingVertical: s(5) }]}
+                    onPress={() => update((current) => ({ ...current, jackOfAllTrades: !current.jackOfAllTrades }))}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel="Jack of All Trades"
+                    accessibilityState={{ checked: draft.jackOfAllTrades }}
+                    style={[styles.checkRow, { marginTop: s(12), gap: s(8), minHeight: s(32) }]}
                   >
-                    <InkOutline
-                      seed={60 + i}
-                      radius={s(INK_RADIUS)}
-                      color={on ? colors.wordmark : INK_COLOR}
-                      fill={on ? colors.primary : "rgba(254,252,235,0.7)"}
-                    />
-                    <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{skill}</Text>
+                    <View style={{ width: s(20), height: s(20), alignItems: "center", justifyContent: "center" }}>
+                      <InkOutline
+                        seed={97}
+                        radius={s(INK_RADIUS)}
+                        color={draft.jackOfAllTrades ? colors.wordmark : INK_COLOR}
+                        fill={draft.jackOfAllTrades ? colors.primary : "rgba(254,252,235,0.7)"}
+                      />
+                      {draft.jackOfAllTrades ? <Text style={[styles.checkMark, { fontSize: fs(14) }]}>{"\u2713"}</Text> : null}
+                    </View>
+                    <Text style={[styles.chipText, { fontSize: fs(14), flexShrink: 1 }]}>
+                      Jack of All Trades
+                      <Text style={[styles.empty, { fontSize: fs(12) }]}> (half PB on other skills)</Text>
+                    </Text>
                   </Pressable>
-                );
-              })}
-            </View>
+                  <View style={{ marginTop: s(12) }}>
+                    <FieldLabel size={fs(13)}>Saving throws</FieldLabel>
+                  </View>
+                  <View style={[styles.chips, { gap: s(6), marginTop: s(6) }]}>
+                    {ABILITIES.map((a, i) => {
+                      const byClass = defaultSaves.includes(a.key);
+                      const on = byClass || draft.saveProfs.includes(a.key);
+                      return (
+                        <Pressable
+                          key={a.key}
+                          onPress={() => (byClass ? undefined : toggleSave(a.key))}
+                          disabled={byClass}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${a.name} save${byClass ? ", from your class" : ""}`}
+                          accessibilityState={{ selected: on, disabled: byClass }}
+                          style={[styles.chip, { paddingHorizontal: s(10), paddingVertical: s(5), minWidth: s(48), alignItems: "center" }]}
+                        >
+                          <InkOutline
+                            seed={88 + i}
+                            radius={s(INK_RADIUS)}
+                            color={on ? colors.wordmark : INK_COLOR}
+                            fill={byClass ? colors.wordmark : on ? colors.primary : "rgba(254,252,235,0.7)"}
+                          />
+                          <Text style={[styles.chipText, on && styles.chipTextOn, { fontSize: fs(13) }]}>{a.short}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(6) }]}>
+                    {defaultSaves.length
+                      ? `${draft.class.trim()} saves are marked. Tick any others you're proficient in.`
+                      : "Tick the saves you're proficient in."}
+                  </Text>
+                </>
+              ) : row ? (
+                <Text style={[styles.note, styles.noteLeft, { fontSize: fs(12), marginTop: s(8) }]}>{CHECK_COLUMNS_HINT}</Text>
+              ) : null}
+            </>
           ) : (
             <View style={{ minHeight: storyLine * 2 }}>
               <RuledLines lineHeight={storyLine} />
               <Text style={draft.skills.length === 0 ? [storyText, emptyText] : storyText}>
-                {draft.skills.length === 0 ? "None marked." : draft.skills.join(", ")}
+                {draft.skills.length === 0
+                  ? "None marked."
+                  : draft.skills.map((skill) => (draft.expertise.includes(skill) ? `${skill} (expertise)` : skill)).join(", ")}
               </Text>
+              {checkColumns && (savesShown.length || draft.jackOfAllTrades) ? (
+                <Text style={storyText}>
+                  {[savesShown.length ? `Saves: ${savesShown.join(", ")}` : "", draft.jackOfAllTrades ? "Jack of All Trades" : ""]
+                    .filter(Boolean)
+                    .join(" \u00b7 ")}
+                </Text>
+              ) : null}
             </View>
           )}
         </ParchmentPanel>
@@ -1365,6 +1488,11 @@ const styles = StyleSheet.create({
   chip: {},
   chipText: { fontFamily: fonts.heading, color: colors.ink },
   chipTextOn: { color: colors.cream },
+  chipRow: { flexDirection: "row", alignItems: "center" },
+  expertMark: { alignItems: "center", justifyContent: "center" },
+  expertLetter: { fontFamily: fonts.headingBold, includeFontPadding: false, textAlignVertical: "center" },
+  checkRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
+  checkMark: { fontFamily: fonts.headingBold, color: colors.cream, includeFontPadding: false },
   listItem: { fontFamily: fonts.heading, color: colors.ink, textAlign: "left", flexShrink: 1 },
   listRow: { flexDirection: "row", alignItems: "flex-start" },
   serifInput: { fontFamily: fonts.heading },

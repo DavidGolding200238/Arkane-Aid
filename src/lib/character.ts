@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { errorText } from "./parties";
 import { type Spell, type Weapon, spellLine, suggestedToHit, weaponLine } from "./arsenal";
 import { isCustomRace } from "./sheetLists";
+import { abilityName, savesOf } from "./dice/checkRules";
 import type { CodexEntry } from "./codex";
 
 /** What a player writes for a custom (homebrew) species. Stored as characters.race_traits. */
@@ -40,6 +41,14 @@ export type Character = {
   languages: string | null;
   features: string | null;
   skills: string[];
+  /** Proficient skills with Expertise (double Proficiency Bonus). */
+  expertise: string[];
+  /** Saving throws ticked on the sheet on top of the class's own ("str", "dex", ...). */
+  save_profs: string[];
+  jack_of_all_trades: boolean;
+  /** Not a column: false while the database lacks the three above (migration 20261027000008),
+   *  so the sheet hides their controls and the dice roll as before. */
+  has_check_columns: boolean;
   str: number;
   dex: number;
   con: number;
@@ -81,6 +90,9 @@ export type CharacterDraft = {
   languages: string;
   features: string;
   skills: string[];
+  expertise: string[];
+  saveProfs: string[];
+  jackOfAllTrades: boolean;
   str: number;
   dex: number;
   con: number;
@@ -106,6 +118,9 @@ export const EMPTY_DRAFT: CharacterDraft = {
   languages: "",
   features: "",
   skills: [],
+  expertise: [],
+  saveProfs: [],
+  jackOfAllTrades: false,
   str: 10,
   dex: 10,
   con: 10,
@@ -117,11 +132,19 @@ export const EMPTY_DRAFT: CharacterDraft = {
 const NEW_COLUMNS_SQL =
   "Subclass, lineage and homebrew traits need the latest database update (npx supabase db push, migration 20261027000007). Everything else is saved.";
 
-/** The sheet saved, but without subclass, lineage and homebrew traits: the database is missing them. */
+const CHECK_COLUMNS_SQL =
+  "Expertise, Jack of All Trades and extra saves need the latest database update (npx supabase db push, migration 20261027000008). Everything else is saved.";
+
+/** Shown on the sheet in place of the Expertise, Jack of All Trades and saves controls. */
+export const CHECK_COLUMNS_HINT =
+  "Expertise, Jack of All Trades and extra saves need the latest database update. Run npx supabase db push (migration 20261027000008).";
+
+/** The sheet saved, but without some fields (subclass, lineage and homebrew traits, or Expertise,
+ *  Jack of All Trades and saves): the database is missing them. */
 export class SheetUpdateNeeded extends Error {
   saved: Character;
-  constructor(saved: Character) {
-    super(NEW_COLUMNS_SQL);
+  constructor(saved: Character, message: string = NEW_COLUMNS_SQL) {
+    super(message);
     this.saved = saved;
   }
 }
@@ -187,7 +210,14 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
   const { data, error } = await query.limit(1);
   if (error) throw error;
   const row = (data?.[0] as Character | undefined) ?? null;
-  if (!row) return null;
+  return row ? readCharacter(row) : null;
+}
+
+const textList = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
+
+/** A characters row with defaults filled in. */
+function readCharacter(row: Character): Character {
+  const raw = row as unknown as Record<string, unknown>;
   return {
     ...row,
     level: row.level ?? 1,
@@ -201,6 +231,10 @@ export async function loadCharacter(partyId: string | null): Promise<Character |
     subclass: row.subclass ?? null,
     lineage: row.lineage ?? null,
     race_traits: readRaceTraits(row.race_traits),
+    expertise: textList(raw.expertise),
+    save_profs: textList(raw.save_profs),
+    jack_of_all_trades: raw.jack_of_all_trades === true,
+    has_check_columns: "expertise" in raw && "save_profs" in raw && "jack_of_all_trades" in raw,
   };
 }
 
@@ -233,7 +267,13 @@ export type SheetData = {
   int: number;
   wis: number;
   cha: number;
+  /** Proficient skills, an Expertise one marked "Stealth (expertise)". */
   skills: string[];
+  /** The Expertise skills, the saving throw proficiencies (class and ticked, "Dexterity") and Jack
+   *  of All Trades. The skills and traits lists carry the same facts for servers that skip these. */
+  expertise: string[];
+  saves: string[];
+  jack_of_all_trades: boolean;
   languages: string;
   features: string;
   traits: string[];
@@ -292,6 +332,29 @@ function codexLines(entries: CodexEntry[] = [], kind: "item" | "note", max: numb
     .map((e) => [clip(e.title, 40), clip(e.body, body)].filter(Boolean).join(": "));
 }
 
+/** Proficient skills, Expertise marked. */
+function skillList(character: Character) {
+  return (character.skills ?? [])
+    .slice(0, 18)
+    .map((skill) => (character.expertise.includes(skill) ? `${skill} (expertise)` : skill));
+}
+
+/** Saving throw proficiencies: the class's and the ones ticked on the sheet, as names. */
+function saveNames(character: Character) {
+  return savesOf(character).map(abilityName);
+}
+
+/** Jack of All Trades and the saves, as two short trait lines the Sage's sheet checker lists. */
+function rollTraits(character: Character) {
+  const saves = saveNames(character);
+  return [
+    character.jack_of_all_trades ? "Jack of All Trades" : "",
+    saves.length
+      ? `Saving throw proficiencies: ${(saves.length > 2 ? saves.map((n) => n.slice(0, 3).toUpperCase()) : saves).join(" and ")}`
+      : "",
+  ].filter(Boolean);
+}
+
 // Keeps one-per-line lists apart once clip folds the whitespace: "Rage\nWeapon Mastery" -> "Rage; Weapon Mastery".
 const lines = (value: string | null) => (value ?? "").replace(/\s*\n+\s*/g, "; ");
 
@@ -317,10 +380,19 @@ export function sheetData(
     int: character.int,
     wis: character.wis,
     cha: character.cha,
-    skills: (character.skills ?? []).slice(0, 18),
+    skills: skillList(character),
+    expertise: character.expertise.filter((skill) => character.skills.includes(skill)),
+    saves: saveNames(character),
+    jack_of_all_trades: character.jack_of_all_trades,
     languages: clip(lines(character.languages), 200),
     features: clip(lines(character.features), 800),
-    traits: traits.slice(0, 20).map((t) => clip(t.name, 40)).filter(Boolean),
+    traits: [
+      ...traits
+        .slice(0, 18)
+        .map((t) => clip(t.name, 40))
+        .filter(Boolean),
+      ...rollTraits(character),
+    ],
     gear: gear.slice(0, 30).map((g) => clip(g.name, 40)).filter(Boolean),
     subclass: clip(character.subclass, 40),
     lineage: clip(character.lineage, 40),
@@ -349,17 +421,21 @@ export function sheetBrief(
   const who = [name, race, klass, `L${character.level}`].filter(Boolean).join(" ");
   const combat = `AC${character.ac} SPD${character.speed} PB+${proficiencyBonus(character.level)} HP ${character.hp_current}/${character.hp_max}`;
   const stats = `STR${character.str} DEX${character.dex} CON${character.con} INT${character.int} WIS${character.wis} CHA${character.cha}`;
-  const skills = (character.skills ?? []).slice(0, 18).join(", ");
+  const skills = skillList(character).join(", ");
   const gearLine = gear
     .slice(0, 12)
     .map((item) => clip(item.name, 24))
     .filter(Boolean)
     .join(", ");
-  const traitLine = traits
-    .slice(0, 8)
-    .map((item) => clip(item.name, 24))
-    .filter(Boolean)
-    .join(", ");
+  // Jack of All Trades and the saves ride in the Traits list ("... and ..." keeps the saves one entry),
+  // which the Sage's brief reader already splits at commas.
+  const traitLine = [
+    ...traits
+      .slice(0, 8)
+      .map((item) => clip(item.name, 24))
+      .filter(Boolean),
+    ...rollTraits(character),
+  ].join(", ");
   const features = clip(lines(character.features), 200);
   const brew = homebrewOf(character);
   const homebrew = brew
@@ -419,6 +495,9 @@ export async function saveCharacter(
     languages: draft.languages.trim() || null,
     features: draft.features.trim() || null,
     skills: draft.skills,
+    expertise: draft.expertise.filter((skill) => draft.skills.includes(skill)),
+    save_profs: draft.saveProfs,
+    jack_of_all_trades: draft.jackOfAllTrades,
     str: draft.str,
     dex: draft.dex,
     con: draft.con,
@@ -437,32 +516,46 @@ export async function saveCharacter(
         .select("*")
         .single();
       if (error) throw error;
-      return data as Character;
+      return readCharacter(data as Character);
     }
     const { data, error } = await supabase.from("characters").insert(values).select("*").single();
     if (error) throw error;
-    return data as Character;
+    return readCharacter(data as Character);
   };
 
-  try {
-    return await write(row);
-  } catch (err) {
-    const message = String(errorText(err)).toLowerCase();
-    // Before migration 20261027000007 the three new columns are missing: save the rest so no
-    // edit is lost, then say what is missing.
-    if (/subclass|lineage|race_traits/.test(message)) {
-      const { subclass: _s, lineage: _l, race_traits: _r, ...rest } = row;
-      let saved: Character;
-      try {
-        saved = await write(rest);
-      } catch (inner) {
-        throw mapSaveError(inner);
+  // A sheet loaded from a database without the Expertise, saves and Jack of All Trades columns
+  // never sends them (their controls are hidden), so its saves stay quiet as before.
+  const values: Record<string, unknown> = { ...row };
+  if (existing && !existing.has_check_columns) for (const key of CHECK_COLUMNS) delete values[key];
+  const touchedChecks = draft.expertise.length > 0 || draft.saveProfs.length > 0 || draft.jackOfAllTrades;
+
+  // Before migrations 20261027000007 and ...08 their columns are missing: save the rest so no
+  // edit is lost, then say what is missing.
+  const missing: string[] = [];
+  for (;;) {
+    try {
+      const saved = await write(values);
+      if (missing.length) throw new SheetUpdateNeeded(saved, missing.join(" "));
+      return saved;
+    } catch (err) {
+      if (err instanceof SheetUpdateNeeded) throw err;
+      const message = String(errorText(err)).toLowerCase();
+      if (/subclass|lineage|race_traits/.test(message) && "subclass" in values) {
+        for (const key of ["subclass", "lineage", "race_traits"]) delete values[key];
+        missing.push(NEW_COLUMNS_SQL);
+        continue;
       }
-      throw new SheetUpdateNeeded(saved);
+      if (/expertise|save_profs|jack_of_all_trades/.test(message) && "expertise" in values) {
+        for (const key of CHECK_COLUMNS) delete values[key];
+        if (touchedChecks) missing.push(CHECK_COLUMNS_SQL);
+        continue;
+      }
+      throw mapSaveError(err);
     }
-    throw mapSaveError(err);
   }
 }
+
+const CHECK_COLUMNS = ["expertise", "save_profs", "jack_of_all_trades"];
 
 function mapSaveError(err: unknown) {
   const message = String(errorText(err)).toLowerCase();
