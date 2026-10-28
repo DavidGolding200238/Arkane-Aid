@@ -1,24 +1,12 @@
 ## Presentation Video
 
-Presentation Video: [link coming]
+Presentation Video: (https://drive.google.com/file/d/1zwqULhIgvu0XHpxz6f6p_37ssvNiHooU/view?usp=drive_link)
 
 ## Demo Video (5-8 min)
 
 Demo video: [Watch the demo on Google Drive](https://drive.google.com/file/d/1WhOxn5nw7be_SkaLnyQ1Bd_6prFuhF1H/view?usp=sharing)
 
 Slides: [Arkane Aid - Video Presentation](https://docs.google.com/presentation/d/1cUCalKMUS8J9SWF92Y96_RZ2bo5rr6p4Jv_IVCq_AoY/edit?usp=sharing)
-
-## Evidence (Supabase)
-
-Edge Function log for one Sage request (`sage: answered` with mode, model and retrieval):
-
-![Sage edge function logs](docs/evidence/sage-logs.png)
-
-A Codex note in `codex_entries`, added, then edited, then deleted from the app:
-
-![Row added](docs/evidence/db-1-added.png)
-![Row edited](docs/evidence/db-2-edited.png)
-![Row deleted](docs/evidence/db-3-deleted.png)
 
 <h1 align="center">Arkane Aid</h1>
 
