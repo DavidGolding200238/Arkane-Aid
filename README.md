@@ -4,7 +4,7 @@ Presentation Video: [link coming]
 
 ## Demo Video (5-8 min)
 
-Demo video: [link coming]
+Demo video: [Watch the demo on Google Drive](https://drive.google.com/file/d/1WhOxn5nw7be_SkaLnyQ1Bd_6prFuhF1H/view?usp=sharing)
 
 <h1 align="center">Arkane Aid</h1>
 
