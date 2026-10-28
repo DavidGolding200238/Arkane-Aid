@@ -6,7 +6,7 @@ Presentation Video: [link coming]
 
 Demo video: [Watch the demo on Google Drive](https://drive.google.com/file/d/1WhOxn5nw7be_SkaLnyQ1Bd_6prFuhF1H/view?usp=sharing)
 
-Slides: [Arkane Aid - Video Presentation](https://docs.google.com/presentation/d/1C9DBT5jKiJB14j_FOQev6kYDbpnUgAU5u3r83UCbg0U/edit?usp=sharing)
+Slides: [Arkane Aid - Video Presentation](https://docs.google.com/presentation/d/1cUCalKMUS8J9SWF92Y96_RZ2bo5rr6p4Jv_IVCq_AoY/edit?usp=sharing)
 
 ## Evidence (Supabase)
 
