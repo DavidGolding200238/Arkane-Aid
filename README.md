@@ -1,3 +1,11 @@
+## Presentation Video
+
+Presentation Video: [link coming]
+
+## Demo Video (5-8 min)
+
+Demo video: [link coming]
+
 <h1 align="center">Arkane Aid</h1>
 
 <p align="center"><img src="docs/readme-hero.png" alt="Dragon skull holding a d20" width="320" /></p>
@@ -316,6 +324,19 @@ npm run eval:answers       # asks the deployed Sage the same questions and check
 6. They tap the d20 on Home to roll.
 7. Switching party loads only that party's sheet and notes.
 
+### Architecture
+
+```mermaid
+flowchart LR
+  App[Arkane Aid app<br/>Expo / React Native] -->|sign in, PKCE| Auth[Supabase Auth]
+  App -->|parties, sheets, Codex| DB[(Postgres<br/>Row Level Security)]
+  App -->|question + session| Sage[sage Edge Function]
+  Sage -->|hybrid search| SRD[(SRD 5.2.1 chunks<br/>keyword + gte-small)]
+  Sage -->|prompt + passages| Groq[Groq LLM]
+  Groq -->|answer| Sage
+  Sage -->|answer + citations| App
+```
+
 ---
 
 ## 7. Screens
@@ -335,7 +356,7 @@ npm run eval:answers       # asks the deployed Sage the same questions and check
 
 ### Design direction
 
-Parchment, ink and torn-paper panels, with a red, blue or green fire orb that matches the Sage's voice. Cinzel Decorative for titles, Asul for headings, MedievalSharp for numbers and Atkinson Hyperlegible for body text, chosen for readability with dyslexia in mind. Layout was designed in Figma first.
+Parchment, ink and torn-paper panels, with a red, blue or green fire orb that matches the Sage's voice. Cinzel Decorative for titles, Asul for headings, MedievalSharp for numbers and Atkinson Hyperlegible for body text, chosen for readability with dyslexia in mind. Layout was designed in Figma first. The mockups and UX research are in the Figma file ARKANE-AID-DEV (Arkane Aid UX).
 
 ---
 
@@ -398,12 +419,43 @@ Active branch: Apk-Build (`main` mirrors it)
 
 ---
 
-## 11. Notes for reviewers
+## 11. Usability testing and feedback
+
+The preview APK was tested by veteran D&D players and by new players. Most of the feedback was about where the app needed to improve, not about the idea itself.
+
+| Feedback | What it meant | Change made |
+|----------|---------------|-------------|
+| The weapons and spell lists needed work | Players wanted their gear and spells on hand without typing everything out | Weapons and Spells tabs in the Codex, with SRD 5.2.1 pick lists and custom entries; spells grouped by level |
+| The dice mechanic needed improving | Rolling had to feel like real dice and use the character's numbers | 3D dice roller with shake to roll, then the Check tab that rolls skills, saves, initiative, attacks and death saves from the sheet |
+| General bugs, such as input fields behaving strangely | Typing on the sheet and login felt unreliable | Number boxes that type freely, keyboard handling fixes on Login and Sign up, and the sheet autosave |
+| Same feedback round | Missing character detail and unclear navigation | Subclass, lineage and homebrew species traits; the tab bar; first-open guidance tips |
+
+Analysis: the feedback pointed at the parts players use most during a session (their gear and spells, the dice, and typing into the sheet), so those were reworked before anything new was added. Pick lists cut down typing for new players, while custom entries keep homebrew open for veterans. Rolling from the sheet means the dice use the same numbers the Sage reads.
+
+---
+
+## 12. Notes for reviewers
 
 The best way to evaluate the app is the preview APK on an Android phone.
 
 The loop to walk is: sign up, create or join a party, fill in the Character Sheet, ask the Sage a ruling by holding the orb, scribe a note, check it in the Codex, then tap the d20 on Home and roll.
 
-## Credits
+## Acknowledgements
+
+### AI tools
+
+Grok AI and Grok Bot (an AI assistant) were used during development as coding assistants, for help writing and reviewing code, debugging, testing and documentation. I checked their output with the automated tests (Deno), code review and testing on my phone, and I can explain the code in this project.
+
+Groq is different: it is the AI service the app itself calls at runtime for the Sage and the Scribe.
+
+### Fonts
+
+Cinzel Decorative, Asul, MedievalSharp and Atkinson Hyperlegible.
+
+### Word list
+
+The Sage's spelling check uses a common English word list from SCOWL (copyright notice in `supabase/functions/_shared/words/SCOWL-COPYRIGHT.txt`).
+
+### SRD
 
 This work includes material from the System Reference Document 5.2.1 ("SRD 5.2.1") by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.
