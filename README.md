@@ -6,6 +6,20 @@ Presentation Video: [link coming]
 
 Demo video: [Watch the demo on Google Drive](https://drive.google.com/file/d/1WhOxn5nw7be_SkaLnyQ1Bd_6prFuhF1H/view?usp=sharing)
 
+Slides: [Arkane Aid - Video Presentation](https://docs.google.com/presentation/d/1aWdJFmOPtysXe4U6SdmJMBow7Z-5zwyQpItb9edo_iQ/edit?usp=sharing)
+
+## Evidence (Supabase)
+
+Edge Function log for one Sage request (`sage: answered` with mode, model and retrieval):
+
+![Sage edge function logs](docs/evidence/sage-logs.png)
+
+A Codex note in `codex_entries`, added, then edited, then deleted from the app:
+
+![Row added](docs/evidence/db-1-added.png)
+![Row edited](docs/evidence/db-2-edited.png)
+![Row deleted](docs/evidence/db-3-deleted.png)
+
 <h1 align="center">Arkane Aid</h1>
 
 <p align="center"><img src="docs/readme-hero.png" alt="Dragon skull holding a d20" width="320" /></p>
